@@ -2994,8 +2994,18 @@ function VideoRoomPage({ user }) {
     }
   };
 
+  const getSignalingUrl = () => {
+    const host = window.location.hostname;
+    const isLocal = host === 'localhost' || host === '127.0.0.1';
+    // Local dev: connect to local signaling server
+    if (isLocal) return 'ws://localhost:3001';
+    // Production: use deployed signaling server
+    // Deploy server.js to a free service (e.g. Render.com) and put the URL here:
+    return 'wss://linguaclass-signal.onrender.com';
+  };
+
   const connectToSignaling = (roomIdToUse, name, role) => {
-    const wsUrl = 'ws://localhost:3001';
+    const wsUrl = getSignalingUrl();
     let socket;
     try {
       socket = new WebSocket(wsUrl);
