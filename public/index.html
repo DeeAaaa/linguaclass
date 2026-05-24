@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="description" content="Linguaclass - Professional Online English Classroom">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Linguaclass">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="format-detection" content="telephone=no">
+
+  <!-- iOS Splash Screen -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-startup-image" href="/logo512.png">
+
+  <!-- Touch Icons -->
+  <link rel="apple-touch-icon" href="/logo192.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="/logo192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/logo192.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="/logo192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="/logo512.png">
+
+  <!-- Android Chrome Icons -->
+  <link rel="icon" type="image/png" sizes="192x192" href="/logo192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/logo512.png">
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+
+  <!-- Security Headers -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; media-src * blob:; connect-src * ws: wss: blob:;">
+
+  <title>Linguaclass - Online Classroom</title>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Image fallback for broken images -->
+  <script>
+    window.addEventListener('error', function(e) {
+      if (e.target && e.target.tagName === 'IMG') {
+        var w = e.target.naturalWidth || e.target.width || 400;
+        var h = e.target.naturalHeight || e.target.height || 250;
+        var c = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6,'0');
+        e.target.src = 'data:image/svg+xml,' + encodeURIComponent(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'">'+
+          '<rect fill="'+c+'" width="'+w+'" height="'+h+'"/>'+
+          '<text x="50%" y="50%" text-anchor="middle" fill="white" font-size="18" dy=".3em">📚 Content</text></svg>'
+        );
+      }
+    }, true);
+  </script>
+</body>
+</html>

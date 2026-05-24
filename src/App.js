@@ -1,0 +1,4108 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import './App.css';
+import { LanguageProvider, useTranslation } from './i18n/LanguageContext';
+import { createPeerConnection, addTracksToPeer, createOffer, handleOffer, handleAnswer, handleIceCandidate, closePeer } from './webrtc';
+import { supabase, signUp, signIn, signOut, getSession, signUpWithEmailOrPhone, signInWithEmailOrPhone, fetchTeachers, updateTeacher, fetchStudents, fetchContacts, saveContacts, fetchVideoRoomContacts, addVideoRoomContact, removeVideoRoomContact } from './supabase';
+
+// ============================================
+// AUTH CONTEXT
+// ============================================
+const AuthContext = React.createContext();
+
+function AuthProvider({ children }) {
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('classroom_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const login = (userData) => {
+    setUser(userData);
+    localStorage.setItem('classroom_user', JSON.stringify(userData));
+  };
+
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('classroom_user');
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+// ============================================
+// SAMPLE DATA
+// ============================================
+const SAMPLE_SCHEDULES = [
+  { id: 1, date: '2026-05-20', time: '09:00', title: 'Advanced English Grammar', subject: 'English', type: 'live', teacher: 'Dr. Sarah Mitchell' },
+  { id: 2, date: '2026-05-20', time: '11:30', title: 'Business Writing Workshop', subject: 'English', type: 'recorded', teacher: 'Prof. James Wilson' },
+  { id: 3, date: '2026-05-21', time: '10:00', title: 'Speaking Practice Session', subject: 'English', type: 'live', teacher: 'Ms. Emily Chen' },
+  { id: 4, date: '2026-05-22', time: '14:00', title: 'Academic Reading', subject: 'English', type: 'live', teacher: 'Dr. Sarah Mitchell' },
+];
+
+const SAMPLE_FILES = [
+  { id: 1, name: 'Grammar Essentials.pdf', type: 'pdf', size: '2.4 MB', date: '2026-05-15', category: 'materials' },
+  { id: 2, name: 'Business Letters Template.docx', type: 'doc', size: '156 KB', date: '2026-05-14', category: 'templates' },
+  { id: 3, name: 'Pronunciation Guide.mp4', type: 'video', size: '45 MB', date: '2026-05-13', category: 'recordings' },
+  { id: 4, name: 'Vocabulary List.xlsx', type: 'excel', size: '89 KB', date: '2026-05-12', category: 'materials' },
+];
+
+const SAMPLE_CONTACTS = [
+  { id: 1, name: 'Emma Thompson', role: 'Student', email: 'emma.t@school.edu', subject: 'English', teacher: 'Dr. Sarah Mitchell', phone: '(555) 201-0101', avatar: '👧', status: 'active', lastActive: 'Today' },
+  { id: 2, name: 'Lucas Chen', role: 'Student', email: 'lucas.c@school.edu', subject: 'Mathematics', teacher: 'Ms. Emily Chen', phone: '(555) 201-0102', avatar: '👦', status: 'active', lastActive: 'Yesterday' },
+  { id: 3, name: 'Sophia Martinez', role: 'Student', email: 'sophia.m@school.edu', subject: 'Science', teacher: 'Dr. Robert Kim', phone: '(555) 201-0103', avatar: '👧', status: 'away', lastActive: '2 days ago' },
+  { id: 4, name: 'James Wilson', role: 'Student', email: 'james.w@school.edu', subject: 'English', teacher: 'Prof. James Wilson', phone: '(555) 201-0104', avatar: '👦', status: 'active', lastActive: 'Today' },
+  { id: 5, name: 'Olivia Brown', role: 'Student', email: 'olivia.b@school.edu', subject: 'Mathematics', teacher: 'Dr. Sarah Mitchell', phone: '(555) 201-0105', avatar: '👧', status: 'offline', lastActive: '5 days ago' },
+  { id: 6, name: 'Mason Taylor', role: 'Student', email: 'mason.t@school.edu', subject: 'English', teacher: 'Ms. Emily Chen', phone: '(555) 201-0106', avatar: '👦', status: 'active', lastActive: 'Today' },
+  { id: 7, name: 'Isabella Anderson', role: 'Student', email: 'isabella.a@school.edu', subject: 'Science', teacher: 'Dr. Robert Kim', phone: '(555) 201-0107', avatar: '👧', status: 'away', lastActive: '1 day ago' },
+  { id: 8, name: 'Ethan Williams', role: 'Student', email: 'ethan.w@school.edu', subject: 'Mathematics', teacher: 'Prof. James Wilson', phone: '(555) 201-0108', avatar: '👦', status: 'active', lastActive: 'Today' },
+  { id: 9, name: 'Michael Thompson', role: 'Parent', email: 'michael.t@email.com', subject: 'English', student: 'Emma Thompson', phone: '(555) 202-0101', avatar: '👨', status: 'active', lastActive: 'Today' },
+  { id: 10, name: 'Sarah Chen', role: 'Parent', email: 'sarah.c@email.com', subject: 'Mathematics', student: 'Lucas Chen', phone: '(555) 202-0102', avatar: '👩', status: 'away', lastActive: '3 days ago' },
+  { id: 11, name: 'Carlos Martinez', role: 'Parent', email: 'carlos.m@email.com', subject: 'Science', student: 'Sophia Martinez', phone: '(555) 202-0103', avatar: '👨', status: 'active', lastActive: 'Today' },
+  { id: 12, name: 'Lisa Wilson', role: 'Parent', email: 'lisa.w@email.com', subject: 'English', student: 'James Wilson', phone: '(555) 202-0104', avatar: '👩', status: 'offline', lastActive: '1 week ago' },
+  { id: 13, name: 'David Brown', role: 'Parent', email: 'david.b@email.com', subject: 'Mathematics', student: 'Olivia Brown', phone: '(555) 202-0105', avatar: '👨', status: 'active', lastActive: 'Yesterday' },
+  { id: 14, name: 'Amanda Taylor', role: 'Parent', email: 'amanda.t@email.com', subject: 'English', student: 'Mason Taylor', phone: '(555) 202-0106', avatar: '👩', status: 'active', lastActive: 'Today' },
+  { id: 15, name: 'Robert Anderson', role: 'Parent', email: 'robert.a@email.com', subject: 'Science', student: 'Isabella Anderson', phone: '(555) 202-0107', avatar: '👨', status: 'away', lastActive: '2 days ago' },
+  { id: 16, name: 'Dr. Sarah Mitchell', role: 'Teacher', email: 'sarah.m@school.edu', subject: 'English', students: 3, phone: '(555) 101-0001', avatar: '👩‍🏫', status: 'active', lastActive: 'Today' },
+  { id: 17, name: 'Ms. Emily Chen', role: 'Teacher', email: 'emily.c@school.edu', subject: 'Mathematics', students: 2, phone: '(555) 101-0002', avatar: '👩‍🏫', status: 'active', lastActive: 'Today' },
+  { id: 18, name: 'Dr. Robert Kim', role: 'Teacher', email: 'robert.k@school.edu', subject: 'Science', students: 2, phone: '(555) 101-0003', avatar: '👨‍🏫', status: 'away', lastActive: 'Yesterday' },
+  { id: 19, name: 'Prof. James Wilson', role: 'Teacher', email: 'james.w@school.edu', subject: 'English', students: 2, phone: '(555) 101-0004', avatar: '👨‍🏫', status: 'active', lastActive: 'Today' },
+  { id: 20, name: 'Jennifer Williams', role: 'Parent', email: 'jennifer.w@email.com', subject: 'Mathematics', student: 'Ethan Williams', phone: '(555) 202-0108', avatar: '👩', status: 'offline', lastActive: '4 days ago' },
+];
+
+// Teacher management: which teacher is assigned which students
+const SAMPLE_TEACHERS = [
+  { id: 16, name: 'Dr. Sarah Mitchell', email: 'sarah.m@school.edu', subject: 'English', phone: '(555) 101-0001', avatar: '👩‍🏫', status: 'active', assignedStudentIds: [1, 5] },
+  { id: 17, name: 'Ms. Emily Chen', email: 'emily.c@school.edu', subject: 'Mathematics', phone: '(555) 101-0002', avatar: '👩‍🏫', status: 'active', assignedStudentIds: [2, 6] },
+  { id: 18, name: 'Dr. Robert Kim', email: 'robert.k@school.edu', subject: 'Science', phone: '(555) 101-0003', avatar: '👨‍🏫', status: 'away', assignedStudentIds: [3, 7] },
+  { id: 19, name: 'Prof. James Wilson', email: 'james.w@school.edu', subject: 'English', phone: '(555) 101-0004', avatar: '👨‍🏫', status: 'active', assignedStudentIds: [4, 8] },
+];
+
+const ANNOUNCEMENTS = [
+  { id: 1, title: 'New Speaking Course Available', content: 'Join our Advanced Speaking Skills course starting next week. Limited spots!', date: '2026-05-19' },
+  { id: 2, title: 'Holiday Schedule', content: 'No classes on Friday due to national holiday. Enjoy your long weekend!', date: '2026-05-18' },
+];
+
+// Student and Parent Management Data
+const SAMPLE_STUDENTS = [
+  { id: 1, name: 'Emma Thompson', grade: 'Grade 5', subject: 'English', teacher: 'Dr. Sarah Mitchell', totalHours: 30, usedHours: 22, daysAttended: 18, totalDays: 30, paymentStatus: 'paid', paymentAmount: 450, completionStatus: 'active', parentName: 'Michael Thompson', parentEmail: 'michael.t@email.com', enrolledDate: '2026-03-15', parentId: 101, avatar: '👧' },
+  { id: 2, name: 'Lucas Chen', grade: 'Grade 6', subject: 'Mathematics', teacher: 'Ms. Emily Chen', totalHours: 20, usedHours: 8, daysAttended: 6, totalDays: 20, paymentStatus: 'paid', paymentAmount: 300, completionStatus: 'active', parentName: 'Sarah Chen', parentEmail: 'sarah.c@email.com', enrolledDate: '2026-04-10', parentId: 102, avatar: '👦' },
+  { id: 3, name: 'Sophia Martinez', grade: 'Grade 5', subject: 'Science', teacher: 'Dr. Robert Kim', totalHours: 40, usedHours: 40, daysAttended: 36, totalDays: 40, paymentStatus: 'paid', paymentAmount: 600, completionStatus: 'completed', parentName: 'Carlos Martinez', parentEmail: 'carlos.m@email.com', enrolledDate: '2026-01-05', parentId: 103, avatar: '👧' },
+  { id: 4, name: 'James Wilson', grade: 'Grade 7', subject: 'English', teacher: 'Prof. James Wilson', totalHours: 25, usedHours: 10, daysAttended: 8, totalDays: 25, paymentStatus: 'pending', paymentAmount: 375, completionStatus: 'active', parentName: 'Lisa Wilson', parentEmail: 'lisa.w@email.com', enrolledDate: '2026-04-22', parentId: 104, avatar: '👦' },
+  { id: 5, name: 'Olivia Brown', grade: 'Grade 6', subject: 'Mathematics', teacher: 'Dr. Sarah Mitchell', totalHours: 35, usedHours: 35, daysAttended: 32, totalDays: 35, paymentStatus: 'paid', paymentAmount: 525, completionStatus: 'completed', parentName: 'David Brown', parentEmail: 'david.b@email.com', enrolledDate: '2026-02-18', parentId: 105, avatar: '👧' },
+  { id: 6, name: 'Mason Taylor', grade: 'Grade 4', subject: 'English', teacher: 'Ms. Emily Chen', totalHours: 15, usedHours: 3, daysAttended: 2, totalDays: 15, paymentStatus: 'paid', paymentAmount: 225, completionStatus: 'active', parentName: 'Amanda Taylor', parentEmail: 'amanda.t@email.com', enrolledDate: '2026-05-01', parentId: 106, avatar: '👦' },
+  { id: 7, name: 'Isabella Anderson', grade: 'Grade 8', subject: 'Science', teacher: 'Dr. Robert Kim', totalHours: 30, usedHours: 18, daysAttended: 15, totalDays: 30, paymentStatus: 'pending', paymentAmount: 450, completionStatus: 'active', parentName: 'Robert Anderson', parentEmail: 'robert.a@email.com', enrolledDate: '2026-03-28', parentId: 107, avatar: '👧' },
+  { id: 8, name: 'Ethan Williams', grade: 'Grade 9', subject: 'Mathematics', teacher: 'Prof. James Wilson', totalHours: 50, usedHours: 26, daysAttended: 22, totalDays: 50, paymentStatus: 'paid', paymentAmount: 750, completionStatus: 'active', parentName: 'Jennifer Williams', parentEmail: 'jennifer.w@email.com', enrolledDate: '2026-02-01', parentId: 108, avatar: '👦' },
+];
+
+// Student Archives: Each entry contains past, present, and future activities for a student on a specific date
+const SAMPLE_STUDENT_ARCHIVES = [
+  // Emma Thompson's archives
+  { id: 1, studentId: 1, date: '2026-05-15', 
+    past: { activity: 'Completed Chapter 5 vocabulary quiz', score: 92, notes: 'Excellent performance on irregular verbs' },
+    present: { activity: 'Business Writing Workshop', status: 'completed', teacher: 'Prof. James Wilson', notes: 'Practiced formal email writing' },
+    future: { activity: 'Speaking Practice Session', scheduled: '14:00', teacher: 'Ms. Emily Chen', prep: 'Prepare 2-minute self-introduction' }
+  },
+  { id: 2, studentId: 1, date: '2026-05-18', 
+    past: { activity: 'Reading comprehension exercise', score: 88, notes: 'Good understanding of main ideas' },
+    present: { activity: 'Advanced Grammar Session', status: 'completed', teacher: 'Dr. Sarah Mitchell', notes: 'Covered conditional sentences' },
+    future: { activity: 'Homework: Grammar exercises pages 45-50', scheduled: 'Due tomorrow', teacher: 'Dr. Sarah Mitchell', prep: 'Review conditional types' }
+  },
+  { id: 3, studentId: 1, date: '2026-05-19', 
+    past: { activity: 'Group discussion on current events', score: 85, notes: 'Good participation, needs more confidence' },
+    present: { activity: 'Currently in Speaking Practice', status: 'in-progress', teacher: 'Ms. Emily Chen', notes: 'Working on pronunciation' },
+    future: { activity: 'Book report submission', scheduled: '2026-05-25', teacher: 'Dr. Sarah Mitchell', prep: 'Read chapters 10-15' }
+  },
+  // Lucas Chen's archives
+  { id: 4, studentId: 2, date: '2026-05-15', 
+    past: { activity: 'Grammar worksheet completion', score: 95, notes: 'Perfect score on verb conjugation' },
+    present: { activity: 'Academic Reading Class', status: 'completed', teacher: 'Dr. Sarah Mitchell', notes: 'Analyzed two academic articles' },
+    future: { activity: 'Online quiz preparation', scheduled: '2026-05-22', teacher: 'Prof. James Wilson', prep: 'Review chapters 1-4' }
+  },
+  { id: 5, studentId: 2, date: '2026-05-19', 
+    past: { activity: 'Vocabulary building exercises', score: 90, notes: 'Strong performance in word usage' },
+    present: { activity: 'Business Writing Workshop', status: 'completed', teacher: 'Prof. James Wilson', notes: 'Drafted professional cover letter' },
+    future: { activity: 'Peer review session', scheduled: '10:00', teacher: 'Prof. James Wilson', prep: 'Review classmate drafts' }
+  },
+  // Sophia Martinez's archives
+  { id: 6, studentId: 3, date: '2026-05-18', 
+    past: { activity: 'Pronunciation practice', score: 78, notes: 'Working on th sound pronunciation' },
+    present: { activity: 'Speaking Practice Session', status: 'completed', teacher: 'Ms. Emily Chen', notes: 'Significant improvement today' },
+    future: { activity: 'Pronunciation recording assignment', scheduled: 'Due 2026-05-21', teacher: 'Ms. Emily Chen', prep: 'Practice tongue twisters' }
+  },
+  { id: 7, studentId: 3, date: '2026-05-19', 
+    past: { activity: 'Grammar quiz preparation', score: 85, notes: 'Solid understanding of tenses' },
+    present: { activity: 'Currently in Grammar Class', status: 'in-progress', teacher: 'Dr. Sarah Mitchell', notes: 'Learning subjunctive mood' },
+    future: { activity: 'Writing assignment: Narrative essay', scheduled: 'Due 2026-05-24', teacher: 'Dr. Sarah Mitchell', prep: 'Outline draft by Friday' }
+  },
+  // James Wilson's archives
+  { id: 8, studentId: 4, date: '2026-05-19', 
+    past: { activity: 'Literature analysis essay', score: 88, notes: 'Good thesis development' },
+    present: { activity: 'Advanced English Grammar', status: 'completed', teacher: 'Dr. Sarah Mitchell', notes: 'Covered complex sentence structures' },
+    future: { activity: 'Study group meeting', scheduled: '16:00', teacher: 'Self-directed', prep: 'Prepare discussion points' }
+  },
+  // Olivia Brown's archives
+  { id: 9, studentId: 5, date: '2026-05-19', 
+    past: { activity: 'Reading comprehension test', score: 91, notes: 'Excellent inference skills' },
+    present: { activity: 'Currently in Writing Workshop', status: 'in-progress', teacher: 'Prof. James Wilson', notes: 'Working on persuasive writing' },
+    future: { activity: 'Presentation preparation', scheduled: '2026-05-23', teacher: 'Ms. Emily Chen', prep: 'Prepare 5-minute presentation slides' }
+  },
+];
+
+// Featured Content
+const FEATURED_CONTENT = [
+  {
+    id: 1,
+    type: 'article',
+    title: 'The Art of Effective Communication',
+    excerpt: 'Master the fundamentals of clear and impactful communication in both professional and personal settings.',
+    author: 'Dr. Sarah Mitchell',
+    readTime: '8 min read',
+    category: 'Communication',
+    image: 'https://picsum.photos/seed/comm1/400/250',
+    date: '2026-05-15'
+  },
+  {
+    id: 2,
+    type: 'video',
+    title: 'Business English Essentials',
+    excerpt: 'Learn key phrases and vocabulary for workplace communication, meetings, and presentations.',
+    author: 'Prof. James Wilson',
+    duration: '15:30',
+    category: 'Business',
+    image: 'https://picsum.photos/seed/biz1/400/250',
+    date: '2026-05-14'
+  },
+  {
+    id: 3,
+    type: 'story',
+    title: 'The Lighthouse Keeper',
+    excerpt: 'A captivating short story about perseverance and hope during challenging times.',
+    author: 'Classic Literature',
+    readTime: '12 min read',
+    category: 'Literature',
+    image: 'https://picsum.photos/seed/lighthouse/400/250',
+    date: '2026-05-10'
+  },
+  {
+    id: 4,
+    type: 'book',
+    title: '1984 by George Orwell',
+    excerpt: 'A dystopian masterpiece exploring themes of surveillance, truth, and totalitarianism.',
+    author: 'George Orwell',
+    readTime: '9 chapters',
+    category: 'Classic Fiction',
+    image: 'https://picsum.photos/seed/1984book/400/250',
+    date: 'Classic'
+  },
+  {
+    id: 5,
+    type: 'article',
+    title: 'Grammar Tips: Common Mistakes',
+    excerpt: 'Avoid these 10 frequent grammar errors that even native speakers make.',
+    author: 'Ms. Emily Chen',
+    readTime: '5 min read',
+    category: 'Grammar',
+    image: 'https://picsum.photos/seed/grammar/400/250',
+    date: '2026-05-18'
+  },
+  {
+    id: 6,
+    type: 'video',
+    title: 'Pronunciation Masterclass',
+    excerpt: 'Perfect your accent with these essential pronunciation exercises and techniques.',
+    author: 'Dr. Sarah Mitchell',
+    duration: '22:15',
+    category: 'Speaking',
+    image: 'https://picsum.photos/seed/pronun/400/250',
+    date: '2026-05-12'
+  },
+];
+
+const QUICK_LESSONS = [
+  { id: 1, title: 'Present Perfect Tense', icon: '📝', progress: 75, lessons: 12, completed: 9 },
+  { id: 2, title: 'Business Vocabulary', icon: '💼', progress: 45, lessons: 20, completed: 9 },
+  { id: 3, title: 'Idioms & Expressions', icon: '💡', progress: 30, lessons: 15, completed: 5 },
+];
+
+const MAIN_SUBJECTS = [
+  { id: 'english', name: 'English', icon: '📚', color: '#4f46e5', description: 'Grammar, Vocabulary & Literature' },
+  { id: 'math', name: 'Mathematics', icon: '📐', color: '#059669', description: 'Algebra, Geometry & Calculus' },
+  { id: 'science', name: 'Science', icon: '🔬', color: '#dc2626', description: 'Physics, Chemistry & Biology' },
+];
+
+const ACHIEVEMENTS = [
+  { id: 1, title: 'First Steps', description: 'Complete your first class', icon: '🎯', unlocked: true },
+  { id: 2, title: 'Quick Learner', description: 'Watch 5 videos', icon: '📺', unlocked: true },
+  { id: 3, title: 'Bookworm', description: 'Read 3 articles', icon: '📚', unlocked: true },
+  { id: 4, title: 'Discussion Star', description: 'Send 10 chat messages', icon: '💬', unlocked: false },
+  { id: 5, title: 'Perfect Attendance', description: 'Attend 10 classes', icon: '🏆', unlocked: false },
+  { id: 6, title: 'Language Master', description: 'Complete all lessons', icon: '⭐', unlocked: false },
+];
+
+// ============================================
+// ICONS
+// ============================================
+const Icons = {
+  Menu: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
+  X: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+  Video: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23,7 16,12 23,17"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>,
+  Calendar: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+  Files: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>,
+  Dashboard: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>,
+  Mic: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>,
+  MicOff: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/></svg>,
+  Camera: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>,
+  CameraOff: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M21 21H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3m3-3h6l2 3h4a2 2 0 0 1 2 2v9.34"/></svg>,
+  Screen: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>,
+  Phone: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
+  Send: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>,
+  Play: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5,3 19,12 5,21"/></svg>,
+  Logout: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+  User: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+  Globe: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>,
+  Book: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>,
+  Clock: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>,
+  ChevronLeft: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15,18 9,12 15,6"/></svg>,
+  ChevronRight: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9,18 15,12 9,6"/></svg>,
+  ChevronDown: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6,9 12,15 18,9"/></svg>,
+  Plus: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  Upload: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
+  Download: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+  Grid: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
+  List: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>,
+  Translate: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2v3"/><path d="M22 22l-5-10-5 10"/><path d="M14 18h6"/></svg>,
+  Whiteboard: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="14" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>,
+  Brush: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 3L21 6"/><path d="M7 14L19 2"/><path d="M5 15c-1.66 0-3 1.34-3 3 0 1.31-1.16 2-2 2 .92 1.22 2.49 2 4 2 2.21 0 4-1.79 4-4 0-1.66-1.34-3-3-3z"/></svg>,
+  Eraser: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 7l-9 9-5-5 9-9z"/><path d="M15 3l6 6"/><path d="M2 22h20"/></svg>,
+  Clear: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
+  Users: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  Edit: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+  Save: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>,
+  StudentRecords: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg>,
+  Mail: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
+  PhoneCall: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
+  Shield: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+  Eye: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+  Check: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>,
+  Dollar: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+  Trash: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
+  Microphone: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>,
+  Speaker: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>,
+  StopBtn: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>,
+  Copy: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>,
+  Link: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>,
+  Share: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>,
+  People: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  Contacts: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><line x1="15" y1="17" x2="23" y2="9"/><line x1="19" y1="9" x2="19" y2="17"/></svg>,
+  Invite: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>,
+  Search: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+  Circle: ({ color = '#10b981' }) => <svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5" fill={color}/></svg>,
+  Admin: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/><path d="M9 12l2 2 4-4"/></svg>,
+  PlusCircle: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>,
+  MinusCircle: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>,
+};
+
+// ============================================
+// LANDING PAGE
+// ============================================
+function LandingPage({ onLogin }) {
+  const { t } = useTranslation();
+  const [mode, setMode] = useState('login'); // 'login' | 'register' — Sign In active by default
+  const [authMethod, setAuthMethod] = useState('email'); // 'email' | 'phone'
+  const [name, setName] = useState('');
+  const [identifier, setIdentifier] = useState(''); // email or phone depending on authMethod
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [activeAnnouncement, setActiveAnnouncement] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveAnnouncement(prev => (prev + 1) % ANNOUNCEMENTS.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleRegister = async (role) => {
+    setError('');
+    if (!identifier) {
+      setError(authMethod === 'email' ? 'Email is required.' : 'Phone number is required.');
+      return;
+    }
+    if (!password) { setError('Password is required.'); return; }
+    if (mode === 'register' && !name) { setError('Name is required.'); return; }
+    if (authMethod === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    setLoading(true);
+    try {
+      if (mode === 'register') {
+        // REGISTER — use Supabase
+        let result;
+        try {
+          result = await signUpWithEmailOrPhone(identifier, password, name, role);
+          // If Supabase email confirmation is off, user is signed in immediately
+          const prof = authMethod === 'phone'
+            ? { id: result.user?.id, name, phone: identifier, role, email: '' }
+            : { id: result.user?.id, name, email: identifier, role, phone: '' };
+          onLogin(prof);
+        } catch (supaErr) {
+          // If Supabase fails (e.g., email already exists), fall back to local demo
+          console.warn('Supabase signup failed, using local demo:', supaErr.message);
+          onLogin({
+            name,
+            email: authMethod === 'email' ? identifier : '',
+            phone: authMethod === 'phone' ? identifier : '',
+            role,
+            id: Date.now()
+          });
+        }
+      } else {
+        // LOGIN — try Supabase first
+        try {
+          const result = await signInWithEmailOrPhone(identifier, password);
+          if (result.profile) {
+            result.profile.phone = result.profile.phone || '';
+            onLogin(result.profile);
+            return;
+          }
+        } catch (supaErr) {
+          console.warn('Supabase login failed, using local demo:', supaErr.message);
+        }
+        // Fallback to local demo
+        onLogin({
+          name: authMethod === 'email' ? identifier.split('@')[0] : 'User',
+          email: authMethod === 'email' ? identifier : '',
+          phone: authMethod === 'phone' ? identifier : '',
+          role,
+          id: Date.now()
+        });
+      }
+    } catch (err) {
+      setError(err.message || 'Authentication failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="landing">
+      {/* Clean Navigation */}
+      <nav className="landing-nav">
+        <div className="nav-left">
+          <div className="landing-logo">
+            <Icons.Book />
+            <span>{t('brand')}</span>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <div className="landing-hero">
+        <div className="hero-content">
+          <h1>{t('landingTitle')}</h1>
+          <p>{t('landingSubtitle')}</p>
+          
+          {/* Registration Form */}
+          <div className="hero-register-form">
+            <div className="auth-mode-toggle">
+              <button className={mode === 'register' ? 'active' : ''} onClick={() => setMode('register')}>{t('createAccount')}</button>
+              <button className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>Sign In</button>
+            </div>
+            <form onSubmit={e => e.preventDefault()}>
+              {mode === 'register' && (
+                <input
+                  type="text"
+                  placeholder={t('fullName')}
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                />
+              )}
+              {/* Email / Phone toggle */}
+              <div className="auth-method-toggle">
+                <button
+                  type="button"
+                  className={authMethod === 'email' ? 'active' : ''}
+                  onClick={() => { setAuthMethod('email'); setIdentifier(''); }}
+                >
+                  📧 {t('emailLabel') || 'Email'}
+                </button>
+                <button
+                  type="button"
+                  className={authMethod === 'phone' ? 'active' : ''}
+                  onClick={() => { setAuthMethod('phone'); setIdentifier(''); }}
+                >
+                  📱 {t('phoneLabel') || 'Phone'}
+                </button>
+              </div>
+              <input
+                type={authMethod === 'email' ? 'email' : 'tel'}
+                placeholder={authMethod === 'email' ? t('emailAddress') : t('phoneNumber')}
+                value={identifier}
+                onChange={e => setIdentifier(e.target.value)}
+              />
+              <input
+                type="password"
+                placeholder={t('password')}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+              />
+            </form>
+            {error && <div className="auth-error">{error}</div>}
+          </div>
+          
+          {/* Role Buttons */}
+          <div className="role-buttons-container">
+            <button className="btn-role btn-teacher" onClick={() => handleRegister('teacher')} disabled={loading}>
+              <Icons.User />
+              {mode === 'register' ? t('imTeacher') : 'Sign In as Teacher'}
+            </button>
+            <button className="btn-role btn-student" onClick={() => handleRegister('student')} disabled={loading}>
+              <Icons.Video />
+              {mode === 'register' ? t('imStudent') : 'Sign In as Student'}
+            </button>
+            <button className="btn-role btn-parent" onClick={() => handleRegister('parent')} disabled={loading}>
+              <Icons.Users />
+              {mode === 'register' ? t('imParent') : 'Sign In as Parent'}
+            </button>
+            <button className="btn-role btn-admin" onClick={() => handleRegister('admin')} disabled={loading}>
+              <Icons.Shield />
+              {mode === 'register' ? t('imAdmin') : 'Sign In as Admin'}
+            </button>
+          </div>
+        </div>
+        
+        <div className="hero-visual">
+          <div className="visual-card">
+            <div className="visual-header">
+              <div className="visual-dots">
+                <span></span><span></span><span></span>
+              </div>
+            </div>
+            <div className="visual-content">
+              <div className="video-preview">
+                <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=500&h=300&fit=crop" alt="Students learning" />
+                <div className="video-overlay">
+                  <span className="live-indicator">{t('liveClass')}</span>
+                </div>
+              </div>
+              <div className="visual-info">
+                <h4>{t('advEnglishGrammar')}</h4>
+                <p>Dr. Sarah Mitchell • {t('studentsCount')}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="features-section">
+        <h2>{t('everythingYouNeed')}</h2>
+        <div className="features-grid">
+          <div className="feature-card">
+            <div className="feature-icon"><Icons.Video /></div>
+            <h3>{t('liveVideoClasses')}</h3>
+            <p>{t('liveVideoClassesDesc')}</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-icon"><Icons.Files /></div>
+            <h3>{t('resourceLibrary')}</h3>
+            <p>{t('resourceLibraryDesc')}</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-icon"><Icons.Calendar /></div>
+            <h3>{t('smartScheduling')}</h3>
+            <p>{t('smartSchedulingDesc')}</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-icon"><Icons.Globe /></div>
+            <h3>{t('multiLanguageSupport')}</h3>
+            <p>{t('multiLanguageSupportDesc')}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="announcement-bar">
+        <div className="announcement-content">
+          <span className="announcement-label">{t('latest')}</span>
+          <p>{ANNOUNCEMENTS[activeAnnouncement]?.content}</p>
+        </div>
+        <div className="announcement-dots">
+          {ANNOUNCEMENTS.map((_, i) => (
+            <span key={i} className={i === activeAnnouncement ? 'active' : ''}></span>
+          ))}
+        </div>
+      </div>
+
+      <footer className="landing-footer">
+        <p>{t('copyright')}</p>
+      </footer>
+    </div>
+  );
+}
+
+// ============================================
+// APP LAYOUT
+// ============================================
+function AppLayout({ children, user, onLogout, currentPage, setCurrentPage }) {
+  const { t, lang, toggleLanguage } = useTranslation();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (!mobile) setMobileMenuOpen(false);
+    };
+    window.addEventListener('resize', checkMobile);
+    checkMobile();
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const isAdminUser = user?.role === 'admin';
+  const navItems = [
+    { id: 'dashboard', icon: Icons.Dashboard, label: t('navDashboard') },
+    { id: 'calendar', icon: Icons.Calendar, label: t('navCalendar') },
+    { id: 'files', icon: Icons.Files, label: t('navFiles') },
+    { id: 'studentrecords', icon: Icons.StudentRecords, label: t('navStudentRecords') },
+    { id: 'contacts', icon: Icons.Contacts, label: t('navContacts') },
+    { id: 'video', icon: Icons.Video, label: t('navVideoRoom') },
+    ...(isAdminUser ? [{ id: 'admin', icon: Icons.Admin, label: t('navAdmin'), role: 'admin' }] : []),
+  ];
+
+  // Bottom tab items (fewer, primary actions for mobile)
+  const bottomTabs = [
+    { id: 'dashboard', icon: Icons.Dashboard, label: t('navDashboard') },
+    { id: 'calendar', icon: Icons.Calendar, label: t('navCalendar') },
+    { id: 'video', icon: Icons.Video, label: t('navVideoRoom') },
+    { id: 'contacts', icon: Icons.Contacts, label: t('navContacts') },
+  ];
+
+  return (
+    <div className="app-layout">
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''} ${mobileMenuOpen ? 'mobile-open' : ''}`}>
+        <div className="sidebar-header">
+          <div className="logo">
+            <Icons.Book />
+            <span>{t('brand')}</span>
+          </div>
+          <button className="sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
+            <Icons.Menu />
+          </button>
+        </div>
+
+        <nav className="sidebar-nav">
+          {navItems.map(item => (
+            <button
+              key={item.id}
+              className={`nav-item ${currentPage === item.id ? 'active' : ''}`}
+              onClick={() => { setCurrentPage(item.id); setMobileMenuOpen(false); }}
+            >
+              <item.icon />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="user-info">
+            <div className="user-avatar">
+              <Icons.User />
+            </div>
+            <div className="user-details">
+              <p className="user-name">{user?.name || t('student')}</p>
+              <p className="user-role">{t(user?.role) || t('student')}</p>
+            </div>
+          </div>
+          <button className="logout-btn" onClick={onLogout}>
+            <Icons.Logout />
+          </button>
+        </div>
+
+        <button className="mobile-close" onClick={() => setMobileMenuOpen(false)}>
+          <Icons.X />
+        </button>
+      </aside>
+
+      <main className="main-content">
+        <header className="top-bar">
+          <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(true)}>
+            <Icons.Menu />
+          </button>
+          <h1 className="page-title">
+            {navItems.find(item => item.id === currentPage)?.label || t('navDashboard')}
+          </h1>
+          <div className="header-actions">
+            <button className="lang-switcher-btn" onClick={toggleLanguage} title={lang === 'en' ? 'Switch to Chinese' : 'Switch to English'}>
+              <span className="lang-flag">{lang === 'en' ? '🇬🇧' : '🇨🇳'}</span>
+              <span className="lang-current">{lang === 'en' ? 'English' : '中文'}</span>
+              <span className="lang-arrow">→</span>
+              <span className="lang-target">{lang === 'en' ? '中文' : 'English'}</span>
+            </button>
+          </div>
+        </header>
+
+        <div className="content-area">
+          {children}
+        </div>
+      </main>
+
+      {mobileMenuOpen && <div className="overlay" onClick={() => setMobileMenuOpen(false)} />}
+
+      {/* ---- Bottom Tab Bar (mobile only) ---- */}
+      {isMobile && (
+        <nav className="bottom-tabs">
+          {bottomTabs.map(tab => (
+            <button
+              key={tab.id}
+              className={`bottom-tab ${currentPage === tab.id ? 'active' : ''}`}
+              onClick={() => setCurrentPage(tab.id)}
+            >
+              <tab.icon />
+              <span>{tab.label}</span>
+            </button>
+          ))}
+          <button
+            className="bottom-tab bottom-tab-menu"
+            onClick={() => setMobileMenuOpen(true)}
+          >
+            <Icons.Menu />
+            <span>Menu</span>
+          </button>
+        </nav>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// DASHBOARD PAGE
+// ============================================
+function DashboardPage({ user, setCurrentPage }) {
+  const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState('all');
+  const [hoveredCard, setHoveredCard] = useState(null);
+  const todaySchedules = SAMPLE_SCHEDULES.filter(s => s.date === '2026-05-20');
+
+  const filteredContent = activeTab === 'all' 
+    ? FEATURED_CONTENT 
+    : FEATURED_CONTENT.filter(c => c.type === activeTab);
+
+  const getTypeIcon = (type) => {
+    switch(type) {
+      case 'article': return '📄';
+      case 'video': return '🎬';
+      case 'story': return '📖';
+      case 'book': return '📚';
+      default: return '📌';
+    }
+  };
+
+  const getTypeColor = (type) => {
+    switch(type) {
+      case 'article': return '#10b981';
+      case 'video': return '#ef4444';
+      case 'story': return '#8b5cf6';
+      case 'book': return '#f59e0b';
+      default: return '#64748b';
+    }
+  };
+
+  return (
+    <div className="dashboard">
+      {/* Hero Section */}
+      <div className="dashboard-hero">
+        <div className="hero-bg-pattern"></div>
+        <img src="/dashboard-hero.png" alt="Welcome" className="hero-image" />
+        <div className="hero-content-wrapper">
+          <div className="hero-text">
+            <div className="greeting-badge">{t('welcomeBack')}</div>
+            <h1>{t('helloUser')} {user?.name || t('student')}!</h1>
+            <p className="hero-subtitle">{t('dashboardSubtitle')} You have <strong>{todaySchedules.length} classes</strong> scheduled and <strong>3 new articles</strong> to explore.</p>
+            <div className="hero-actions">
+              <button className="btn-hero-primary" onClick={() => setCurrentPage('video')}>
+                <Icons.Video /> {t('joinLiveClass')}
+              </button>
+              <button className="btn-hero-secondary">
+                <Icons.Play /> {t('watchTutorial')}
+              </button>
+            </div>
+          </div>
+          <div className="hero-stats">
+            <div className="stat-card">
+              <div className="stat-icon">📚</div>
+              <div className="stat-info">
+                <span className="stat-number">12</span>
+                <span className="stat-label">{t('classesCompleted')}</span>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon">⏱️</div>
+              <div className="stat-info">
+                <span className="stat-number">24{t('hoursAbbr')}</span>
+                <span className="stat-label">{t('learningTime')}</span>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon">🏆</div>
+              <div className="stat-info">
+                <span className="stat-number">3</span>
+                <span className="stat-label">{t('achievements')}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Subjects */}
+      <section className="subjects-section">
+        <h2><span>📖</span> {t('mySubjects')}</h2>
+        <div className="subjects-grid">
+          {MAIN_SUBJECTS.map(subject => (
+            <div key={subject.id} className="subject-card" style={{ '--subject-color': subject.color }}>
+              <div className="subject-icon-bg">
+                <span className="subject-icon">{subject.icon}</span>
+              </div>
+              <div className="subject-info">
+                <h3>{t(subject.id)}</h3>
+                <p>{t(subject.id + 'Desc')}</p>
+              </div>
+              <button className="subject-btn">{t('explore')}</button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Today's Schedule - Compact Bar */}
+      <div className="schedule-bar">
+        <div className="schedule-bar-header">
+          <h3><Icons.Clock /> {t('todaysClasses')}</h3>
+          <span className="schedule-count">{todaySchedules.length} {t('sessions')}</span>
+        </div>
+        <div className="schedule-scroll">
+          {todaySchedules.map(cls => (
+            <div key={cls.id} className="schedule-card">
+              <div className="schedule-time">{cls.time}</div>
+              <div className="schedule-info">
+                <h4>{cls.title}</h4>
+                <p>{cls.teacher}</p>
+              </div>
+              <span className={`schedule-badge ${cls.type}`}>
+                {cls.type === 'live' ? t('live') : t('recorded')}
+              </span>
+              <button className="btn-join" onClick={() => setCurrentPage('video')}>
+                {cls.type === 'live' ? t('join') : t('watch')}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Progress Section */}
+      <section className="progress-section">
+        <h2><span>📊</span> {t('yourProgress')}</h2>
+        <div className="progress-grid">
+          {QUICK_LESSONS.map(lesson => (
+            <div key={lesson.id} className="progress-card">
+              <div className="progress-icon">{lesson.icon}</div>
+              <div className="progress-info">
+                <h4>{lesson.title}</h4>
+                <p>{lesson.completed}/{lesson.lessons} {t('lessons')}</p>
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{ width: `${lesson.progress}%` }}></div>
+                </div>
+              </div>
+              <span className="progress-percent">{lesson.progress}%</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Achievements Section */}
+      <section className="achievements-section">
+        <h2><span>🏅</span> {t('achievementsSection')}</h2>
+        <div className="achievements-scroll">
+          {ACHIEVEMENTS.map(ach => (
+            <div key={ach.id} className={`achievement-badge ${ach.unlocked ? 'unlocked' : 'locked'}`}>
+              <div className="achievement-icon">{ach.icon}</div>
+              <span className="achievement-title">{ach.title}</span>
+              <span className="achievement-desc">{ach.description}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Featured Content Section */}
+      <section className="content-section">
+        <div className="section-header">
+          <h2><span>📚</span> {t('featuredContent')}</h2>
+          <div className="content-tabs">
+            <button className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>{t('all')}</button>
+            <button className={`tab ${activeTab === 'article' ? 'active' : ''}`} onClick={() => setActiveTab('article')}>📄 {t('article')}s</button>
+            <button className={`tab ${activeTab === 'video' ? 'active' : ''}`} onClick={() => setActiveTab('video')}>🎬 {t('video')}s</button>
+            <button className={`tab ${activeTab === 'story' ? 'active' : ''}`} onClick={() => setActiveTab('story')}>📖 {t('story')}s</button>
+            <button className={`tab ${activeTab === 'book' ? 'active' : ''}`} onClick={() => setActiveTab('book')}>📚 {t('book')}s</button>
+          </div>
+        </div>
+        <div className="content-grid">
+          {filteredContent.map(content => (
+            <div 
+              key={content.id} 
+              className={`content-card ${content.type}`}
+              onMouseEnter={() => setHoveredCard(content.id)}
+              onMouseLeave={() => setHoveredCard(null)}
+            >
+              <div className="card-image">
+                <img src={content.image} alt={content.title} />
+                <div className="card-overlay">
+                  <span className="type-badge" style={{ backgroundColor: getTypeColor(content.type) }}>
+                    {getTypeIcon(content.type)} {t(content.type)}
+                  </span>
+                  <button className="play-btn">
+                    {content.type === 'video' ? <Icons.Play /> : <Icons.Book />}
+                  </button>
+                </div>
+              </div>
+              <div className="card-body">
+                <span className="card-category">{content.category}</span>
+                <h3 className="card-title">{content.title}</h3>
+                <p className="card-excerpt">{content.excerpt}</p>
+                <div className="card-footer">
+                  <div className="card-author">
+                    <Icons.User /> {content.author}
+                  </div>
+                  <span className="card-meta">
+                    {content.readTime || content.duration}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Reading Corner - Stories & Articles */}
+      <section className="reading-section">
+        <div className="reading-header">
+          <h2><span>📖</span> {t('readingCorner')}</h2>
+          <p className="reading-subtitle">Expand your mind with these curated pieces</p>
+        </div>
+        <div className="reading-grid">
+          <div className="reading-featured">
+            <img src="https://picsum.photos/seed/reading1/600/400" alt="Featured reading" />
+            <div className="reading-overlay">
+              <span className="featured-badge">✨ Featured</span>
+              <h3>The Power of Reading</h3>
+              <p>Discover how daily reading transforms your language skills and opens new worlds of knowledge.</p>
+              <button className="btn-read-more">{t('startReading')}</button>
+            </div>
+          </div>
+          <div className="reading-list">
+            <div className="reading-item">
+              <img src="https://picsum.photos/seed/read2/80/80" alt="" />
+              <div className="reading-item-info">
+                <h4>5 Habits of Successful Learners</h4>
+                <p>{t('article')} • 6 {t('minRead')}</p>
+              </div>
+            </div>
+            <div className="reading-item">
+              <img src="https://picsum.photos/seed/read3/80/80" alt="" />
+              <div className="reading-item-info">
+                <h4>The Missing Piece</h4>
+                <p>{t('story')} • 15 min</p>
+              </div>
+            </div>
+            <div className="reading-item">
+              <img src="https://picsum.photos/seed/read4/80/80" alt="" />
+              <div className="reading-item-info">
+                <h4>Pride and Prejudice</h4>
+                <p>{t('book')} • Chapter 1</p>
+              </div>
+            </div>
+            <div className="reading-item">
+              <img src="https://picsum.photos/seed/read5/80/80" alt="" />
+              <div className="reading-item-info">
+                <h4>Vocabulary Building Guide</h4>
+                <p>Guide • 10 min</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Video Showcase */}
+      <section className="video-showcase">
+        <div className="showcase-header">
+          <h2><span>🎬</span> {t('videoLibrary')}</h2>
+          <button className="view-all-btn">{t('viewAll')} {t('video')}s →</button>
+        </div>
+        <div className="video-grid">
+          <div className="video-featured-card">
+            <div className="video-thumbnail">
+              <img src="https://picsum.photos/seed/vidmain/500/300" alt="Featured video" />
+              <div className="video-duration">22:15</div>
+              <div className="play-overlay">
+                <div className="play-circle"><Icons.Play /></div>
+              </div>
+            </div>
+            <div className="video-info">
+              <h3>Complete English Grammar Course</h3>
+              <p>Master grammar fundamentals in this comprehensive video series.</p>
+              <div className="video-meta">
+                <span>👤 Dr. Sarah Mitchell</span>
+                <span>👁️ 2.4K views</span>
+              </div>
+            </div>
+          </div>
+          <div className="video-list-small">
+            <div className="video-item">
+              <div className="video-thumb">
+                <img src="https://picsum.photos/seed/vid1/160/100" alt="" />
+                <span className="vid-duration">15:30</span>
+              </div>
+              <div className="video-item-info">
+                <h4>Business English Basics</h4>
+                <p>Prof. James Wilson</p>
+              </div>
+            </div>
+            <div className="video-item">
+              <div className="video-thumb">
+                <img src="https://picsum.photos/seed/vid2/160/100" alt="" />
+                <span className="vid-duration">12:45</span>
+              </div>
+              <div className="video-item-info">
+                <h4>Pronunciation Tips</h4>
+                <p>Ms. Emily Chen</p>
+              </div>
+            </div>
+            <div className="video-item">
+              <div className="video-thumb">
+                <img src="https://picsum.photos/seed/vid3/160/100" alt="" />
+                <span className="vid-duration">18:20</span>
+              </div>
+              <div className="video-item-info">
+                <h4>Writing Workshop</h4>
+                <p>Prof. James Wilson</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ============================================
+// CALENDAR PAGE
+// ============================================
+
+// Subject options
+const SUBJECTS = [
+  'English Grammar',
+  'Business Writing',
+  'Speaking Practice',
+  'Reading Comprehension',
+  'Vocabulary Building',
+  'Pronunciation',
+  'Academic Writing',
+  'Literature',
+  'Test Preparation',
+  'Conversation Skills'
+];
+
+// Time options generator (00:00 to 23:00 in 30-minute increments)
+const generateTimeOptions = () => {
+  const times = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 30) {
+      times.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    }
+  }
+  return times;
+};
+
+const TIME_OPTIONS = generateTimeOptions();
+
+function CalendarPage({ user }) {
+  const { t } = useTranslation();
+  const today = new Date();
+  const [currentDate, setCurrentDate] = useState(today);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [studentArchives, setStudentArchives] = useState(SAMPLE_STUDENT_ARCHIVES);
+  const [registrationForm, setRegistrationForm] = useState({
+    studentId: '',
+    subject: '',
+    startHour: '07', startMin: '25',
+    endHour: '09', endMin: '05',
+    activity: '',
+    notes: ''
+  });
+  const canEdit = user?.role === 'admin' || user?.role === 'teacher';
+  const isParent = user?.role === 'parent';
+
+  // Get students based on role
+  const getViewableStudents = () => {
+    if (isParent) {
+      return SAMPLE_STUDENTS.filter(s => s.parentId === user.parentId);
+    }
+    return SAMPLE_STUDENTS;
+  };
+  const viewableStudents = getViewableStudents();
+
+  // Auto-select first student for parents
+  useEffect(() => {
+    if (isParent && viewableStudents.length > 0 && !selectedStudent) {
+      setSelectedStudent(viewableStudents[0]);
+    }
+  }, [isParent, viewableStudents, selectedStudent]);
+
+  const getDaysInMonth = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const days = [];
+    for (let i = 0; i < firstDay; i++) days.push(null);
+    for (let i = 1; i <= daysInMonth; i++) days.push(i);
+    return days;
+  };
+
+  const getDateStr = (day) => {
+    if (!day) return '';
+    return `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  };
+
+  const getSchedulesForDate = (day) => {
+    if (!day) return [];
+    const dateStr = getDateStr(day);
+    return SAMPLE_SCHEDULES.filter(s => s.date === dateStr);
+  };
+
+  const getArchivesForDate = (day) => {
+    if (!day || !selectedStudent) return [];
+    const dateStr = getDateStr(day);
+    return studentArchives.filter(a => a.studentId === selectedStudent.id && a.date === dateStr);
+  };
+
+  const days = getDaysInMonth(currentDate);
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  // ANY date click opens the registration modal
+  const handleDateClick = (day) => {
+    if (!day) return;
+    setSelectedDate(day);
+    // Pre-fill student if one is selected
+    setRegistrationForm({
+      studentId: selectedStudent?.id || '',
+      subject: '',
+      startHour: '07', startMin: '00',
+      endHour: '08', endMin: '00',
+      activity: '',
+      notes: ''
+    });
+    setShowRegistrationModal(true);
+  };
+
+  const handleSaveRegistration = () => {
+    if (!selectedDate || !registrationForm.studentId || !registrationForm.subject) return;
+
+    const startTime = `${registrationForm.startHour}:${registrationForm.startMin}`;
+    const endTime = `${registrationForm.endHour}:${registrationForm.endMin}`;
+    const dateStr = getDateStr(selectedDate);
+    const student = SAMPLE_STUDENTS.find(s => s.id === parseInt(registrationForm.studentId));
+
+    const newArchive = {
+      id: Date.now(),
+      studentId: parseInt(registrationForm.studentId),
+      date: dateStr,
+      timeSlot: startTime,
+      subject: registrationForm.subject,
+      startTime: startTime,
+      endTime: endTime,
+      activity: registrationForm.activity,
+      notes: registrationForm.notes,
+      teacher: user?.name || 'Self-registered'
+    };
+    
+    setStudentArchives(prev => [...prev, newArchive]);
+    setShowRegistrationModal(false);
+    setSelectedDate(null);
+    
+    // Auto-select the student if not already
+    if (!selectedStudent && student) {
+      setSelectedStudent(student);
+    }
+  };
+
+  const handleViewArchive = (archive) => {
+    setSelectedDate(parseInt(archive.date.split('-')[2]));
+    const [sh = '07', sm = '00'] = (archive.startTime || archive.timeSlot || '07:00').split(':');
+    const [eh = '09', em = '00'] = (archive.endTime || '09:00').split(':');
+    setRegistrationForm({
+      studentId: archive.studentId || '',
+      subject: archive.subject || '',
+      startHour: sh, startMin: sm,
+      endHour: eh, endMin: em,
+      activity: archive.activity || '',
+      notes: archive.notes || ''
+    });
+    setShowRegistrationModal(true);
+  };
+
+  return (
+    <div className="calendar-page">
+      <div className="calendar-container">
+        {/* Student Selector Header */}
+        <div className="student-selector-header">
+          <div className="student-selector-info">
+            <h3><Icons.Calendar /> Class Registration Calendar</h3>
+            {(canEdit || isParent) && (
+              <div className="student-dropdown-container">
+                <label>Viewing Progress For:</label>
+                <select
+                  value={selectedStudent?.id || ''}
+                  onChange={(e) => {
+                    const s = SAMPLE_STUDENTS.find(s => s.id === parseInt(e.target.value));
+                    setSelectedStudent(s);
+                  }}
+                  className="student-dropdown"
+                >
+                  <option value="">All Students</option>
+                  {viewableStudents.map(student => (
+                    <option key={student.id} value={student.id}>
+                      {student.avatar} {student.name} ({student.grade})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {user?.role === 'student' && (
+              <div className="current-student-badge">
+                {selectedStudent?.avatar || user?.avatar} {selectedStudent?.name || user?.name}
+              </div>
+            )}
+          </div>
+          <div className="legend">
+            <span className="legend-item"><span className="legend-dot past"></span> Past</span>
+            <span className="legend-item"><span className="legend-dot present"></span> Present</span>
+            <span className="legend-item"><span className="legend-dot future"></span> Future</span>
+          </div>
+        </div>
+
+        <div className="calendar-header">
+          <button className="nav-btn" onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}>
+            <Icons.ChevronLeft />
+          </button>
+          <h2>{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</h2>
+          <button className="nav-btn" onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}>
+            <Icons.ChevronRight />
+          </button>
+        </div>
+
+        <div className="calendar-weekdays">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+            <div key={day} className="weekday">{t(`weekday${day}`)}</div>
+          ))}
+        </div>
+
+        <div className="calendar-grid">
+          {days.map((day, index) => {
+            const schedules = getSchedulesForDate(day);
+            const dateStr = getDateStr(day);
+            // Show ALL archives for this date (across all students) so teachers see everything
+            const allArchives = day ? studentArchives.filter(a => a.date === dateStr) : [];
+            const isToday = day === today.getDate() && currentDate.getMonth() === today.getMonth() && currentDate.getFullYear() === today.getFullYear();
+            const totalBookings = allArchives.length + schedules.length;
+            const hasBooking = totalBookings > 0;
+            const weekdayAbbr = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][index % 7];
+            return (
+              <div
+                key={index}
+                className={`calendar-day ${!day ? 'empty' : ''} ${isToday ? 'today' : ''} ${selectedDate === day ? 'selected' : ''} ${hasBooking ? 'has-booking' : ''}`}
+                onClick={() => day && handleDateClick(day)}
+                title={day ? `${totalBookings} class${totalBookings !== 1 ? 'es' : ''} booked` : ''}
+              >
+                {day && (
+                  <>
+                    <span className="day-weekday">{t(`weekday${weekdayAbbr}`)}</span>
+                    <span className="day-number">{day}</span>
+                    {hasBooking && (
+                      <div className="day-indicator">
+                        {allArchives.slice(0, 3).map(a => {
+                          const student = SAMPLE_STUDENTS.find(s => s.id === a.studentId);
+                          return (
+                            <span key={a.id} className="booking-dot" title={student ? `${student.name}: ${a.subject}` : a.subject}></span>
+                          );
+                        })}
+                        {schedules.slice(0, Math.max(0, 3 - allArchives.length)).map(s => (
+                          <span key={s.id} className={`booking-dot ${s.type}`}></span>
+                        ))}
+                      </div>
+                    )}
+                    {totalBookings > 3 && (
+                      <span className="booking-count">+{totalBookings - 3}</span>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Right Panel - Upcoming Registrations */}
+      <div className="schedule-panel">
+        <div className="panel-header">
+          <h3>
+            {selectedDate
+              ? `${monthNames[currentDate.getMonth()]} ${selectedDate}, ${currentDate.getFullYear()}`
+              : 'Upcoming Registrations'
+            }
+          </h3>
+        </div>
+        <div className="schedule-list">
+          {selectedDate && selectedStudent ? (
+            <>
+              <div className="archive-summary">
+                <h4><Icons.Users /> {selectedStudent.name}'s Sessions</h4>
+                {(() => {
+                  const archives = getArchivesForDate(selectedDate);
+                  if (archives.length > 0) {
+                    return (
+                      <div className="time-slots-list">
+                        {archives.map(archive => (
+                          <div key={archive.id} className="time-slot-card" onClick={() => canEdit && handleViewArchive(archive)}>
+                            <div className="time-slot-header">
+                              <span className="time-slot-time">
+                                <Icons.Clock /> {archive.startTime || archive.timeSlot}
+                                {archive.endTime ? ` - ${archive.endTime}` : ''}
+                              </span>
+                            </div>
+                            {archive.subject && <span className="time-slot-subject">{archive.subject}</span>}
+                            <p className="time-slot-activity">{archive.activity}</p>
+                            {archive.teacher && <span className="time-slot-teacher">by {archive.teacher}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }
+                  return <p className="no-archive">No sessions on this day. Click on the date again to register!</p>;
+                })()}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Show all upcoming registrations across students */}
+              <div className="archive-summary">
+                <h4><Icons.Clock /> Recent Registrations</h4>
+                {studentArchives.length > 0 ? (
+                  <div className="time-slots-list">
+                    {studentArchives.slice(-5).reverse().map(archive => {
+                      const student = SAMPLE_STUDENTS.find(s => s.id === archive.studentId);
+                      return (
+                        <div key={archive.id} className="time-slot-card" onClick={() => {
+                          setSelectedStudent(student);
+                          handleViewArchive(archive);
+                        }}>
+                          <div className="time-slot-header">
+                            <span className="time-slot-time">
+                              <Icons.Clock /> {archive.date} {archive.startTime || archive.timeSlot}
+                            </span>
+                          </div>
+                          {archive.subject && <span className="time-slot-subject">{archive.subject}</span>}
+                          {student && <span className="time-slot-student">{student.avatar} {student.name}</span>}
+                          <p className="time-slot-activity">{archive.activity}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="no-archive">No registrations yet. Click a date to get started!</p>
+                )}
+              </div>
+            </>
+          )}
+          <button className="btn-add-time-slot" onClick={() => {
+            if (selectedDate) {
+              handleDateClick(selectedDate);
+            }
+          }}>
+            <Icons.Plus /> New Registration
+          </button>
+        </div>
+      </div>
+
+      {/* Registration Modal - Clean single step */}
+      {showRegistrationModal && (
+        <div className="modal-overlay" onClick={() => setShowRegistrationModal(false)}>
+          <div className="registration-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3><Icons.Book /> Class Registration</h3>
+              <div className="modal-student-info">
+                {selectedDate ? `${monthNames[currentDate.getMonth()]} ${selectedDate}, ${currentDate.getFullYear()}` : ''}
+              </div>
+              <button className="modal-close" onClick={() => setShowRegistrationModal(false)}>×</button>
+            </div>
+
+            <div className="modal-body">
+              <div className="reg-form">
+                {/* Student Selection */}
+                <div className="form-section">
+                  <label>Student</label>
+                  <select
+                    value={registrationForm.studentId}
+                    onChange={(e) => setRegistrationForm(prev => ({ ...prev, studentId: e.target.value }))}
+                    className="reg-select"
+                  >
+                    <option value="">Select a student...</option>
+                    {viewableStudents.map(student => (
+                      <option key={student.id} value={student.id}>
+                        {student.avatar} {student.name} - {student.grade}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Date Display */}
+                <div className="form-section time-section">
+                  <div className="time-display">
+                    <Icons.Calendar />
+                    <span>{selectedDate ? `${monthNames[currentDate.getMonth()]} ${selectedDate}, ${currentDate.getFullYear()}` : ''}</span>
+                  </div>
+                </div>
+
+                {/* Subject Selection */}
+                <div className="form-section">
+                  <label>Subject</label>
+                  <select
+                    value={registrationForm.subject}
+                    onChange={(e) => setRegistrationForm(prev => ({ ...prev, subject: e.target.value }))}
+                    className="reg-select"
+                  >
+                    <option value="">Select a subject...</option>
+                    {SUBJECTS.map(subj => (
+                      <option key={subj} value={subj}>{subj}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Digital Time Picker - Hour + Minute */}
+                <div className="form-section">
+                  <label>Start Time</label>
+                  <div className="digital-time-row">
+                    <div className="digital-time-group">
+                      <button className="time-arrow" onClick={() => setRegistrationForm(prev => ({ ...prev, startHour: String((parseInt(prev.startHour) + 23) % 24).padStart(2,'0') }))}>▲</button>
+                      <input
+                        type="text"
+                        value={registrationForm.startHour}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\D/g,'').slice(0,2);
+                          const n = Math.min(23, Math.max(0, parseInt(v || '0')));
+                          setRegistrationForm(prev => ({ ...prev, startHour: String(n).padStart(2,'0') }));
+                        }}
+                        className="digital-time-input"
+                      />
+                      <button className="time-arrow" onClick={() => setRegistrationForm(prev => ({ ...prev, startHour: String((parseInt(prev.startHour) + 1) % 24).padStart(2,'0') }))}>▼</button>
+                    </div>
+                    <span className="time-colon">:</span>
+                    <div className="digital-time-group">
+                      <button className="time-arrow" onClick={() => setRegistrationForm(prev => ({ ...prev, startMin: String((parseInt(prev.startMin) + 55) % 60).padStart(2,'0') }))}>▲</button>
+                      <input
+                        type="text"
+                        value={registrationForm.startMin}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\D/g,'').slice(0,2);
+                          const n = Math.min(59, Math.max(0, parseInt(v || '0')));
+                          setRegistrationForm(prev => ({ ...prev, startMin: String(n).padStart(2,'0') }));
+                        }}
+                        className="digital-time-input"
+                      />
+                      <button className="time-arrow" onClick={() => setRegistrationForm(prev => ({ ...prev, startMin: String((parseInt(prev.startMin) + 5) % 60).padStart(2,'0') }))}>▼</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-section">
+                  <label>End Time</label>
+                  <div className="digital-time-row">
+                    <div className="digital-time-group">
+                      <button className="time-arrow" onClick={() => setRegistrationForm(prev => ({ ...prev, endHour: String((parseInt(prev.endHour) + 23) % 24).padStart(2,'0') }))}>▲</button>
+                      <input
+                        type="text"
+                        value={registrationForm.endHour}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\D/g,'').slice(0,2);
+                          const n = Math.min(23, Math.max(0, parseInt(v || '0')));
+                          setRegistrationForm(prev => ({ ...prev, endHour: String(n).padStart(2,'0') }));
+                        }}
+                        className="digital-time-input"
+                      />
+                      <button className="time-arrow" onClick={() => setRegistrationForm(prev => ({ ...prev, endHour: String((parseInt(prev.endHour) + 1) % 24).padStart(2,'0') }))}>▼</button>
+                    </div>
+                    <span className="time-colon">:</span>
+                    <div className="digital-time-group">
+                      <button className="time-arrow" onClick={() => setRegistrationForm(prev => ({ ...prev, endMin: String((parseInt(prev.endMin) + 55) % 60).padStart(2,'0') }))}>▲</button>
+                      <input
+                        type="text"
+                        value={registrationForm.endMin}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\D/g,'').slice(0,2);
+                          const n = Math.min(59, Math.max(0, parseInt(v || '0')));
+                          setRegistrationForm(prev => ({ ...prev, endMin: String(n).padStart(2,'0') }));
+                        }}
+                        className="digital-time-input"
+                      />
+                      <button className="time-arrow" onClick={() => setRegistrationForm(prev => ({ ...prev, endMin: String((parseInt(prev.endMin) + 5) % 60).padStart(2,'0') }))}>▼</button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Activity */}
+                <div className="form-section">
+                  <label>What will you study/do?</label>
+                  <textarea
+                    placeholder="Describe the session, topics to cover, learning goals..."
+                    value={registrationForm.activity}
+                    onChange={(e) => setRegistrationForm(prev => ({ ...prev, activity: e.target.value }))}
+                    rows={3}
+                    className="reg-textarea"
+                  />
+                </div>
+
+                {/* Notes */}
+                <div className="form-section">
+                  <label>Notes (optional)</label>
+                  <textarea
+                    placeholder="Additional notes, homework, preparation needed..."
+                    value={registrationForm.notes}
+                    onChange={(e) => setRegistrationForm(prev => ({ ...prev, notes: e.target.value }))}
+                    rows={2}
+                    className="reg-textarea"
+                  />
+                </div>
+
+                {/* Teacher Info */}
+                {canEdit && (
+                  <div className="form-section teacher-info">
+                    Registered by: <strong>{user?.name}</strong>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={() => setShowRegistrationModal(false)}>Cancel</button>
+              <button className="btn-save" onClick={handleSaveRegistration}>
+                <Icons.Save /> Register Class
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// STUDENT RECORDS PAGE
+// ============================================
+function StudentRecordsPage({ user }) {
+  const isAdmin = user?.role === 'admin';
+  const isTeacher = user?.role === 'teacher';
+  const canEdit = isAdmin || isTeacher;
+  const isParent = user?.role === 'parent';
+  const [records, setRecords] = useState(() => {
+    if (isParent) {
+      return SAMPLE_STUDENTS.filter(s => s.parentId === user.parentId);
+    }
+    return SAMPLE_STUDENTS;
+  });
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterSubject, setFilterSubject] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [detailRecord, setDetailRecord] = useState(null);
+
+  const subjects = ['all', 'English', 'Mathematics', 'Science'];
+
+  const filteredRecords = records.filter(record => {
+    const matchesStatus = filterStatus === 'all' || record.completionStatus === filterStatus;
+    const matchesSubject = filterSubject === 'all' || record.subject === filterSubject;
+    const matchesSearch = record.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      record.parentName.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesStatus && matchesSubject && matchesSearch;
+  });
+
+  const totalStudents = records.length;
+  const activeStudents = records.filter(r => r.completionStatus === 'active').length;
+  const completedStudents = records.filter(r => r.completionStatus === 'completed').length;
+  const pendingPayments = records.filter(r => r.paymentStatus === 'pending').length;
+  const totalRevenue = records.filter(r => r.paymentStatus === 'paid').reduce((sum, r) => sum + r.paymentAmount, 0);
+
+  const handleEditRecord = (record) => {
+    setEditingRecord({ ...record });
+    setShowEditModal(true);
+  };
+
+  const handleViewDetails = (record) => {
+    setDetailRecord(record);
+    setShowDetailModal(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingRecord.isNew) {
+      setRecords([...records, { ...editingRecord, id: Date.now(), isNew: undefined }]);
+    } else {
+      setRecords(records.map(r => r.id === editingRecord.id ? editingRecord : r));
+    }
+    setShowEditModal(false);
+    setEditingRecord(null);
+  };
+
+  const handleAddStudent = () => {
+    setEditingRecord({
+      id: null,
+      name: '',
+      grade: 'Grade 5',
+      subject: 'English',
+      teacher: user?.name || '',
+      totalHours: 30,
+      usedHours: 0,
+      daysAttended: 0,
+      totalDays: 30,
+      paymentStatus: 'pending',
+      paymentAmount: 0,
+      completionStatus: 'active',
+      parentName: '',
+      parentEmail: '',
+      enrolledDate: new Date().toISOString().split('T')[0],
+      parentId: null,
+      avatar: '👤',
+      isNew: true,
+    });
+    setShowEditModal(true);
+  };
+
+  const handleDeleteRecord = (id) => {
+    if (window.confirm('Are you sure you want to delete this student record?')) {
+      setRecords(records.filter(r => r.id !== id));
+      setShowDetailModal(false);
+    }
+  };
+
+  const getProgressPercent = (used, total) => Math.round((used / total) * 100);
+
+  return (
+    <div className="records-page">
+      <div className="records-hero">
+        <div className="records-hero-content">
+          <h2>
+            <Icons.StudentRecords /> Student Progress Records
+          </h2>
+          <p>Track student learning progress, payments, and completion status</p>
+        </div>
+        <div className="records-hero-decoration">
+          <div className="hero-circle c1"></div>
+          <div className="hero-circle c2"></div>
+          <div className="hero-circle c3"></div>
+        </div>
+      </div>
+
+      <div className="records-stats">
+        <div className="stat-card total">
+          <div className="stat-icon"><Icons.Users /></div>
+          <div className="stat-info">
+            <span className="stat-number">{totalStudents}</span>
+            <span className="stat-label">Total Students</span>
+          </div>
+        </div>
+        <div className="stat-card active">
+          <div className="stat-icon"><Icons.Clock /></div>
+          <div className="stat-info">
+            <span className="stat-number">{activeStudents}</span>
+            <span className="stat-label">Active Students</span>
+          </div>
+        </div>
+        <div className="stat-card completed">
+          <div className="stat-icon"><Icons.Check /></div>
+          <div className="stat-info">
+            <span className="stat-number">{completedStudents}</span>
+            <span className="stat-label">Completed</span>
+          </div>
+        </div>
+        <div className="stat-card pending">
+          <div className="stat-icon"><Icons.Dollar /></div>
+          <div className="stat-info">
+            <span className="stat-number">{pendingPayments}</span>
+            <span className="stat-label">Pending Payment</span>
+          </div>
+        </div>
+        {isAdmin && (
+          <div className="stat-card revenue">
+            <div className="stat-icon"><Icons.Dollar /></div>
+            <div className="stat-info">
+              <span className="stat-number">${totalRevenue}</span>
+              <span className="stat-label">Total Collected</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="records-toolbar">
+        <div className="toolbar-filters">
+          <div className="search-box">
+            <Icons.User />
+            <input
+              type="text"
+              placeholder="Search student or parent name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="filter-group">
+            <label>Status:</label>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+          <div className="filter-group">
+            <label>Subject:</label>
+            <select value={filterSubject} onChange={(e) => setFilterSubject(e.target.value)}>
+              {subjects.map(s => <option key={s} value={s}>{s === 'all' ? 'All Subjects' : s}</option>)}
+            </select>
+          </div>
+        </div>
+        {canEdit && (
+          <div className="toolbar-actions">
+            <button className="btn-primary" onClick={handleAddStudent}>
+              <Icons.Plus /> Add Student
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="records-grid">
+        {filteredRecords.map(record => (
+          <div
+            key={record.id}
+            className={`record-card ${record.paymentStatus === 'pending' ? 'payment-pending' : ''}`}
+            onClick={() => setSelectedStudent(record)}
+          >
+            <div className="record-header">
+              <div className="student-avatar">
+                {record.name.split(' ').map(n => n[0]).join('')}
+              </div>
+              <div className="student-basic">
+                <h4>{record.name}</h4>
+                <span className="grade-badge">{record.grade}</span>
+                <span className={`subject-badge ${record.subject.toLowerCase()}`}>{record.subject}</span>
+              </div>
+              <span className={`status-badge ${record.completionStatus}`}>
+                {record.completionStatus === 'completed' ? <Icons.Check /> : <Icons.Clock />}
+                {record.completionStatus}
+              </span>
+            </div>
+
+            <div className="record-body">
+              <div className="progress-section">
+                <div className="progress-header">
+                  <span>Course Progress</span>
+                  <span>{getProgressPercent(record.usedHours, record.totalHours)}%</span>
+                </div>
+                <div className="progress-bar">
+                  <div
+                    className="progress-fill"
+                    style={{ width: `${getProgressPercent(record.usedHours, record.totalHours)}%` }}
+                  ></div>
+                </div>
+                <div className="progress-details">
+                  <span><Icons.Clock /> {record.usedHours}h / {record.totalHours}h</span>
+                  <span><Icons.Calendar /> {record.daysAttended} / {record.totalDays} days</span>
+                </div>
+              </div>
+
+              <div className="payment-section">
+                <div className={`payment-status ${record.paymentStatus}`}>
+                  <Icons.Dollar />
+                  <div className="payment-info">
+                    <span className="payment-label">{record.paymentStatus === 'paid' ? 'Payment Complete' : 'Payment Pending'}</span>
+                    <span className="payment-amount">${record.paymentAmount}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="info-grid">
+                <div className="info-item">
+                  <Icons.User />
+                  <span className="info-label">Teacher</span>
+                  <span className="info-value">{record.teacher}</span>
+                </div>
+                <div className="info-item">
+                  <Icons.Calendar />
+                  <span className="info-label">Enrolled</span>
+                  <span className="info-value">{new Date(record.enrolledDate).toLocaleDateString()}</span>
+                </div>
+                <div className="info-item">
+                  <Icons.User />
+                  <span className="info-label">Parent</span>
+                  <span className="info-value">{record.parentName}</span>
+                </div>
+              </div>
+            </div>
+
+            {canEdit && (
+              <div className="record-actions">
+                <button className="btn-edit" onClick={(e) => { e.stopPropagation(); handleEditRecord(record); }}>
+                  <Icons.Edit /> Edit
+                </button>
+                <button className="btn-view" onClick={(e) => { e.stopPropagation(); handleViewDetails(record); }}>
+                  <Icons.Eye /> View Details
+                </button>
+              </div>
+            )}
+
+            {isParent && (
+              <div className="contact-section">
+                <button className="btn-contact">
+                  <Icons.Mail /> Contact Teacher
+                </button>
+                <button className="btn-contact-alt">
+                  <Icons.PhoneCall /> Contact Admin
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {!isAdmin && !isParent && filteredRecords.length === 0 && (
+        <div className="empty-state">
+          <Icons.StudentRecords />
+          <h3>No Student Records Found</h3>
+          <p>No students match your current filters. Try adjusting your search criteria.</p>
+        </div>
+      )}
+
+      {canEdit && filteredRecords.length === 0 && (
+        <div className="empty-state">
+          <Icons.StudentRecords />
+          <h3>No Records Found</h3>
+          <p>No students match your current filters.</p>
+          <button className="btn-primary" onClick={handleAddStudent}>
+            <Icons.Plus /> Add First Student
+          </button>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && editingRecord && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="edit-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3><Icons.Edit /> {editingRecord.isNew ? 'Add New Student' : 'Edit Student Record'}</h3>
+              <button className="modal-close" onClick={() => setShowEditModal(false)}><Icons.X /></button>
+            </div>
+            <div className="modal-body">
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Student Name</label>
+                  <input
+                    type="text"
+                    value={editingRecord.name}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, name: e.target.value })}
+                    placeholder="Enter student name"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Grade</label>
+                  <input
+                    type="text"
+                    value={editingRecord.grade}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, grade: e.target.value })}
+                    placeholder="e.g. Grade 5"
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Subject</label>
+                  <select
+                    value={editingRecord.subject}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, subject: e.target.value })}
+                  >
+                    <option value="English">English</option>
+                    <option value="Mathematics">Mathematics</option>
+                    <option value="Science">Science</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Teacher</label>
+                  <input
+                    type="text"
+                    value={editingRecord.teacher}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, teacher: e.target.value })}
+                    placeholder="Assign teacher"
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Hours Used</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editingRecord.usedHours}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, usedHours: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Total Hours</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editingRecord.totalHours}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, totalHours: parseInt(e.target.value) || 1 })}
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Days Attended</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editingRecord.daysAttended}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, daysAttended: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Total Days</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editingRecord.totalDays}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, totalDays: parseInt(e.target.value) || 1 })}
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Payment Status</label>
+                  <select
+                    value={editingRecord.paymentStatus}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, paymentStatus: e.target.value })}
+                  >
+                    <option value="paid">Paid</option>
+                    <option value="pending">Pending</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Payment Amount ($)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editingRecord.paymentAmount}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, paymentAmount: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Completion Status</label>
+                  <select
+                    value={editingRecord.completionStatus}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, completionStatus: e.target.value })}
+                  >
+                    <option value="active">Active</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Enrolled Date</label>
+                  <input
+                    type="date"
+                    value={editingRecord.enrolledDate}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, enrolledDate: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="form-group full">
+                <label>Parent Name</label>
+                <input
+                  type="text"
+                  value={editingRecord.parentName}
+                  onChange={(e) => setEditingRecord({ ...editingRecord, parentName: e.target.value })}
+                  placeholder="Enter parent name"
+                />
+              </div>
+              <div className="form-group full">
+                <label>Parent Email</label>
+                <input
+                  type="email"
+                  value={editingRecord.parentEmail}
+                  onChange={(e) => setEditingRecord({ ...editingRecord, parentEmail: e.target.value })}
+                  placeholder="Enter parent email"
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={() => setShowEditModal(false)}>Cancel</button>
+              <button className="btn-save" onClick={handleSaveEdit}>
+                <Icons.Save /> {editingRecord.isNew ? 'Add Student' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {showDetailModal && detailRecord && (
+        <div className="modal-overlay" onClick={() => setShowDetailModal(false)}>
+          <div className="edit-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3><Icons.Eye /> Student Details</h3>
+              <button className="modal-close" onClick={() => setShowDetailModal(false)}><Icons.X /></button>
+            </div>
+            <div className="modal-body">
+              <div className="detail-header">
+                <div className="student-avatar large">{detailRecord.name.split(' ').map(n => n[0]).join('')}</div>
+                <div>
+                  <h4>{detailRecord.name}</h4>
+                  <span className="grade-badge">{detailRecord.grade}</span>
+                  <span className={`subject-badge ${detailRecord.subject.toLowerCase()}`}>{detailRecord.subject}</span>
+                  <span className={`status-badge ${detailRecord.completionStatus}`}>{detailRecord.completionStatus}</span>
+                </div>
+              </div>
+              <div className="detail-grid">
+                <div className="detail-item"><strong>Teacher:</strong> {detailRecord.teacher}</div>
+                <div className="detail-item"><strong>Enrolled:</strong> {new Date(detailRecord.enrolledDate).toLocaleDateString()}</div>
+                <div className="detail-item"><strong>Hours:</strong> {detailRecord.usedHours}h / {detailRecord.totalHours}h ({getProgressPercent(detailRecord.usedHours, detailRecord.totalHours)}%)</div>
+                <div className="detail-item"><strong>Days:</strong> {detailRecord.daysAttended} / {detailRecord.totalDays} days</div>
+                <div className="detail-item"><strong>Payment:</strong> <span className={detailRecord.paymentStatus}>{detailRecord.paymentStatus === 'paid' ? 'Paid' : 'Pending'} — ${detailRecord.paymentAmount}</span></div>
+                <div className="detail-item"><strong>Parent:</strong> {detailRecord.parentName}</div>
+                <div className="detail-item"><strong>Parent Email:</strong> {detailRecord.parentEmail}</div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={() => setShowDetailModal(false)}>Close</button>
+              {canEdit && (
+                <>
+                  <button className="btn-delete" onClick={() => handleDeleteRecord(detailRecord.id)}>
+                    <Icons.Trash /> Delete
+                  </button>
+                  <button className="btn-save" onClick={() => { setShowDetailModal(false); handleEditRecord(detailRecord); }}>
+                    <Icons.Edit /> Edit Record
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="records-info-banner">
+        <Icons.Shield />
+        <div>
+          <strong>Administrator or Teacher Access</strong>
+          <p>Teachers and administrators can modify student records. Parents can view their children's progress and contact teachers or administrators for any questions.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// ADMINISTRATION PAGE
+// ============================================
+function AdministrationPage({ user }) {
+  // eslint-disable-next-line no-unused-vars
+  const [teachers, setTeachers] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [expandedTeacher, setExpandedTeacher] = useState(null);
+  const [showUnassigned, setShowUnassigned] = useState(false);
+  const [searchStudent, setSearchStudent] = useState('');
+
+  // Load data from Supabase (fallback to sample data)
+  useEffect(() => {
+    Promise.all([
+      fetchTeachers().catch(() => SAMPLE_TEACHERS),
+      fetchStudents().catch(() => SAMPLE_STUDENTS),
+      fetchContacts().catch(() => SAMPLE_CONTACTS),
+    ]).then(([t, s, c]) => {
+      setTeachers(t.length > 0 ? t : SAMPLE_TEACHERS);
+      setStudents(s.length > 0 ? s : SAMPLE_STUDENTS);
+      setContacts(c.length > 0 ? c : SAMPLE_CONTACTS);
+      setDataLoaded(true);
+    });
+  }, []);
+
+  // Persist teachers to Supabase
+  useEffect(() => {
+    if (dataLoaded && teachers.length > 0) {
+      // Save all teachers to Supabase
+      teachers.forEach(t => {
+        updateTeacher(t).catch(() => {});
+      });
+    }
+  }, [teachers, dataLoaded]);
+
+  // Get unassigned students
+  const allAssignedIds = teachers.reduce((acc, t) => [...acc, ...t.assignedStudentIds], []);
+  const unassignedStudents = students.filter(s => !allAssignedIds.includes(s.id));
+
+  const assignStudent = (teacherId, studentId) => {
+    setTeachers(prev => prev.map(t => {
+      if (t.id === teacherId && !t.assignedStudentIds.includes(studentId)) {
+        return { ...t, assignedStudentIds: [...t.assignedStudentIds, studentId] };
+      }
+      return t;
+    }));
+  };
+
+  const removeStudent = (teacherId, studentId) => {
+    setTeachers(prev => prev.map(t => {
+      if (t.id === teacherId) {
+        return { ...t, assignedStudentIds: t.assignedStudentIds.filter(id => id !== studentId) };
+      }
+      return t;
+    }));
+  };
+
+  const getStudentById = (id) => students.find(s => s.id === id) || contacts.find(c => c.id === id && c.role === 'Student');
+
+  const filteredUnassigned = unassignedStudents.filter(s =>
+    s.name.toLowerCase().includes(searchStudent.toLowerCase())
+  );
+
+  const statusColor = (status) => {
+    switch(status) {
+      case 'active': return '#10b981';
+      case 'away': return '#f59e0b';
+      case 'offline': return '#94a3b8';
+      default: return '#64748b';
+    }
+  };
+
+  return (
+    <div className="admin-page">
+      {/* Header */}
+      <div className="admin-header">
+        <div className="admin-title">
+          <h2><Icons.Admin /> Administration</h2>
+          <p>Manage teachers and their assigned students</p>
+        </div>
+        <div className="admin-stats-row">
+          <div className="admin-stat">
+            <span className="admin-stat-val">{teachers.length}</span>
+            <span className="admin-stat-lbl">Teachers</span>
+          </div>
+          <div className="admin-stat">
+            <span className="admin-stat-val">{students.length}</span>
+            <span className="admin-stat-lbl">Students</span>
+          </div>
+          <div className="admin-stat">
+            <span className="admin-stat-val">{allAssignedIds.length}</span>
+            <span className="admin-stat-lbl">Assigned</span>
+          </div>
+          <div className="admin-stat warning">
+            <span className="admin-stat-val">{unassignedStudents.length}</span>
+            <span className="admin-stat-lbl">Unassigned</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Teachers Grid */}
+      <div className="admin-section">
+        <h3>Teachers & Assigned Students</h3>
+        <div className="admin-teachers-grid">
+          {teachers.map(teacher => {
+            const assignedStudents = teacher.assignedStudentIds.map(id => getStudentById(id)).filter(Boolean);
+            const isExpanded = expandedTeacher === teacher.id;
+            return (
+              <div key={teacher.id} className={`admin-teacher-card ${isExpanded ? 'expanded' : ''}`}>
+                <div className="admin-teacher-header" onClick={() => setExpandedTeacher(isExpanded ? null : teacher.id)}>
+                  <div className="admin-teacher-info">
+                    <span className="admin-teacher-avatar">{teacher.avatar}</span>
+                    <div>
+                      <h4>{teacher.name}</h4>
+                      <span className="admin-teacher-subject">{teacher.subject}</span>
+                    </div>
+                  </div>
+                  <div className="admin-teacher-meta">
+                    <span className="admin-teacher-status" style={{ color: statusColor(teacher.status) }}>
+                      ● {teacher.status}
+                    </span>
+                    <span className="admin-teacher-count">
+                      <Icons.Users /> {assignedStudents.length} students
+                    </span>
+                    <span className={`admin-expand-icon ${isExpanded ? 'open' : ''}`}>
+                      <Icons.ChevronDown />
+                    </span>
+                  </div>
+                </div>
+
+                {isExpanded && (
+                  <div className="admin-teacher-body">
+                    {assignedStudents.length === 0 ? (
+                      <div className="admin-no-students">No students assigned yet</div>
+                    ) : (
+                      <ul className="admin-assigned-list">
+                        {assignedStudents.map(student => (
+                          <li key={student.id} className="admin-assigned-item">
+                            <span className="admin-student-avatar">{student.avatar || '👤'}</span>
+                            <div className="admin-student-info">
+                              <strong>{student.name}</strong>
+                              <span>{student.grade || student.subject}</span>
+                            </div>
+                            <button
+                              className="admin-remove-btn"
+                              onClick={() => removeStudent(teacher.id, student.id)}
+                              title="Remove student"
+                            >
+                              <Icons.MinusCircle /> Remove
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {/* Add student dropdown */}
+                    <div className="admin-add-section">
+                      <input
+                        type="text"
+                        placeholder="Search students to assign..."
+                        value={searchStudent}
+                        onChange={e => setSearchStudent(e.target.value)}
+                        className="admin-search-input"
+                      />
+                      <div className="admin-addable-list">
+                        {filteredUnassigned.map(student => (
+                          <button
+                            key={student.id}
+                            className="admin-addable-item"
+                            onClick={() => { assignStudent(teacher.id, student.id); setSearchStudent(''); }}
+                          >
+                            <span>{student.avatar || '👤'}</span>
+                            <span className="admin-addable-name">{student.name}</span>
+                            <span className="admin-addable-grade">{student.grade}</span>
+                            <Icons.PlusCircle />
+                          </button>
+                        ))}
+                        {filteredUnassigned.length === 0 && searchStudent && (
+                          <div className="admin-no-results">No matching unassigned students</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Unassigned Students Alert */}
+      {unassignedStudents.length > 0 && (
+        <div className="admin-alert-section">
+          <button className="admin-alert-btn" onClick={() => setShowUnassigned(!showUnassigned)}>
+            <Icons.Users /> {unassignedStudents.length} unassigned students need a teacher
+            <Icons.ChevronDown />
+          </button>
+          {showUnassigned && (
+            <div className="admin-unassigned-list">
+              {unassignedStudents.map(student => (
+                <div key={student.id} className="admin-unassigned-item">
+                  <span>{student.avatar || '👤'}</span>
+                  <span>{student.name}</span>
+                  <span className="admin-unassigned-grade">{student.grade}</span>
+                  <select
+                    className="admin-quick-assign"
+                    defaultValue=""
+                    onChange={e => {
+                      if (e.target.value) {
+                        assignStudent(parseInt(e.target.value), student.id);
+                        e.target.value = '';
+                      }
+                    }}
+                  >
+                    <option value="">Assign to...</option>
+                    {teachers.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// CONTACTS PAGE
+// ============================================
+function ContactsPage({ user }) {
+  const { t } = useTranslation();
+  const isAdmin = user?.role === 'admin';
+  const isTeacher = user?.role === 'teacher';
+  const [contacts, setContacts] = useState([]);
+  const [teachers, setTeachers] = useState([]);
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterRole, setFilterRole] = useState('all');
+  const [invitingContact, setInvitingContact] = useState(null);
+  const [inviteRoom, setInviteRoom] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+
+  // Load from Supabase
+  useEffect(() => {
+    Promise.all([
+      fetchContacts().catch(() => SAMPLE_CONTACTS),
+      fetchTeachers().catch(() => SAMPLE_TEACHERS),
+    ]).then(([c, t]) => {
+      setContacts(c.length > 0 ? c : SAMPLE_CONTACTS);
+      setTeachers(t.length > 0 ? t : SAMPLE_TEACHERS);
+      setDataLoaded(true);
+    });
+  }, []);
+
+  // Persist contacts
+  useEffect(() => {
+    if (dataLoaded && contacts.length > 0) {
+      saveContacts(contacts).catch(() => {});
+    }
+  }, [contacts, dataLoaded]);
+
+  // Visible contacts: admin sees all, teacher sees only assigned students + all teachers/parents, others see all
+  const currentTeacher = teachers.find(t => t.email === user?.email);
+  const myAssignedStudentIds = currentTeacher?.assignedStudentIds || [];
+  const visibleContacts = isTeacher
+    ? contacts.filter(c => {
+        if (c.role === 'Teacher' || c.role === 'Parent') return true;
+        if (c.role === 'Student') return myAssignedStudentIds.includes(c.id);
+        return false;
+      })
+    : contacts;
+
+  const filteredContacts = visibleContacts.filter(c => {
+    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.subject || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole = filterRole === 'all' || c.role.toLowerCase() === filterRole.toLowerCase();
+    return matchesSearch && matchesRole;
+  });
+
+  const activeCount = visibleContacts.filter(c => c.status === 'active').length;
+  const teacherCount = visibleContacts.filter(c => c.role === 'Teacher').length;
+  const studentCount = visibleContacts.filter(c => c.role === 'Student').length;
+  const parentCount = visibleContacts.filter(c => c.role === 'Parent').length;
+
+  const canInvite = isAdmin || isTeacher;
+
+  const handleInvite = (contact) => {
+    const room = 'room-' + Math.random().toString(36).substr(2, 6);
+    setInviteRoom(room);
+    setInvitingContact(contact);
+    setCopied(false);
+    setShowInviteModal(true);
+  };
+
+  const copyInviteLink = () => {
+    const link = `${window.location.origin}${window.location.pathname}?room=${inviteRoom}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }).catch(() => {});
+  };
+
+  const copyRoomCode = () => {
+    navigator.clipboard.writeText(inviteRoom).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }).catch(() => {});
+  };
+
+  const closeInviteModal = () => {
+    setShowInviteModal(false);
+    setInvitingContact(null);
+    setInviteRoom('');
+    setCopied(false);
+  };
+
+  const statusColor = (status) => {
+    switch(status) {
+      case 'active': return '#10b981';
+      case 'away': return '#f59e0b';
+      case 'offline': return '#94a3b8';
+      default: return '#64748b';
+    }
+  };
+
+  const roleBadgeColor = (role) => {
+    switch(role) {
+      case 'Teacher': return '#8b5cf6';
+      case 'Student': return '#3b82f6';
+      case 'Parent': return '#f59e0b';
+      default: return '#64748b';
+    }
+  };
+
+  return (
+    <div className="contacts-page">
+      {/* Stats Row */}
+      <div className="contacts-stats">
+        <div className="contact-stat-card">
+          <div className="stat-icon total"><Icons.People /></div>
+          <div className="stat-info">
+            <span className="stat-value">{visibleContacts.length}</span>
+            <span className="stat-label">Total Contacts</span>
+          </div>
+        </div>
+        <div className="contact-stat-card">
+          <div className="stat-icon active"><Icons.Circle color="#10b981" /></div>
+          <div className="stat-info">
+            <span className="stat-value">{activeCount}</span>
+            <span className="stat-label">Active Now</span>
+          </div>
+        </div>
+        <div className="contact-stat-card">
+          <div className="stat-icon teachers"><Icons.Book /></div>
+          <div className="stat-info">
+            <span className="stat-value">{teacherCount}</span>
+            <span className="stat-label">Teachers</span>
+          </div>
+        </div>
+        <div className="contact-stat-card">
+          <div className="stat-icon students"><Icons.Users /></div>
+          <div className="stat-info">
+            <span className="stat-value">{studentCount}</span>
+            <span className="stat-label">Students</span>
+          </div>
+        </div>
+        <div className="contact-stat-card">
+          <div className="stat-icon parents"><Icons.User /></div>
+          <div className="stat-info">
+            <span className="stat-value">{parentCount}</span>
+            <span className="stat-label">Parents</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="contacts-toolbar">
+        <div className="contacts-search">
+          <Icons.Search />
+          <input
+            type="text"
+            placeholder="Search contacts by name, email, or subject..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="contacts-filters">
+          {['all', 'teacher', 'student', 'parent'].map(role => (
+            <button
+              key={role}
+              className={`filter-btn ${filterRole === role ? 'active' : ''}`}
+              onClick={() => setFilterRole(role)}
+            >
+              {role === 'all' ? 'All' : role.charAt(0).toUpperCase() + role.slice(1) + 's'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Contact List */}
+      <div className="contacts-grid">
+        {filteredContacts.length === 0 ? (
+          <div className="contacts-empty">
+            <Icons.Search />
+            <h3>No contacts found</h3>
+            <p>Try adjusting your search or filter</p>
+          </div>
+        ) : (
+          filteredContacts.map(contact => (
+            <div key={contact.id} className="contact-card">
+              <div className="contact-avatar">
+                <span className="contact-emoji">{contact.avatar}</span>
+                <span className="contact-status-dot" style={{ background: statusColor(contact.status) }} title={contact.status}></span>
+              </div>
+              <div className="contact-body">
+                <div className="contact-header">
+                  <h4 className="contact-name">{contact.name}</h4>
+                  <span className="contact-role-badge" style={{ background: roleBadgeColor(contact.role) }}>
+                    {contact.role}
+                  </span>
+                </div>
+                <div className="contact-details">
+                  <span className="contact-detail">
+                    <Icons.Mail /> {contact.email}
+                  </span>
+                  {contact.subject && (
+                    <span className="contact-detail">
+                      <Icons.Book /> {contact.subject}
+                    </span>
+                  )}
+                  {contact.student && (
+                    <span className="contact-detail">
+                      <Icons.User /> Child: {contact.student}
+                    </span>
+                  )}
+                  {contact.students && (
+                    <span className="contact-detail">
+                      <Icons.Users /> {contact.students} students
+                    </span>
+                  )}
+                  <span className="contact-detail">
+                    <Icons.PhoneCall /> {contact.phone}
+                  </span>
+                </div>
+                <div className="contact-footer">
+                  <span className="contact-status" style={{ color: statusColor(contact.status) }}>
+                    ● {contact.status === 'active' ? 'Active' : contact.status === 'away' ? 'Away' : 'Offline'} — {contact.lastActive}
+                  </span>
+                  {canInvite && (
+                    <button className="btn-invite-contact" onClick={() => handleInvite(contact)}>
+                      <Icons.Invite /> Invite to Class
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Invite Modal */}
+      {showInviteModal && invitingContact && (
+        <div className="modal-overlay" onClick={closeInviteModal}>
+          <div className="invite-modal" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={closeInviteModal}>
+              <Icons.X />
+            </button>
+            <div className="invite-modal-header">
+              <div className="invite-contact-avatar">
+                <span>{invitingContact.avatar}</span>
+              </div>
+              <h2>Invite {invitingContact.name}</h2>
+              <p className="invite-contact-role">{invitingContact.role} — {invitingContact.subject}</p>
+            </div>
+            <div className="invite-modal-body">
+              <div className="invite-room-info">
+                <label>Classroom Code</label>
+                <div className="invite-code-row">
+                  <code className="invite-code">{inviteRoom}</code>
+                  <button className="btn-copy-code" onClick={copyRoomCode}>
+                    <Icons.Copy /> {copied ? 'Copied!' : 'Copy Code'}
+                  </button>
+                </div>
+              </div>
+              <div className="invite-divider">
+                <span>or share link</span>
+              </div>
+              <div className="invite-link-info">
+                <label>Invite Link</label>
+                <div className="invite-link-row">
+                  <code className="invite-link-url">{window.location.origin}{window.location.pathname}?room={inviteRoom}</code>
+                  <button className="btn-copy-link" onClick={copyInviteLink}>
+                    <Icons.Link /> {copied ? 'Copied!' : 'Copy Link'}
+                  </button>
+                </div>
+              </div>
+              <div className="invite-instructions">
+                <p><strong>How to invite:</strong></p>
+                <ol>
+                  <li>Copy the room code or invite link above</li>
+                  <li>Send it to {invitingContact.name} via email, message, or any channel</li>
+                  <li>They can join by visiting the link or entering the code in the Video Room</li>
+                  <li>When they join, you'll see them in the classroom</li>
+                </ol>
+              </div>
+              <div className="invite-preview-email">
+                <p><strong>Suggested message:</strong></p>
+                <div className="email-preview">
+                  <p>Hi {invitingContact.name},</p>
+                  <p>You're invited to join my online classroom!</p>
+                  <p><strong>Room Code:</strong> {inviteRoom}</p>
+                  <p><strong>Link:</strong> {window.location.origin}{window.location.pathname}?room={inviteRoom}</p>
+                  <p>Click the link or enter the code in the Video Room to join.</p>
+                  <p>See you in class! 📚</p>
+                </div>
+              </div>
+            </div>
+            <div className="invite-modal-footer">
+              <button className="btn-go-room" onClick={() => {
+                closeInviteModal();
+                // Navigate to video room with room pre-filled — handled by URL param
+                window.open(`${window.location.pathname}?room=${inviteRoom}`, '_blank');
+              }}>
+                <Icons.Video /> Open Classroom Now
+              </button>
+              <button className="btn-close-modal" onClick={closeInviteModal}>
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// FILES PAGE
+// ============================================
+function FilesPage({ user }) {
+  const [viewMode, setViewMode] = useState('grid');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const canUpload = user?.role === 'admin' || user?.role === 'teacher';
+
+  const categories = [
+    { id: 'all', label: 'All Files' },
+    { id: 'materials', label: 'Materials' },
+    { id: 'recordings', label: 'Recordings' },
+    { id: 'templates', label: 'Templates' },
+  ];
+
+  const filteredFiles = selectedCategory === 'all' 
+    ? SAMPLE_FILES 
+    : SAMPLE_FILES.filter(f => f.category === selectedCategory);
+
+  return (
+    <div className="files-page">
+      <div className="files-toolbar">
+        <div className="category-tabs">
+          {categories.map(cat => (
+            <button
+              key={cat.id}
+              className={`tab ${selectedCategory === cat.id ? 'active' : ''}`}
+              onClick={() => setSelectedCategory(cat.id)}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+        <div className="toolbar-actions">
+          <div className="view-toggle">
+            <button className={viewMode === 'grid' ? 'active' : ''} onClick={() => setViewMode('grid')}>
+              <Icons.Grid />
+            </button>
+            <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
+              <Icons.List />
+            </button>
+          </div>
+          {canUpload && (
+            <button className="btn-primary">
+              <Icons.Upload /> Upload
+            </button>
+          )}
+        </div>
+      </div>
+
+      {viewMode === 'grid' ? (
+        <div className="files-grid">
+          {filteredFiles.map(file => (
+            <div key={file.id} className="file-card">
+              <div className="file-preview">
+                <Icons.Files />
+              </div>
+              <div className="file-details">
+                <h4>{file.name}</h4>
+                <p>{file.size}</p>
+                <span className="file-date">{file.date}</span>
+              </div>
+              <div className="file-actions">
+                <button className="icon-btn"><Icons.Download /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="files-table">
+          <div className="table-header">
+            <span>Name</span>
+            <span>Size</span>
+            <span>Date</span>
+            <span>Action</span>
+          </div>
+          {filteredFiles.map(file => (
+            <div key={file.id} className="table-row">
+              <span className="file-name"><Icons.Files /> {file.name}</span>
+              <span>{file.size}</span>
+              <span>{file.date}</span>
+              <button className="icon-btn"><Icons.Download /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// REMOTE VIDEO TILE (sub-component for cleaner code)
+// ============================================
+function RemoteVideoTile({ peer }) {
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (videoRef.current && peer.stream) {
+      videoRef.current.srcObject = peer.stream;
+      videoRef.current.play().catch(e => console.log('Remote video play error:', e.message));
+    }
+  }, [peer.stream]);
+
+  return (
+    <div className="video-box">
+      <div className="video-active">
+        {peer.stream ? (
+          <video ref={videoRef} autoPlay playsInline className="local-video" style={{ display: 'block' }} />
+        ) : (
+          <div className="video-off">
+            <div className="avatar-large"><div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(102,126,234,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#667eea', fontSize: '18px', fontWeight: 700 }}>
+              {peer.userName ? peer.userName.charAt(0).toUpperCase() : '?'}
+            </div></div>
+          </div>
+        )}
+      </div>
+      <div className="participant-label">
+        <span className="name">{peer.userName || 'Unknown'}</span>
+        {peer.role === 'Teacher' && <span className="role-badge">Teacher</span>}
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// VIDEO ROOM PAGE
+// ============================================
+function VideoRoomPage() {
+  const { t } = useTranslation();
+  const [isMuted, setIsMuted] = useState(true);
+  const [isVideoOff, setIsVideoOff] = useState(false); // Camera ON by default
+  const [cameraError, setCameraError] = useState(null); // Track camera permission errors
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [activePanel, setActivePanel] = useState('chat');
+  const [chatMessage, setChatMessage] = useState('');
+  const [messages, setMessages] = useState([]);
+  const [sourceLang, setSourceLang] = useState('en');
+  const [targetLang, setTargetLang] = useState('zh');
+
+  // ---- Room & WebRTC state ----
+  const [roomId, setRoomId] = useState('');
+  const [roomInput, setRoomInput] = useState('');
+  const [userName, setUserName] = useState('You');
+  const [userRole, setUserRole] = useState('Student');
+  const [isInRoom, setIsInRoom] = useState(false);
+  const [remotePeers, setRemotePeers] = useState([]);
+  const socketRef = useRef(null);
+  const peerConnsRef = useRef({});
+  const myUserIdRef = useRef('user-' + Math.random().toString(36).substr(2, 9));
+
+  // Whiteboard state
+  const [showWhiteboard, setShowWhiteboard] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [drawColor, setDrawColor] = useState('#ffffff');
+  const [brushSize, setBrushSize] = useState(3);
+  const [drawTool, setDrawTool] = useState('brush');
+  const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
+
+  // Speech-to-Text state
+  const [isListening, setIsListening] = useState(false);
+  const [sttText, setSttText] = useState('');
+  const [sttLang, setSttLang] = useState('en-US');
+  const recognitionRef = useRef(null);
+
+  // Text-to-Speech state
+  const [ttsInput, setTtsInput] = useState('');
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [ttsVoice, setTtsVoice] = useState('');
+  const [availableVoices, setAvailableVoices] = useState([]);
+  const synthRef = useRef(window.speechSynthesis);
+
+  const [copied, setCopied] = useState(false);
+
+  // Contacts list in video room — cloud-synced via Supabase, localStorage as cache
+  const { user } = React.useContext(AuthContext);
+  const [roomContacts, setRoomContacts] = useState(() => {
+    const saved = localStorage.getItem('video_room_contacts');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [newContactName, setNewContactName] = useState('');
+  const [showContactsDropdown, setShowContactsDropdown] = useState(false);
+
+  // Load contacts from Supabase on mount
+  useEffect(() => {
+    if (user?.id) {
+      fetchVideoRoomContacts(user.id).then(contacts => {
+        if (contacts && contacts.length > 0) {
+          setRoomContacts(contacts);
+          localStorage.setItem('video_room_contacts', JSON.stringify(contacts));
+        }
+      }).catch(() => {});
+    }
+  }, [user?.id]);
+
+  const addRoomContact = async () => {
+    const name = newContactName.trim();
+    if (name && !roomContacts.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+      const newContact = { id: Date.now(), name };
+      const updated = [...roomContacts, newContact];
+      setRoomContacts(updated);
+      localStorage.setItem('video_room_contacts', JSON.stringify(updated));
+      setNewContactName('');
+      // Save to Supabase in background, then update local with real ID
+      if (user?.id) {
+        addVideoRoomContact(user.id, name).then(result => {
+          if (result) {
+            setRoomContacts(prev => {
+              const synced = prev.map(c => c.id === newContact.id ? { ...c, id: result.id } : c);
+              localStorage.setItem('video_room_contacts', JSON.stringify(synced));
+              return synced;
+            });
+          }
+        }).catch(() => {});
+      }
+    }
+  };
+
+  const removeRoomContact = (id) => {
+    const updated = roomContacts.filter(c => c.id !== id);
+    setRoomContacts(updated);
+    localStorage.setItem('video_room_contacts', JSON.stringify(updated));
+    // Remove from Supabase in background
+    removeVideoRoomContact(id).catch(() => {});
+  };
+
+  // ---- Calling state (three-step flow) ----
+  const [callState, setCallState] = useState('idle'); // idle | confirming | outgoing | incoming | connected
+  const [activeCall, setActiveCall] = useState(null); // { contactId, contactName }
+  const [callMsg, setCallMsg] = useState('');
+  const callTimerRef = useRef(null);
+
+  const startCallFlow = (contact) => {
+    // Step 1: confirmation dialog
+    setCallState('confirming');
+    setActiveCall({ contactId: contact.id, contactName: contact.name });
+    setCallMsg(`Call ${contact.name}?`);
+  };
+
+  const confirmCall = () => {
+    if (!activeCall) return;
+    // Step 2: ringing
+    setCallState('outgoing');
+    setCallMsg(`Ringing ${activeCall.contactName}...`);
+
+    // Step 3: after a delay, simulate incoming call response
+    callTimerRef.current = setTimeout(() => {
+      setCallState('incoming');
+      setCallMsg(`Incoming call request from ${activeCall.contactName}`);
+    }, 2000);
+  };
+
+  const cancelCall = () => {
+    if (callTimerRef.current) clearTimeout(callTimerRef.current);
+    setCallState('idle');
+    setActiveCall(null);
+    setCallMsg('');
+  };
+
+  const acceptCall = async () => {
+    if (callTimerRef.current) clearTimeout(callTimerRef.current);
+    setCallState('connected');
+    setCallMsg(`Call connected with ${activeCall?.contactName}`);
+
+    // Auto-join/create room
+    const room = roomId || ('room-' + Math.random().toString(36).substr(2, 6));
+    const name = userName.trim() || 'You';
+    setRoomId(room);
+    if (!isInRoom) {
+      setMessages([{ id: Date.now(), user: 'System', text: `Call started with ${activeCall?.contactName}. Room: ${room}`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+      const socket = connectToSignaling(room, name, userRole);
+      if (!socket) {
+        setCallState('idle');
+        setActiveCall(null);
+        setCallMsg('');
+        return;
+      }
+      socketRef.current = socket;
+      setIsInRoom(true);
+      const stream = await startStream(true, true);
+      if (stream) {
+        stream.getAudioTracks().forEach(track => { track.enabled = false; });
+        setIsVideoOff(false);
+        setIsMuted(true);
+        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      }
+    }
+
+    // Clear call UI after connected
+    setTimeout(() => {
+      setCallState('idle');
+      setActiveCall(null);
+      setCallMsg('');
+    }, 2000);
+  };
+
+  const declineCall = () => {
+    if (callTimerRef.current) clearTimeout(callTimerRef.current);
+    setCallState('idle');
+    setActiveCall(null);
+    setCallMsg('');
+  };
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (callTimerRef.current) clearTimeout(callTimerRef.current);
+    };
+  }, []);
+
+  const localVideoRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const whiteboardRef = useRef(null);
+
+  // ---- Detect ?room= URL param for shared invite links ----
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('room');
+    if (roomParam) {
+      setRoomInput(roomParam);
+    }
+  }, []);
+
+  // ---- Copy invite helpers ----
+  const copyRoomCode = () => {
+    navigator.clipboard.writeText(roomId).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  };
+
+  const copyInviteLink = () => {
+    const link = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  };
+
+  useEffect(() => {
+    return () => {
+      stopCamera();
+      disconnectRoom();
+    };
+  }, []);
+
+  // Attach local stream to video element + add tracks to all peer connections
+  useEffect(() => {
+    const video = localVideoRef.current;
+    const stream = localStreamRef.current;
+    if (video && stream) {
+      video.srcObject = stream;
+      video.play().catch(e => console.log('Video play error:', e.message));
+    }
+    if (stream) {
+      Object.values(peerConnsRef.current).forEach(pc => {
+        stream.getTracks().forEach(track => {
+          try {
+            const senders = pc.getSenders();
+            if (!senders.find(s => s.track && s.track.kind === track.kind)) {
+              pc.addTrack(track, stream);
+            }
+          } catch(e) {}
+        });
+      });
+    }
+  }, [isVideoOff, isMuted, remotePeers]);
+
+  const startStream = async (needsVideo, needsAudio) => {
+    try {
+      // Check if mediaDevices API is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        const msg = 'Camera/microphone not supported in this browser or requires HTTPS.';
+        console.error(msg);
+        setCameraError(msg);
+        return null;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: needsVideo ? { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' } : false, 
+        audio: needsAudio 
+      });
+      localStreamRef.current = stream;
+      setCameraError(null);
+      console.log('Camera stream acquired:', stream.getVideoTracks().length, 'video tracks');
+      return stream;
+    } catch (err) {
+      console.error('Camera error:', err.name, err.message);
+      const friendlyMsg = err.name === 'NotAllowedError'
+        ? 'Camera access denied. Please allow camera permission in your browser settings.'
+        : err.name === 'NotFoundError'
+        ? 'No camera found. Please connect a camera and try again.'
+        : err.message || 'Unknown camera error';
+      setCameraError(friendlyMsg);
+      return null;
+    }
+  };
+
+  // Auto-start camera on page load (before entering room)
+  useEffect(() => {
+    if (!isInRoom && !localStreamRef.current) {
+      startStream(true, false).then(stream => {
+        if (stream && localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+          setIsVideoOff(false);
+        }
+      });
+    }
+    return () => { stopCamera(); };
+  }, []);
+
+  const stopCamera = () => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
+    }
+  };
+
+  // ---- Room & WebRTC management ----
+  const disconnectRoom = () => {
+    Object.values(peerConnsRef.current).forEach(pc => {
+      try { pc.close(); } catch(e) {}
+    });
+    peerConnsRef.current = {};
+    setRemotePeers([]);
+    if (socketRef.current) {
+      socketRef.current.close();
+      socketRef.current = null;
+    }
+  };
+
+  const connectToSignaling = (roomIdToUse, name, role) => {
+    const wsUrl = 'ws://localhost:3001';
+    let socket;
+    try {
+      socket = new WebSocket(wsUrl);
+    } catch (e) {
+      alert('Cannot connect to signaling server. Run: npm run server');
+      return null;
+    }
+
+    socket.onopen = () => {
+      socket.send(JSON.stringify({
+        type: 'join-room', roomId: roomIdToUse,
+        userId: myUserIdRef.current, userName: name, role: role
+      }));
+    };
+
+    socket.onmessage = (event) => {
+      let msg;
+      try { msg = JSON.parse(event.data); } catch { return; }
+
+      switch (msg.type) {
+        case 'room-joined':
+          msg.peers.forEach(peer => {
+            if (peer.userId !== myUserIdRef.current) {
+              createPeerForUser(socket, peer.userId, peer.userName, peer.role);
+            }
+          });
+          break;
+        case 'peer-joined':
+          createPeerForUser(socket, msg.userId, msg.userName, msg.role);
+          break;
+        case 'offer':
+          handleIncomingOffer(socket, msg.fromUserId, msg.fromUserName, msg.sdp);
+          break;
+        case 'answer':
+          handleIncomingAnswer(msg.fromUserId, msg.sdp);
+          break;
+        case 'ice-candidate':
+          handleIncomingIce(msg.fromUserId, msg.candidate);
+          break;
+        case 'peer-left':
+          removePeer(msg.userId);
+          break;
+        case 'chat-message':
+          setMessages(prev => [...prev, { id: Date.now(), user: msg.fromUserName, text: msg.text, time: msg.time }]);
+          break;
+      }
+    };
+
+    socket.onclose = () => console.log('Signaling disconnected');
+    socket.onerror = (err) => console.error('Signaling error:', err);
+    return socket;
+  };
+
+  const createPeerForUser = (socket, userId, userName, role) => {
+    const pc = createPeerConnection(socket, userId);
+    
+    pc._onstream = (stream) => {
+      setRemotePeers(prev => {
+        const exists = prev.find(p => p.userId === userId);
+        if (exists) return prev.map(p => p.userId === userId ? { ...p, stream, isVideoOn: true } : p);
+        return [...prev, { userId, userName, role, stream, isVideoOn: true, isSpeaking: false }];
+      });
+    };
+
+    pc.onstatechange = (uid, state) => {
+      if (state === 'disconnected' || state === 'failed' || state === 'closed') removePeer(uid);
+    };
+
+    peerConnsRef.current[userId] = pc;
+    if (localStreamRef.current) addTracksToPeer(pc, localStreamRef.current);
+
+    setRemotePeers(prev => {
+      if (prev.find(p => p.userId === userId)) return prev;
+      return [...prev, { userId, userName, role, stream: null, isVideoOn: false, isSpeaking: false }];
+    });
+
+    createOffer(socket, pc, userId);
+    return pc;
+  };
+
+  const handleIncomingOffer = async (socket, fromUserId, fromUserName, sdp) => {
+    let pc = peerConnsRef.current[fromUserId];
+    if (!pc) {
+      pc = createPeerConnection(socket, fromUserId);
+      peerConnsRef.current[fromUserId] = pc;
+    }
+
+    pc._onstream = (stream) => {
+      setRemotePeers(prev => {
+        const exists = prev.find(p => p.userId === fromUserId);
+        if (exists) return prev.map(p => p.userId === fromUserId ? { ...p, stream, isVideoOn: true } : p);
+        return [...prev, { userId: fromUserId, userName: fromUserName, role: 'Student', stream, isVideoOn: true, isSpeaking: false }];
+      });
+    };
+
+    pc.onstatechange = (uid, state) => {
+      if (state === 'disconnected' || state === 'failed' || state === 'closed') removePeer(uid);
+    };
+
+    if (localStreamRef.current) addTracksToPeer(pc, localStreamRef.current);
+
+    setRemotePeers(prev => {
+      if (prev.find(p => p.userId === fromUserId)) return prev;
+      return [...prev, { userId: fromUserId, userName: fromUserName, role: 'Student', stream: null, isVideoOn: false, isSpeaking: false }];
+    });
+
+    await handleOffer(socket, pc, fromUserId, sdp);
+  };
+
+  const handleIncomingAnswer = async (fromUserId, sdp) => {
+    const pc = peerConnsRef.current[fromUserId];
+    if (pc) await handleAnswer(pc, sdp);
+  };
+
+  const handleIncomingIce = async (fromUserId, candidate) => {
+    const pc = peerConnsRef.current[fromUserId];
+    if (pc) await handleIceCandidate(pc, candidate);
+  };
+
+  const removePeer = (userId) => {
+    const pc = peerConnsRef.current[userId];
+    if (pc) { try { pc.close(); } catch(e) {}; delete peerConnsRef.current[userId]; }
+    setRemotePeers(prev => prev.filter(p => p.userId !== userId));
+  };
+
+  const joinRoom = async () => {
+    const room = roomInput.trim() || ('room-' + Math.random().toString(36).substr(2, 6));
+    const name = userName.trim() || 'You';
+    setRoomId(room);
+    setMessages([{ id: Date.now(), user: 'System', text: `Joining room: ${room}`, time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) }]);
+    const socket = connectToSignaling(room, name, userRole);
+    if (!socket) return;
+    socketRef.current = socket;
+    setIsInRoom(true);
+    const stream = await startStream(true, true);
+    if (stream) {
+      stream.getAudioTracks().forEach(track => { track.enabled = false; });
+      setIsVideoOff(false);
+      setIsMuted(true);
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+    }
+  };
+
+  const createRoom = async () => {
+    const room = 'room-' + Math.random().toString(36).substr(2, 6);
+    setRoomId(room);
+    setUserRole('Teacher');
+    const name = 'Teacher';
+    setUserName(name);
+    setMessages([{ id: Date.now(), user: 'System', text: `Room created: ${room} — share this code with students!`, time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) }]);
+    const socket = connectToSignaling(room, name, 'Teacher');
+    if (!socket) return;
+    socketRef.current = socket;
+    setIsInRoom(true);
+    const stream = await startStream(true, true);
+    if (stream) {
+      stream.getAudioTracks().forEach(track => { track.enabled = false; });
+      setIsVideoOff(false);
+      setIsMuted(true);
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+    }
+  };
+
+  const leaveRoom = () => {
+    stopCamera();
+    disconnectRoom();
+    setIsInRoom(false);
+    setIsVideoOff(true);
+    setIsMuted(true);
+  };
+
+  const toggleCamera = async () => {
+    // If no stream yet (camera was off before room join), try to acquire one
+    if (!localStreamRef.current) {
+      const stream = await startStream(true, !!localStreamRef.current?.getAudioTracks()?.[0]);
+      if (stream) {
+        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+        setIsVideoOff(false);
+      }
+      return;
+    }
+    const videoTrack = localStreamRef.current.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      setIsVideoOff(!videoTrack.enabled);
+    } else {
+      // Had audio-only stream, restart with video
+      const stream = await startStream(true, !isMuted);
+      if (stream && localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+        setIsVideoOff(false);
+      }
+    }
+  };
+
+  const toggleMic = () => {
+    if (!localStreamRef.current) return;
+    const audioTrack = localStreamRef.current.getAudioTracks()[0];
+    if (audioTrack) { audioTrack.enabled = !audioTrack.enabled; setIsMuted(!audioTrack.enabled); }
+  };
+
+  const toggleScreenShare = async () => {
+    if (!isScreenSharing) {
+      try {
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        if (localVideoRef.current) localVideoRef.current.srcObject = screenStream;
+        setIsScreenSharing(true);
+      } catch (err) {
+        console.log('Screen share cancelled');
+      }
+    } else {
+      if (localVideoRef.current) localVideoRef.current.srcObject = localStreamRef.current;
+      setIsScreenSharing(false);
+    }
+  };
+
+  // ---- Speech-to-Text ----
+  const startListening = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert(t('sttNotSupported'));
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = sttLang;
+    recognition.interimResults = true;
+    recognition.continuous = true;
+    recognition.onresult = (event) => {
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      setSttText(transcript);
+    };
+    recognition.onerror = (event) => {
+      console.error('STT Error:', event.error);
+      if (event.error === 'no-speech') return;
+      setIsListening(false);
+    };
+    recognition.onend = () => { setIsListening(false); };
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    setIsListening(false);
+  };
+
+  const copySttText = () => {
+    if (sttText) {
+      navigator.clipboard.writeText(sttText);
+    }
+  };
+
+  const sendSttToChat = () => {
+    if (sttText.trim()) {
+      setMessages([...messages, { id: Date.now(), user: 'You (voice)', text: sttText, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+      setSttText('');
+    }
+  };
+
+  // ---- Text-to-Speech ----
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = synthRef.current.getVoices();
+      if (voices.length > 0) {
+        setAvailableVoices(voices);
+        if (!ttsVoice) setTtsVoice(voices[0].name);
+      }
+    };
+    loadVoices();
+    synthRef.current.onvoiceschanged = loadVoices;
+    return () => { synthRef.current.onvoiceschanged = null; };
+  }, []);
+
+  const speakText = () => {
+    if (!ttsInput.trim() || !synthRef.current) return;
+    synthRef.current.cancel();
+    const utterance = new SpeechSynthesisUtterance(ttsInput);
+    if (ttsVoice) {
+      const voice = availableVoices.find(v => v.name === ttsVoice);
+      if (voice) utterance.voice = voice;
+    }
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    setIsSpeaking(true);
+    synthRef.current.speak(utterance);
+  };
+
+  const stopSpeaking = () => {
+    if (synthRef.current) {
+      synthRef.current.cancel();
+    }
+    setIsSpeaking(false);
+  };
+
+
+  const sendMessage = () => {
+    if (chatMessage.trim()) {
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const msg = { id: Date.now(), user: 'You', text: chatMessage, time };
+      setMessages(prev => [...prev, msg]);
+      // Broadcast to room via signaling
+      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+        socketRef.current.send(JSON.stringify({ type: 'chat-message', text: chatMessage, time }));
+      }
+      setChatMessage('');
+    }
+  };
+
+  const languages = [
+    { code: 'en', name: 'English' },
+    { code: 'zh', name: 'Chinese' },
+    { code: 'es', name: 'Spanish' },
+    { code: 'fr', name: 'French' },
+    { code: 'ar', name: 'Arabic' },
+    { code: 'pt', name: 'Portuguese' },
+  ];
+
+  const transcriptLines = [
+    { time: '09:00', speaker: 'Teacher', text: 'Good morning everyone. Today we will be discussing advanced grammar structures.' },
+    { time: '09:02', speaker: 'Teacher', text: 'Let\'s start with conditional sentences and their various forms.' },
+    { time: '09:05', speaker: 'Teacher', text: 'Pay attention to the difference between zero, first, second, and third conditionals.' },
+  ];
+
+  // Whiteboard functions
+  const initWhiteboard = () => {
+    const canvas = whiteboardRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0f0f1a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  };
+
+  useEffect(() => {
+    if (showWhiteboard && whiteboardRef.current) {
+      const canvas = whiteboardRef.current;
+      const wrapper = canvas.parentElement;
+      if (!wrapper) return;
+      const resizeCanvas = () => {
+        const rect = wrapper.getBoundingClientRect();
+        canvas.width = rect.width || 800;
+        canvas.height = Math.max((rect.height || 600) - 80, 200);
+        initWhiteboard();
+      };
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+      return () => window.removeEventListener('resize', resizeCanvas);
+    }
+  }, [showWhiteboard]);
+
+  const getCanvasCoords = (e) => {
+    const canvas = whiteboardRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    if (e.touches) {
+      return {
+        x: (e.touches[0].clientX - rect.left) * scaleX,
+        y: (e.touches[0].clientY - rect.top) * scaleY
+      };
+    }
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY
+    };
+  };
+
+  const startDrawing = (e) => {
+    e.preventDefault();
+    const coords = getCanvasCoords(e);
+    setIsDrawing(true);
+    setLastPos(coords);
+    const ctx = whiteboardRef.current?.getContext('2d');
+    if (ctx) {
+      ctx.beginPath();
+      ctx.arc(coords.x, coords.y, brushSize / 2, 0, Math.PI * 2);
+      ctx.fillStyle = drawTool === 'eraser' ? '#0f0f1a' : drawColor;
+      ctx.fill();
+    }
+  };
+
+  const draw = (e) => {
+    if (!isDrawing) return;
+    e.preventDefault();
+    const coords = getCanvasCoords(e);
+    const ctx = whiteboardRef.current?.getContext('2d');
+    if (!ctx) return;
+    ctx.beginPath();
+    ctx.moveTo(lastPos.x, lastPos.y);
+    ctx.lineTo(coords.x, coords.y);
+    ctx.strokeStyle = drawTool === 'eraser' ? '#0f0f1a' : drawColor;
+    ctx.lineWidth = drawTool === 'eraser' ? brushSize * 3 : brushSize;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    setLastPos(coords);
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  const clearWhiteboard = () => {
+    if (whiteboardRef.current) {
+      const ctx = whiteboardRef.current.getContext('2d');
+      ctx.fillStyle = '#0f0f1a';
+      ctx.fillRect(0, 0, whiteboardRef.current.width, whiteboardRef.current.height);
+    }
+  };
+
+  // ---- Room Lobby (not yet in a room) ----
+  if (!isInRoom) {
+    const hasInviteCode = roomInput.length > 3;
+    return (
+      <div className="video-room">
+        <div className="video-area" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '40px 20px' }}>
+          <div style={{ background: 'rgba(102,126,234,0.15)', borderRadius: '24px', padding: '40px', maxWidth: '480px', width: '100%', textAlign: 'center' }}>
+            <div style={{ marginBottom: '24px' }}>
+              <Icons.Video />
+              <h2 style={{ color: '#fff', marginTop: '12px', fontSize: '24px' }}>Video Classroom</h2>
+              <p style={{ color: '#94a3b8', marginTop: '8px' }}>Join or create a live video room with your class</p>
+            </div>
+
+            {/* Direct Join from Invite Link */}
+            {hasInviteCode && (
+              <div style={{ marginBottom: '20px', padding: '16px', background: 'rgba(16,185,129,0.15)', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.3)' }}>
+                <p style={{ color: '#34d399', fontSize: '13px', fontWeight: 600, margin: '0 0 4px 0' }}>
+                  <Icons.Link /> You were invited to join
+                </p>
+                <p style={{ color: '#94a3b8', fontSize: '13px', margin: '0 0 12px 0' }}>
+                  Room: <strong style={{ color: '#e2e8f0' }}>{roomInput}</strong>
+                </p>
+                <button
+                  onClick={joinRoom}
+                  style={{
+                    width: '100%', padding: '14px', borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    color: '#fff', border: 'none', fontSize: '15px', fontWeight: 600, cursor: 'pointer'
+                  }}
+                >
+                  Join Room Now
+                </button>
+              </div>
+            )}
+
+            {/* Create Room */}
+            <div style={{ marginBottom: '24px' }}>
+              <button
+                onClick={createRoom}
+                style={{
+                  width: '100%', padding: '16px', borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                  color: '#fff', border: 'none', fontSize: '16px', fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                <Icons.Camera /> Create Classroom (Teacher)
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '16px 0', color: '#475569' }}>
+              <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+              <span style={{ fontSize: '13px' }}>{hasInviteCode ? 'OR USE DIFFERENT ROOM' : 'OR JOIN A ROOM'}</span>
+              <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+            </div>
+
+            {/* Join Room */}
+            <div>
+              <input
+                type="text"
+                placeholder="Your name"
+                value={userName}
+                onChange={e => setUserName(e.target.value)}
+                style={{
+                  width: '100%', padding: '12px', borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(15,15,26,0.8)',
+                  color: '#fff', fontSize: '14px', marginBottom: '10px', boxSizing: 'border-box'
+                }}
+              />
+              <input
+                type="text"
+                placeholder="Enter room code"
+                value={roomInput}
+                onChange={e => setRoomInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && joinRoom()}
+                style={{
+                  width: '100%', padding: '12px', borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(15,15,26,0.8)',
+                  color: '#fff', fontSize: '14px', marginBottom: '10px', boxSizing: 'border-box'
+                }}
+              />
+              <button
+                onClick={joinRoom}
+                style={{
+                  width: '100%', padding: '14px', borderRadius: '12px',
+                  background: 'rgba(102,126,234,0.3)', border: '1px solid rgba(102,126,234,0.5)',
+                  color: '#fff', fontSize: '15px', fontWeight: 600, cursor: 'pointer'
+                }}
+              >
+                Join Classroom (Student)
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const totalPeople = 1 + remotePeers.length;
+
+  return (
+    <div className="video-room">
+      <div className="video-area">
+        <div className="room-header">
+          <div className="room-info">
+            <h3>Room: {roomId}</h3>
+            <span className="live-indicator"><span className="pulse"></span> LIVE</span>
+            <div className="invite-btns">
+              <button className="invite-btn" onClick={copyRoomCode} title="Copy room code to clipboard">
+                <Icons.Copy /> {copied ? 'Copied!' : 'Code'}
+              </button>
+              <button className="invite-btn primary" onClick={copyInviteLink} title="Copy invite link to share with students">
+                <Icons.Link /> {copied ? 'Copied!' : 'Invite'}
+              </button>
+            </div>
+          </div>
+          <div className="participant-count">
+            <Icons.People /> {totalPeople} participants
+          </div>
+        </div>
+
+        {showWhiteboard ? (
+          <div className="whiteboard-wrapper">
+            <canvas
+              ref={whiteboardRef}
+              className="whiteboard-canvas"
+              onMouseDown={startDrawing}
+              onMouseMove={draw}
+              onMouseUp={stopDrawing}
+              onMouseLeave={stopDrawing}
+              onTouchStart={startDrawing}
+              onTouchMove={draw}
+              onTouchEnd={stopDrawing}
+            />
+            <div className="whiteboard-toolbar">
+              <button className={`wb-tool ${drawTool === 'brush' ? 'active' : ''}`} onClick={() => setDrawTool('brush')} title="Brush">
+                <Icons.Brush />
+                <span>Brush</span>
+              </button>
+              <button className={`wb-tool ${drawTool === 'eraser' ? 'active' : ''}`} onClick={() => setDrawTool('eraser')} title="Eraser">
+                <Icons.Eraser />
+                <span>Eraser</span>
+              </button>
+              <div className="wb-divider" />
+              <div className="wb-color-section">
+                <label>Color</label>
+                <input type="color" value={drawColor} onChange={(e) => setDrawColor(e.target.value)} className="wb-color-picker" />
+              </div>
+              <div className="wb-divider" />
+              <div className="wb-brush-section">
+                <label>Size: {brushSize}px</label>
+                <input type="range" min="1" max="20" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} />
+              </div>
+              <div className="wb-divider" />
+              <button className="wb-clear-btn" onClick={clearWhiteboard} title="Clear entire whiteboard">
+                <Icons.Clear />
+                <span>Clear All</span>
+              </button>
+            </div>
+            <div className="whiteboard-indicator">
+              <Icons.Whiteboard /> Whiteboard Active
+            </div>
+          </div>
+        ) : (
+          <div className="video-grid">
+            {/* Local tile */}
+            <div className={`video-box ${userRole === 'Teacher' ? 'main' : ''}`}>
+              <div className="video-active">
+                <video 
+                  ref={localVideoRef} 
+                  autoPlay muted playsInline 
+                  className="local-video"
+                  style={{ display: (!isVideoOff && localStreamRef.current) ? 'block' : 'none' }}
+                />
+                {(isVideoOff || !localStreamRef.current) && (
+                  <div className="video-off">
+                    <div className="avatar-large"><Icons.User /></div>
+                    {cameraError && <p style={{color:'#f87171',fontSize:'11px',marginTop:'8px',textAlign:'center'}}>{cameraError}</p>}
+                  </div>
+                )}
+              </div>
+              <div className="participant-label">
+                <span className="name">{userName} (You)</span>
+                {userRole === 'Teacher' && <span className="role-badge">Teacher</span>}
+              </div>
+            </div>
+            {/* Remote peer tiles */}
+            {remotePeers.map(peer => (
+              <RemoteVideoTile key={peer.userId} peer={peer} />
+            ))}
+            {/* Empty slots for better grid look */}
+            {remotePeers.length === 0 && (
+              <div className="video-box">
+                <div className="video-off" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                  <p style={{ color: '#64748b', fontSize: '14px' }}>
+                    {userRole === 'Teacher' ? 'Waiting for students to join...' : 'Waiting for teacher...'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ---- Camera Error Banner ---- */}
+        {cameraError && (
+          <div className="camera-error-banner">
+            <span>{cameraError}</span>
+            <button onClick={() => { setCameraError(null); toggleCamera(); }}>Retry Camera</button>
+          </div>
+        )}
+
+        {/* ---- Floating Contacts Dropdown (small button, right side) ---- */}
+        <div className="contacts-float">
+          <button
+            className={`contacts-float-btn ${showContactsDropdown ? 'active' : ''}`}
+            onClick={() => setShowContactsDropdown(!showContactsDropdown)}
+            title="Contacts"
+          >
+            <Icons.Contacts />
+            {roomContacts.length > 0 && <span className="contacts-float-badge">{roomContacts.length}</span>}
+          </button>
+          {showContactsDropdown && (
+            <div className="contacts-dropdown">
+              <div className="contacts-dropdown-head">
+                <span>Contacts</span>
+                <button onClick={() => setShowContactsDropdown(false)}>&times;</button>
+              </div>
+              <div className="contacts-dropdown-add">
+                <input
+                  type="text"
+                  placeholder="Add name..."
+                  value={newContactName}
+                  onChange={e => setNewContactName(e.target.value)}
+                  onKeyPress={e => e.key === 'Enter' && addRoomContact()}
+                />
+                <button onClick={addRoomContact} title="Add">+</button>
+              </div>
+              <div className="contacts-dropdown-list">
+                {roomContacts.length === 0 ? (
+                  <p className="contacts-dropdown-empty">No contacts yet</p>
+                ) : (
+                  roomContacts.map(contact => (
+                    <div key={contact.id} className="contacts-dropdown-item">
+                      <div className="contacts-dropdown-avatar">{contact.name.charAt(0).toUpperCase()}</div>
+                      <span className="contacts-dropdown-name">{contact.name}</span>
+                      <div className="contacts-dropdown-actions">
+                        <button className="contacts-dropdown-call" onClick={() => startCallFlow(contact)} title={`Call ${contact.name}`}>
+                          <Icons.PhoneCall />
+                        </button>
+                        <button className="contacts-dropdown-del" onClick={() => removeRoomContact(contact.id)} title="Remove">&times;</button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="video-controls">
+          <div className="controls-main">
+            <button className={`ctrl-btn mic ${isMuted ? 'off' : ''}`} onClick={toggleMic} title={isMuted ? 'Unmute microphone' : 'Mute microphone'}>
+              <div className="ctrl-icon">{isMuted ? <Icons.MicOff /> : <Icons.Mic />}</div>
+              <span className="ctrl-label">{isMuted ? 'Unmute' : 'Mute'}</span>
+            </button>
+            <button className={`ctrl-btn camera ${isVideoOff ? 'off' : ''}`} onClick={toggleCamera} title={isVideoOff ? 'Turn camera on' : 'Turn camera off'}>
+              <div className="ctrl-icon">{isVideoOff ? <Icons.CameraOff /> : <Icons.Camera />}</div>
+              <span className="ctrl-label">{isVideoOff ? 'Start' : 'Stop'}</span>
+            </button>
+            <button className={`ctrl-btn screen ${isScreenSharing ? 'active' : ''}`} onClick={toggleScreenShare} title="Share your screen">
+              <div className="ctrl-icon"><Icons.Screen /></div>
+              <span className="ctrl-label">{isScreenSharing ? 'Stop' : 'Share'}</span>
+            </button>
+            <button className={`ctrl-btn whiteboard ${showWhiteboard ? 'active' : ''}`} onClick={() => setShowWhiteboard(!showWhiteboard)} title="Open whiteboard">
+              <div className="ctrl-icon"><Icons.Whiteboard /></div>
+              <span className="ctrl-label">Board</span>
+            </button>
+          </div>
+          <button className="ctrl-btn leave" onClick={leaveRoom} title="Leave call">
+            <div className="ctrl-icon"><Icons.Phone /></div>
+            <span className="ctrl-label">Leave</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="sidebar-panel">
+        <div className="panel-tabs">
+          <button className={`tab ${activePanel === 'chat' ? 'active' : ''}`} onClick={() => setActivePanel('chat')}>
+            <Icons.Mail /> Chat
+          </button>
+          <button className={`tab ${activePanel === 'transcript' ? 'active' : ''}`} onClick={() => setActivePanel('transcript')}>
+            <Icons.Translate /> Transcript
+          </button>
+          <button className={`tab ${activePanel === 'speech' ? 'active' : ''}`} onClick={() => setActivePanel('speech')}>
+            <Icons.Microphone /> Speech
+          </button>
+          <button className={`tab ${activePanel === 'contacts' ? 'active' : ''}`} onClick={() => setActivePanel('contacts')}>
+            <Icons.Contacts /> Contacts
+          </button>
+        </div>
+
+        {activePanel === 'chat' && (
+          <>
+            <div className="chat-messages">
+              {messages.map(msg => (
+                <div key={msg.id} className={`message ${msg.user === 'You' || msg.user === 'You (voice)' ? 'outgoing' : ''}`}>
+                  <div className="message-header">
+                    <span className="message-user">{msg.user}</span>
+                    <span className="message-time">{msg.time}</span>
+                  </div>
+                  <p className="message-text">{msg.text}</p>
+                </div>
+              ))}
+            </div>
+            <div className="chat-input">
+              <input
+                type="text"
+                placeholder={t('typeMessage')}
+                value={chatMessage}
+                onChange={e => setChatMessage(e.target.value)}
+                onKeyPress={e => e.key === 'Enter' && sendMessage()}
+              />
+              <button onClick={sendMessage}><Icons.Send /></button>
+            </div>
+          </>
+        )}
+
+        {activePanel === 'transcript' && (
+          <div className="transcript-panel">
+            <div className="translation-selector">
+              <div className="lang-select-row">
+                <span className="lang-select-label">{t('fromLanguage')}</span>
+                <select value={sourceLang} onChange={e => setSourceLang(e.target.value)}>
+                  {languages.map(lang => (
+                    <option key={lang.code} value={lang.code}>{lang.name}</option>
+                  ))}
+                </select>
+              </div>
+              <span className="lang-arrow-divider">→</span>
+              <div className="lang-select-row">
+                <span className="lang-select-label">{t('toLanguage')}</span>
+                <select value={targetLang} onChange={e => setTargetLang(e.target.value)}>
+                  {languages.map(lang => (
+                    <option key={lang.code} value={lang.code}>{lang.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="transcript-content">
+              {transcriptLines.map((line, i) => (
+                <div key={i} className="transcript-line">
+                  <span className="transcript-time">{line.time}</span>
+                  <div className="transcript-text">
+                    <span className="speaker">{line.speaker}:</span>
+                    <p>{line.text}</p>
+                    <span className="translation">
+                      {t('translationLabel')}: {line.text}
+                    </span>
+                    <span className="translation-langs">
+                      {languages.find(l => l.code === sourceLang)?.name} → {languages.find(l => l.code === targetLang)?.name}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activePanel === 'speech' && (
+          <div className="speech-panel">
+            {/* ---- Speech to Text ---- */}
+            <div className="speech-section">
+              <div className="speech-section-header">
+                <Icons.Microphone />
+                <h4>{t('speechToText')}</h4>
+              </div>
+              <div className="speech-stt-body">
+                <div className="stt-controls">
+                  <select value={sttLang} onChange={e => setSttLang(e.target.value)} className="stt-lang-select">
+                    <option value="en-US">English</option>
+                    <option value="zh-CN">中文 (Chinese)</option>
+                    <option value="es-ES">Español</option>
+                    <option value="fr-FR">Français</option>
+                    <option value="ar-SA">العربية</option>
+                  </select>
+                  <button
+                    className={`stt-mic-btn ${isListening ? 'listening' : ''}`}
+                    onClick={isListening ? stopListening : startListening}
+                    title={isListening ? t('stopRecording') : t('startRecording')}
+                  >
+                    <Icons.Microphone />
+                  </button>
+                  {isListening && <span className="stt-recording-label">{t('listening')}</span>}
+                </div>
+                <div className="stt-text-area">
+                  {isListening && !sttText && (
+                    <div className="stt-listening-animation">
+                      <span className="wave-bar"></span><span className="wave-bar"></span><span className="wave-bar"></span><span className="wave-bar"></span><span className="wave-bar"></span>
+                    </div>
+                  )}
+                  <p className={sttText ? 'stt-result' : 'stt-placeholder'}>
+                    {sttText || t('sttPlaceholder')}
+                  </p>
+                </div>
+                {sttText && (
+                  <div className="stt-actions">
+                    <button className="speech-action-btn" onClick={copySttText} title={t('copyText')}>
+                      <Icons.Copy /> {t('copyText')}
+                    </button>
+                    <button className="speech-action-btn primary" onClick={sendSttToChat} title={t('sendToChat')}>
+                      <Icons.Send /> {t('sendToChat')}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ---- Text to Speech ---- */}
+            <div className="speech-section">
+              <div className="speech-section-header">
+                <Icons.Speaker />
+                <h4>{t('textToSpeech')}</h4>
+              </div>
+              <div className="speech-tts-body">
+                <textarea
+                  className="tts-textarea"
+                  placeholder={t('ttsPlaceholder')}
+                  value={ttsInput}
+                  onChange={e => setTtsInput(e.target.value)}
+                  rows={4}
+                />
+                <div className="tts-controls">
+                  <select value={ttsVoice} onChange={e => setTtsVoice(e.target.value)} className="tts-voice-select">
+                    {availableVoices.map(v => (
+                      <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>
+                    ))}
+                  </select>
+                  <button
+                    className={`tts-play-btn ${isSpeaking ? 'speaking' : ''}`}
+                    onClick={isSpeaking ? stopSpeaking : speakText}
+                    disabled={!ttsInput.trim()}
+                    title={isSpeaking ? t('stopSpeaking') : t('playTts')}
+                  >
+                    {isSpeaking ? <Icons.StopBtn /> : <Icons.Speaker />}
+                    <span>{isSpeaking ? t('stopSpeaking') : t('playTts')}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activePanel === 'contacts' && (
+          <div className="room-contacts-panel">
+            <div className="room-contacts-add">
+              <input
+                type="text"
+                placeholder="Add contact name..."
+                value={newContactName}
+                onChange={e => setNewContactName(e.target.value)}
+                onKeyPress={e => e.key === 'Enter' && addRoomContact()}
+              />
+              <button onClick={addRoomContact} title="Add contact">
+                <Icons.PlusCircle />
+              </button>
+            </div>
+            <div className="room-contacts-list">
+              {roomContacts.length === 0 ? (
+                <div className="room-contacts-empty">
+                  <Icons.Contacts />
+                  <p>No contacts yet</p>
+                  <span>Add people you want to reach during this session</span>
+                </div>
+              ) : (
+                roomContacts.map(contact => (
+                  <div key={contact.id} className="room-contact-item">
+                    <div className="room-contact-avatar">
+                      {contact.name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="room-contact-name">{contact.name}</span>
+                    <button
+                      className="room-contact-call"
+                      onClick={() => startCallFlow(contact)}
+                      title={`Call ${contact.name}`}
+                    >
+                      <Icons.PhoneCall />
+                    </button>
+                    <button
+                      className="room-contact-remove"
+                      onClick={() => removeRoomContact(contact.id)}
+                      title="Remove contact"
+                    >
+                      <Icons.MinusCircle />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ---- Call Overlay / Modal ---- */}
+      {callState !== 'idle' && (
+        <div className="call-overlay" onClick={cancelCall}>
+          <div className={`call-modal ${callState}`} onClick={e => e.stopPropagation()}>
+            {/* Decorative ring animation */}
+            <div className="call-ring">
+              <div className="call-ring-dot">
+                {activeCall?.contactName?.charAt(0).toUpperCase()}
+              </div>
+              <span className="call-ring-pulse"></span>
+              <span className="call-ring-pulse delay"></span>
+            </div>
+
+            <h3 className="call-modal-name">{activeCall?.contactName}</h3>
+            <p className="call-modal-msg">{callMsg}</p>
+
+            {/* Step 1: Confirmation */}
+            {callState === 'confirming' && (
+              <div className="call-actions">
+                <button className="call-btn call" onClick={confirmCall}>
+                  <Icons.PhoneCall /> Call Now
+                </button>
+                <button className="call-btn cancel" onClick={cancelCall}>
+                  <Icons.X /> Cancel
+                </button>
+              </div>
+            )}
+
+            {/* Step 2: Outgoing ringing */}
+            {callState === 'outgoing' && (
+              <div className="call-actions">
+                <div className="call-status-ringing">
+                  <span className="ringing-dot"></span>
+                  <span className="ringing-dot"></span>
+                  <span className="ringing-dot"></span>
+                </div>
+                <button className="call-btn cancel" onClick={cancelCall}>
+                  <Icons.Phone /> Hang Up
+                </button>
+              </div>
+            )}
+
+            {/* Step 3: Incoming call - Accept/Decline */}
+            {callState === 'incoming' && (
+              <div className="call-actions">
+                <button className="call-btn accept" onClick={acceptCall}>
+                  <Icons.PhoneCall /> Accept
+                </button>
+                <button className="call-btn decline" onClick={declineCall}>
+                  <Icons.Phone /> Decline
+                </button>
+              </div>
+            )}
+
+            {/* Step 4: Connected */}
+            {callState === 'connected' && (
+              <div className="call-actions">
+                <div className="call-connected-check">
+                  <Icons.Check />
+                </div>
+                <span className="call-connected-text">Call Connected!</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// MAIN APP
+// ============================================
+function App() {
+  const [user, setUser] = useState(null);
+  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    // Try Supabase session first, then fallback to localStorage
+    getSession().then(async ({ profile }) => {
+      if (profile) {
+        let profileData = { ...profile, id: profile.id, role: profile.role };
+        if (profile.role === 'parent' && !profile.parent_id && profile.email) {
+          try {
+            const students = await fetchStudents();
+            const matched = students.find(s =>
+              s.parent_email && s.parent_email.toLowerCase() === profile.email.toLowerCase()
+            );
+            if (matched) profileData.parentId = matched.parent_id;
+          } catch (_) {}
+        }
+        setUser(profileData);
+      } else {
+        // Fallback: localStorage
+        const saved = localStorage.getItem('classroom_user');
+        if (saved) {
+          let parsed = JSON.parse(saved);
+          if (parsed.role === 'parent' && !parsed.parentId && parsed.email) {
+            const matched = SAMPLE_STUDENTS.find(s =>
+              s.parentEmail && s.parentEmail.toLowerCase() === parsed.email.toLowerCase()
+            );
+            if (matched) {
+              parsed = { ...parsed, parentId: matched.parentId };
+              localStorage.setItem('classroom_user', JSON.stringify(parsed));
+            }
+          }
+          setUser(parsed);
+        }
+      }
+      setAuthReady(true);
+    }).catch(() => {
+      // Fallback to localStorage
+      const saved = localStorage.getItem('classroom_user');
+      if (saved) {
+        let parsed = JSON.parse(saved);
+        if (parsed.role === 'parent' && !parsed.parentId && parsed.email) {
+          const matched = SAMPLE_STUDENTS.find(s =>
+            s.parentEmail && s.parentEmail.toLowerCase() === parsed.email.toLowerCase()
+          );
+          if (matched) {
+            parsed = { ...parsed, parentId: matched.parentId };
+            localStorage.setItem('classroom_user', JSON.stringify(parsed));
+          }
+        }
+        setUser(parsed);
+      }
+      setAuthReady(true);
+    });
+  }, []);
+
+  const handleLogin = (userData) => {
+    let data = typeof userData === 'string'
+      ? { name: userData === 'teacher' ? 'Teacher' : 'Student', email: 'user@example.com', role: userData, id: Date.now() }
+      : { ...userData, id: userData.id || Date.now() };
+    // If parent, match email to find correct parentId so they only see their children
+    if (data.role === 'parent') {
+      const matched = SAMPLE_STUDENTS.find(s =>
+        s.parentEmail && s.parentEmail.toLowerCase() === (data.email || '').toLowerCase()
+      );
+      if (matched) {
+        data.parentId = matched.parentId;
+      }
+    }
+    setUser(data);
+    localStorage.setItem('classroom_user', JSON.stringify(data));
+  };
+
+  const handleLogout = async () => {
+    setUser(null);
+    localStorage.removeItem('classroom_user');
+    try { await signOut(); } catch (_) {}
+  };
+
+  if (!authReady) {
+    return <div className="auth-loading"><div className="loading-spinner" /><p>Loading...</p></div>;
+  }
+
+  if (!user) {
+    return (
+      <LanguageProvider>
+        <LandingPage onLogin={handleLogin} />
+      </LanguageProvider>
+    );
+  }
+
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'dashboard': return <DashboardPage user={user} setCurrentPage={setCurrentPage} />;
+      case 'calendar': return <CalendarPage user={user} />;
+      case 'files': return <FilesPage user={user} />;
+      case 'studentrecords': return <StudentRecordsPage user={user} />;
+      case 'contacts': return <ContactsPage user={user} />;
+      case 'admin': return <AdministrationPage user={user} />;
+      case 'video': return <VideoRoomPage user={user} />;
+      default: return <DashboardPage user={user} setCurrentPage={setCurrentPage} />;
+    }
+  };
+
+  return (
+    <LanguageProvider>
+      <AppLayout user={user} onLogout={handleLogout} currentPage={currentPage} setCurrentPage={setCurrentPage}>
+        {renderPage()}
+      </AppLayout>
+    </LanguageProvider>
+  );
+}
+
+export default App;
