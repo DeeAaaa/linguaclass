@@ -2258,7 +2258,7 @@ function AdministrationPage({ user }) {
 // ============================================
 // CONTACTS PAGE
 // ============================================
-function ContactsPage({ user }) {
+function ContactsPage({ user, setCurrentPage }) {
   const { t } = useTranslation();
   const isAdmin = user?.role === 'admin';
   const isTeacher = user?.role === 'teacher';
@@ -2271,6 +2271,11 @@ function ContactsPage({ user }) {
   const [inviteRoom, setInviteRoom] = useState('');
   const [copied, setCopied] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  // Add contact modal
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newContact, setNewContact] = useState({ name: '', role: 'Student', email: '', phone: '', subject: '', student: '' });
+  // Delete confirmation
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   // Load from Supabase
   useEffect(() => {
@@ -2345,6 +2350,49 @@ function ContactsPage({ user }) {
     setInvitingContact(null);
     setInviteRoom('');
     setCopied(false);
+  };
+
+  // ---- Add Contact ----
+  const handleAddContact = () => {
+    if (!newContact.name.trim() || !newContact.email.trim()) return;
+    const id = Date.now();
+    const contact = {
+      id, name: newContact.name.trim(), role: newContact.role,
+      email: newContact.email.trim(), phone: newContact.phone.trim() || '',
+      subject: newContact.subject.trim() || '',
+      student: newContact.role === 'Parent' ? (newContact.student.trim() || '') : undefined,
+      avatar: newContact.role === 'Teacher' ? '👩‍🏫' : newContact.role === 'Student' ? '👤' : '👨',
+      status: 'offline', lastActive: 'Never',
+    };
+    setContacts(prev => [contact, ...prev]);
+    setShowAddModal(false);
+    setNewContact({ name: '', role: 'Student', email: '', phone: '', subject: '', student: '' });
+  };
+
+  const openAddModal = () => {
+    setNewContact({ name: '', role: 'Student', email: '', phone: '', subject: '', student: '' });
+    setShowAddModal(true);
+  };
+
+  // ---- Remove Contact ----
+  const handleRemoveContact = (contact) => {
+    setDeleteTarget(contact);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+    setContacts(prev => prev.filter(c => c.id !== deleteTarget.id));
+    setDeleteTarget(null);
+  };
+
+  const cancelDelete = () => setDeleteTarget(null);
+
+  // ---- Call Contact ----
+  const handleCallContact = (contact) => {
+    const room = 'room-' + Math.random().toString(36).substr(2, 6);
+    // Navigate to video room with room pre-filled
+    window.location.hash = `?room=${room}`;
+    setCurrentPage('video');
   };
 
   const statusColor = (status) => {
@@ -2428,6 +2476,9 @@ function ContactsPage({ user }) {
             </button>
           ))}
         </div>
+        <button className="btn-add-contact" onClick={openAddModal}>
+          <Icons.PlusCircle /> Add Contact
+        </button>
       </div>
 
       {/* Contact List */}
@@ -2479,11 +2530,19 @@ function ContactsPage({ user }) {
                   <span className="contact-status" style={{ color: statusColor(contact.status) }}>
                     ● {contact.status === 'active' ? 'Active' : contact.status === 'away' ? 'Away' : 'Offline'} — {contact.lastActive}
                   </span>
-                  {canInvite && (
-                    <button className="btn-invite-contact" onClick={() => handleInvite(contact)}>
-                      <Icons.Invite /> Invite to Class
+                  <div className="contact-actions-row">
+                    <button className="btn-remove-contact" onClick={() => handleRemoveContact(contact)} title="Remove contact">
+                      <Icons.Trash />
                     </button>
-                  )}
+                    {canInvite && (
+                      <button className="btn-invite-contact" onClick={() => handleInvite(contact)}>
+                        <Icons.Invite /> Invite
+                      </button>
+                    )}
+                    <button className="btn-call-contact" onClick={() => handleCallContact(contact)} title="Call {contact.name}">
+                      <Icons.Video /> Call
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2563,6 +2622,116 @@ function ContactsPage({ user }) {
           </div>
         </div>
       )}
+
+      {/* Add Contact Modal */}
+      {showAddModal && (
+        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+          <div className="invite-modal contact-add-modal" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowAddModal(false)}>
+              <Icons.X />
+            </button>
+            <div className="invite-modal-header">
+              <h2>Add New Contact</h2>
+              <p>Fill in the details below to add a new contact</p>
+            </div>
+            <div className="add-contact-form">
+              <label>Full Name *</label>
+              <input type="text" placeholder="e.g. John Doe" value={newContact.name}
+                onChange={e => setNewContact({ ...newContact, name: e.target.value })} />
+              <label>Email *</label>
+              <input type="email" placeholder="e.g. john@email.com" value={newContact.email}
+                onChange={e => setNewContact({ ...newContact, email: e.target.value })} />
+              <label>Role</label>
+              <select value={newContact.role} onChange={e => setNewContact({ ...newContact, role: e.target.value })}>
+                <option value="Student">Student</option>
+                <option value="Teacher">Teacher</option>
+                <option value="Parent">Parent</option>
+              </select>
+              <label>Phone</label>
+              <input type="text" placeholder="e.g. (555) 123-4567" value={newContact.phone}
+                onChange={e => setNewContact({ ...newContact, phone: e.target.value })} />
+              <label>Subject</label>
+              <input type="text" placeholder="e.g. English" value={newContact.subject}
+                onChange={e => setNewContact({ ...newContact, subject: e.target.value })} />
+              {newContact.role === 'Parent' && (
+                <>
+                  <label>Child's Name</label>
+                  <input type="text" placeholder="e.g. Emma Thompson" value={newContact.student}
+                    onChange={e => setNewContact({ ...newContact, student: e.target.value })} />
+                </>
+              )}
+            </div>
+            <div className="invite-modal-footer">
+              <button className="btn-go-room" onClick={handleAddContact}
+                disabled={!newContact.name.trim() || !newContact.email.trim()}>
+                <Icons.PlusCircle /> Add Contact
+              </button>
+              <button className="btn-close-modal" onClick={() => setShowAddModal(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div className="modal-overlay" onClick={cancelDelete}>
+          <div className="invite-modal delete-confirm-modal" onClick={e => e.stopPropagation()}>
+            <div className="invite-modal-header">
+              <span style={{ fontSize: 48, marginBottom: 12, display: 'block' }}>🗑️</span>
+              <h2>Remove Contact</h2>
+              <p>Are you sure you want to remove <strong>{deleteTarget.name}</strong> from your contacts?</p>
+              <p style={{ fontSize: 13, color: 'var(--gray-400)', marginTop: 8 }}>This action cannot be undone.</p>
+            </div>
+            <div className="invite-modal-footer">
+              <button className="btn-go-room" style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}
+                onClick={confirmDelete}>
+                <Icons.Trash /> Yes, Remove
+              </button>
+              <button className="btn-close-modal" onClick={cancelDelete}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Download App Section */}
+      <div className="download-app-section">
+        <div className="download-app-card">
+          <div className="download-app-icon">
+            📱
+          </div>
+          <div className="download-app-info">
+            <h3>Get the App</h3>
+            <p>Install Linguaclass on your device for easy access anytime.</p>
+            <div className="download-app-steps">
+              <div className="download-step">
+                <span className="step-num">1</span>
+                <div>
+                  <strong>On Mobile/Tablet:</strong>
+                  <p>Open this page in your browser (Chrome/Safari), tap the share/menu button, then select <em>"Add to Home Screen"</em> to install the app.</p>
+                </div>
+              </div>
+              <div className="download-step">
+                <span className="step-num">2</span>
+                <div>
+                  <strong>On Computer:</strong>
+                  <p>Open this page in Chrome/Edge, click the install icon <span style={{ display: 'inline-flex', verticalAlign: 'middle', padding: '2px 6px', borderRadius: 4, background: 'var(--gray-200)', fontSize: 12 }}>⊕</span> in the address bar, or use the menu → "Install Linguaclass".</p>
+                </div>
+              </div>
+              <div className="download-step">
+                <span className="step-num">3</span>
+                <div>
+                  <strong>Bookmark for quick access:</strong>
+                  <p>Press <kbd>Ctrl+D</kbd> (Windows) or <kbd>⌘+D</kbd> (Mac) to bookmark this page.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -4081,7 +4250,7 @@ function App() {
       case 'calendar': return <CalendarPage user={user} />;
       case 'files': return <FilesPage user={user} />;
       case 'studentrecords': return <StudentRecordsPage user={user} />;
-      case 'contacts': return <ContactsPage user={user} />;
+      case 'contacts': return <ContactsPage user={user} setCurrentPage={setCurrentPage} />;
       case 'admin': return <AdministrationPage user={user} />;
       case 'video': return <VideoRoomPage user={user} />;
       default: return <DashboardPage user={user} setCurrentPage={setCurrentPage} />;
