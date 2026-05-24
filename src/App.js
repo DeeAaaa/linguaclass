@@ -3,6 +3,7 @@ import './App.css';
 import { LanguageProvider, useTranslation } from './i18n/LanguageContext';
 import { createPeerConnection, addTracksToPeer, createOffer, handleOffer, handleAnswer, handleIceCandidate, closePeer } from './webrtc';
 import { supabase, signUp, signIn, signOut, getSession, signUpWithEmailOrPhone, signInWithEmailOrPhone, fetchTeachers, updateTeacher, fetchStudents, fetchContacts, saveContacts, fetchVideoRoomContacts, addVideoRoomContact, removeVideoRoomContact } from './supabase';
+import { joinSignalingRoom } from './signaling';
 
 // ============================================
 // AUTH CONTEXT
@@ -2994,69 +2995,51 @@ function VideoRoomPage({ user }) {
     }
   };
 
-  const getSignalingUrl = () => {
-    const host = window.location.hostname;
-    const isLocal = host === 'localhost' || host === '127.0.0.1';
-    // Local dev: connect to local signaling server
-    if (isLocal) return 'ws://localhost:3001';
-    // Production: use deployed signaling server
-    // Deploy server.js to a free service (e.g. Render.com) and put the URL here:
-    return 'wss://linguaclass-signal.onrender.com';
-  };
-
   const connectToSignaling = (roomIdToUse, name, role) => {
-    const wsUrl = getSignalingUrl();
-    let socket;
-    try {
-      socket = new WebSocket(wsUrl);
-    } catch (e) {
-      alert('Cannot connect to signaling server. Run: npm run server');
-      return null;
-    }
+    const signaling = joinSignalingRoom(
+      roomIdToUse,
+      myUserIdRef.current,
+      name,
+      role,
+      {
+        onmessage: (event) => {
+          let msg;
+          try { msg = JSON.parse(event.data); } catch { return; }
 
-    socket.onopen = () => {
-      socket.send(JSON.stringify({
-        type: 'join-room', roomId: roomIdToUse,
-        userId: myUserIdRef.current, userName: name, role: role
-      }));
-    };
-
-    socket.onmessage = (event) => {
-      let msg;
-      try { msg = JSON.parse(event.data); } catch { return; }
-
-      switch (msg.type) {
-        case 'room-joined':
-          msg.peers.forEach(peer => {
-            if (peer.userId !== myUserIdRef.current) {
-              createPeerForUser(socket, peer.userId, peer.userName, peer.role);
-            }
-          });
-          break;
-        case 'peer-joined':
-          createPeerForUser(socket, msg.userId, msg.userName, msg.role);
-          break;
-        case 'offer':
-          handleIncomingOffer(socket, msg.fromUserId, msg.fromUserName, msg.sdp);
-          break;
-        case 'answer':
-          handleIncomingAnswer(msg.fromUserId, msg.sdp);
-          break;
-        case 'ice-candidate':
-          handleIncomingIce(msg.fromUserId, msg.candidate);
-          break;
-        case 'peer-left':
-          removePeer(msg.userId);
-          break;
-        case 'chat-message':
-          setMessages(prev => [...prev, { id: Date.now(), user: msg.fromUserName, text: msg.text, time: msg.time }]);
-          break;
+          switch (msg.type) {
+            case 'room-joined':
+              msg.peers.forEach(peer => {
+                if (peer.userId !== myUserIdRef.current) {
+                  createPeerForUser(signaling, peer.userId, peer.userName, peer.role);
+                }
+              });
+              break;
+            case 'peer-joined':
+              if (msg.userId !== myUserIdRef.current) {
+                createPeerForUser(signaling, msg.userId, msg.userName, msg.role);
+              }
+              break;
+            case 'offer':
+              handleIncomingOffer(signaling, msg.fromUserId, msg.fromUserName, msg.sdp);
+              break;
+            case 'answer':
+              handleIncomingAnswer(msg.fromUserId, msg.sdp);
+              break;
+            case 'ice-candidate':
+              handleIncomingIce(msg.fromUserId, msg.candidate);
+              break;
+            case 'peer-left':
+              removePeer(msg.userId);
+              break;
+            case 'chat-message':
+              setMessages(prev => [...prev, { id: Date.now(), user: msg.fromUserName, text: msg.text, time: msg.time }]);
+              break;
+          }
+        },
+        onclose: () => { console.log('Signaling disconnected'); }
       }
-    };
-
-    socket.onclose = () => console.log('Signaling disconnected');
-    socket.onerror = (err) => console.error('Signaling error:', err);
-    return socket;
+    );
+    return signaling;
   };
 
   const createPeerForUser = (socket, userId, userName, role) => {
@@ -3315,7 +3298,7 @@ function VideoRoomPage({ user }) {
       const msg = { id: Date.now(), user: 'You', text: chatMessage, time };
       setMessages(prev => [...prev, msg]);
       // Broadcast to room via signaling
-      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      if (socketRef.current) {
         socketRef.current.send(JSON.stringify({ type: 'chat-message', text: chatMessage, time }));
       }
       setChatMessage('');
