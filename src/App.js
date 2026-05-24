@@ -2693,7 +2693,7 @@ function RemoteVideoTile({ peer }) {
 // ============================================
 // VIDEO ROOM PAGE
 // ============================================
-function VideoRoomPage() {
+function VideoRoomPage({ user }) {
   const { t } = useTranslation();
   const [isMuted, setIsMuted] = useState(true);
   const [isVideoOff, setIsVideoOff] = useState(false); // Camera ON by default
@@ -2740,7 +2740,6 @@ function VideoRoomPage() {
   const [copied, setCopied] = useState(false);
 
   // Contacts list in video room — cloud-synced via Supabase, localStorage as cache
-  const { user } = React.useContext(AuthContext);
   const [roomContacts, setRoomContacts] = useState(() => {
     const saved = localStorage.getItem('video_room_contacts');
     return saved ? JSON.parse(saved) : [];
