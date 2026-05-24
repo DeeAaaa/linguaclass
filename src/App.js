@@ -2266,16 +2266,39 @@ function ContactsPage({ user, setCurrentPage }) {
   const [teachers, setTeachers] = useState([]);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterRole, setFilterRole] = useState('all');
-  const [invitingContact, setInvitingContact] = useState(null);
-  const [inviteRoom, setInviteRoom] = useState('');
-  const [copied, setCopied] = useState(false);
-  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [shareAppCopied, setShareAppCopied] = useState(false);
+  // Join room with code
+  const [joinCode, setJoinCode] = useState('');
+  const [joinError, setJoinError] = useState('');
+  // Install app
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
   // Add contact modal
   const [showAddModal, setShowAddModal] = useState(false);
   const [newContact, setNewContact] = useState({ name: '', role: 'Student', email: '', phone: '', subject: '', student: '' });
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState(null);
+
+  // ---- Capture install prompt ----
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+      setShowInstallBanner(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  // ---- Detect room from URL ----
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const hashRoom = window.location.hash.replace('#', '').replace('?room=', '');
+    const roomFromUrl = params.get('room') || (hashRoom.startsWith('room-') ? hashRoom : '');
+    if (roomFromUrl) {
+      setJoinCode(roomFromUrl);
+    }
+  }, []);
 
   // Load from Supabase
   useEffect(() => {
@@ -2308,48 +2331,51 @@ function ContactsPage({ user, setCurrentPage }) {
     : contacts;
 
   const filteredContacts = visibleContacts.filter(c => {
-    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.subject || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = filterRole === 'all' || c.role.toLowerCase() === filterRole.toLowerCase();
-    return matchesSearch && matchesRole;
+    const q = searchQuery.toLowerCase();
+    return c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || (c.subject || '').toLowerCase().includes(q);
   });
 
-  const activeCount = visibleContacts.filter(c => c.status === 'active').length;
-  const teacherCount = visibleContacts.filter(c => c.role === 'Teacher').length;
-  const studentCount = visibleContacts.filter(c => c.role === 'Student').length;
-  const parentCount = visibleContacts.filter(c => c.role === 'Parent').length;
 
-  const canInvite = isAdmin || isTeacher;
-
-  const handleInvite = (contact) => {
-    const room = 'room-' + Math.random().toString(36).substr(2, 6);
-    setInviteRoom(room);
-    setInvitingContact(contact);
-    setCopied(false);
-    setShowInviteModal(true);
+  // ---- Join Room with Code ----
+  const handleJoinWithCode = () => {
+    const code = joinCode.trim();
+    if (!code) { setJoinError('Please enter a room code'); return; }
+    if (code.length < 4) { setJoinError('Room code is too short'); return; }
+    setJoinError('');
+    // Navigate to video room with the code
+    window.location.hash = `?room=${encodeURIComponent(code)}`;
+    setCurrentPage('video');
   };
 
-  const copyInviteLink = () => {
-    const link = `${window.location.origin}${window.location.pathname}?room=${inviteRoom}`;
-    navigator.clipboard.writeText(link).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
+  // ---- Install App ----
+  const handleInstallApp = async () => {
+    if (installPrompt) {
+      installPrompt.prompt();
+      const result = await installPrompt.userChoice;
+      if (result.outcome === 'accepted') {
+        setShowInstallBanner(false);
+      }
+      setInstallPrompt(null);
+    } else {
+      // Fallback: show instructions
+      alert('To install: open this page in Chrome/Edge, tap the menu (⋮) and select "Add to Home Screen" or "Install app".');
+    }
+  };
+
+  // ---- Share App ----
+  const appUrl = `${window.location.origin}${window.location.pathname}`;
+  const shareApp = () => {
+    if (navigator.share) {
+      navigator.share({ title: 'Linguaclass - Online Classroom', text: 'Join my online classroom on Linguaclass!', url: appUrl }).catch(() => {});
+    } else {
+      copyAppLink();
+    }
+  };
+  const copyAppLink = () => {
+    navigator.clipboard.writeText(appUrl).then(() => {
+      setShareAppCopied(true);
+      setTimeout(() => setShareAppCopied(false), 2500);
     }).catch(() => {});
-  };
-
-  const copyRoomCode = () => {
-    navigator.clipboard.writeText(inviteRoom).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    }).catch(() => {});
-  };
-
-  const closeInviteModal = () => {
-    setShowInviteModal(false);
-    setInvitingContact(null);
-    setInviteRoom('');
-    setCopied(false);
   };
 
   // ---- Add Contact ----
@@ -2390,8 +2416,13 @@ function ContactsPage({ user, setCurrentPage }) {
   // ---- Call Contact ----
   const handleCallContact = (contact) => {
     const room = 'room-' + Math.random().toString(36).substr(2, 6);
-    // Navigate to video room with room pre-filled
-    window.location.hash = `?room=${room}`;
+    // Set both hash (for this page) and search params (for video page)
+    const url = new URL(window.location.href);
+    url.searchParams.set('room', room);
+    window.history.replaceState({}, '', url.toString());
+    // Also store in sessionStorage so video page can detect it
+    sessionStorage.setItem('pending_room', room);
+    sessionStorage.setItem('pending_call_contact', contact.name);
     setCurrentPage('video');
   };
 
@@ -2415,73 +2446,90 @@ function ContactsPage({ user, setCurrentPage }) {
 
   return (
     <div className="contacts-page">
-      {/* Stats Row */}
-      <div className="contacts-stats">
-        <div className="contact-stat-card">
-          <div className="stat-icon total"><Icons.People /></div>
-          <div className="stat-info">
-            <span className="stat-value">{visibleContacts.length}</span>
-            <span className="stat-label">Total Contacts</span>
+      {/* ---- Install App Banner ---- */}
+      {showInstallBanner && (
+        <div className="install-app-banner">
+          <div className="install-app-banner-icon">📲</div>
+          <div className="install-app-banner-text">
+            <strong>Install Linguaclass App</strong>
+            <p>Add to your home screen for quick access — works offline!</p>
+          </div>
+          <div className="install-app-banner-actions">
+            <button className="btn-install-app" onClick={handleInstallApp}>
+              <Icons.Download /> Install App
+            </button>
+            <button className="btn-dismiss-install" onClick={() => setShowInstallBanner(false)} title="Dismiss">
+              <Icons.X />
+            </button>
           </div>
         </div>
-        <div className="contact-stat-card">
-          <div className="stat-icon active"><Icons.Circle color="#10b981" /></div>
-          <div className="stat-info">
-            <span className="stat-value">{activeCount}</span>
-            <span className="stat-label">Active Now</span>
-          </div>
+      )}
+
+      {/* ---- Join Room with Code ---- */}
+      <div className="join-room-section">
+        <div className="join-room-header">
+          <span className="join-room-icon">🔑</span>
+          <h3>Join a Room</h3>
         </div>
-        <div className="contact-stat-card">
-          <div className="stat-icon teachers"><Icons.Book /></div>
-          <div className="stat-info">
-            <span className="stat-value">{teacherCount}</span>
-            <span className="stat-label">Teachers</span>
-          </div>
+        <p className="join-room-desc">Received a room code from someone? Enter it here to join their video classroom.</p>
+        <div className="join-room-input-row">
+          <input
+            type="text"
+            className="join-room-input"
+            placeholder="Paste room code here (e.g. room-abc123)"
+            value={joinCode}
+            onChange={e => { setJoinCode(e.target.value); setJoinError(''); }}
+            onKeyDown={e => e.key === 'Enter' && handleJoinWithCode()}
+          />
+          <button className="btn-join-room" onClick={handleJoinWithCode}>
+            <Icons.Video /> Join
+          </button>
+          {!showInstallBanner && (
+            <button className="btn-download-app" onClick={handleInstallApp} title="Download / Install App">
+              <Icons.Download />
+            </button>
+          )}
         </div>
-        <div className="contact-stat-card">
-          <div className="stat-icon students"><Icons.Users /></div>
-          <div className="stat-info">
-            <span className="stat-value">{studentCount}</span>
-            <span className="stat-label">Students</span>
-          </div>
+        {joinError && <p className="join-room-error">{joinError}</p>}
+      </div>
+
+      {/* ---- Share App Banner ---- */}
+      <div className="share-app-banner">
+        <div className="share-app-banner-icon">📢</div>
+        <div className="share-app-banner-text">
+          <h3>Share Linguaclass</h3>
+          <p>Send this link to anyone — they can join your video classroom instantly.</p>
         </div>
-        <div className="contact-stat-card">
-          <div className="stat-icon parents"><Icons.User /></div>
-          <div className="stat-info">
-            <span className="stat-value">{parentCount}</span>
-            <span className="stat-label">Parents</span>
+        <div className="share-app-banner-actions">
+          <div className="share-app-url-box">
+            <code>{appUrl}</code>
+            <button className="btn-copy-app-link" onClick={copyAppLink}>
+              <Icons.Copy /> {shareAppCopied ? 'Copied!' : 'Copy Link'}
+            </button>
           </div>
+          <button className="btn-share-app" onClick={shareApp}>
+            <Icons.Share /> Share App
+          </button>
         </div>
       </div>
 
-      {/* Toolbar */}
+      {/* ---- Toolbar ---- */}
       <div className="contacts-toolbar">
         <div className="contacts-search">
           <Icons.Search />
           <input
             type="text"
-            placeholder="Search contacts by name, email, or subject..."
+            placeholder="Search contacts by name or email..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
           />
-        </div>
-        <div className="contacts-filters">
-          {['all', 'teacher', 'student', 'parent'].map(role => (
-            <button
-              key={role}
-              className={`filter-btn ${filterRole === role ? 'active' : ''}`}
-              onClick={() => setFilterRole(role)}
-            >
-              {role === 'all' ? 'All' : role.charAt(0).toUpperCase() + role.slice(1) + 's'}
-            </button>
-          ))}
         </div>
         <button className="btn-add-contact" onClick={openAddModal}>
           <Icons.PlusCircle /> Add Contact
         </button>
       </div>
 
-      {/* Contact List */}
+      {/* ---- Contact List ---- */}
       <div className="contacts-grid">
         {filteredContacts.length === 0 ? (
           <div className="contacts-empty">
@@ -2517,32 +2565,14 @@ function ContactsPage({ user, setCurrentPage }) {
                       <Icons.User /> Child: {contact.student}
                     </span>
                   )}
-                  {contact.students && (
-                    <span className="contact-detail">
-                      <Icons.Users /> {contact.students} students
-                    </span>
-                  )}
-                  <span className="contact-detail">
-                    <Icons.PhoneCall /> {contact.phone}
-                  </span>
                 </div>
                 <div className="contact-footer">
-                  <span className="contact-status" style={{ color: statusColor(contact.status) }}>
-                    ● {contact.status === 'active' ? 'Active' : contact.status === 'away' ? 'Away' : 'Offline'} — {contact.lastActive}
-                  </span>
-                  <div className="contact-actions-row">
-                    <button className="btn-remove-contact" onClick={() => handleRemoveContact(contact)} title="Remove contact">
-                      <Icons.Trash />
-                    </button>
-                    {canInvite && (
-                      <button className="btn-invite-contact" onClick={() => handleInvite(contact)}>
-                        <Icons.Invite /> Invite
-                      </button>
-                    )}
-                    <button className="btn-call-contact" onClick={() => handleCallContact(contact)} title="Call {contact.name}">
-                      <Icons.Video /> Call
-                    </button>
-                  </div>
+                  <button className="btn-call-contact" onClick={() => handleCallContact(contact)}>
+                    <Icons.Video /> Start Call
+                  </button>
+                  <button className="btn-remove-contact" onClick={() => handleRemoveContact(contact)} title="Remove from contacts">
+                    <Icons.Trash />
+                  </button>
                 </div>
               </div>
             </div>
@@ -2550,80 +2580,7 @@ function ContactsPage({ user, setCurrentPage }) {
         )}
       </div>
 
-      {/* Invite Modal */}
-      {showInviteModal && invitingContact && (
-        <div className="modal-overlay" onClick={closeInviteModal}>
-          <div className="invite-modal" onClick={e => e.stopPropagation()}>
-            <button className="modal-close" onClick={closeInviteModal}>
-              <Icons.X />
-            </button>
-            <div className="invite-modal-header">
-              <div className="invite-contact-avatar">
-                <span>{invitingContact.avatar}</span>
-              </div>
-              <h2>Invite {invitingContact.name}</h2>
-              <p className="invite-contact-role">{invitingContact.role} — {invitingContact.subject}</p>
-            </div>
-            <div className="invite-modal-body">
-              <div className="invite-room-info">
-                <label>Classroom Code</label>
-                <div className="invite-code-row">
-                  <code className="invite-code">{inviteRoom}</code>
-                  <button className="btn-copy-code" onClick={copyRoomCode}>
-                    <Icons.Copy /> {copied ? 'Copied!' : 'Copy Code'}
-                  </button>
-                </div>
-              </div>
-              <div className="invite-divider">
-                <span>or share link</span>
-              </div>
-              <div className="invite-link-info">
-                <label>Invite Link</label>
-                <div className="invite-link-row">
-                  <code className="invite-link-url">{window.location.origin}{window.location.pathname}?room={inviteRoom}</code>
-                  <button className="btn-copy-link" onClick={copyInviteLink}>
-                    <Icons.Link /> {copied ? 'Copied!' : 'Copy Link'}
-                  </button>
-                </div>
-              </div>
-              <div className="invite-instructions">
-                <p><strong>How to invite:</strong></p>
-                <ol>
-                  <li>Copy the room code or invite link above</li>
-                  <li>Send it to {invitingContact.name} via email, message, or any channel</li>
-                  <li>They can join by visiting the link or entering the code in the Video Room</li>
-                  <li>When they join, you'll see them in the classroom</li>
-                </ol>
-              </div>
-              <div className="invite-preview-email">
-                <p><strong>Suggested message:</strong></p>
-                <div className="email-preview">
-                  <p>Hi {invitingContact.name},</p>
-                  <p>You're invited to join my online classroom!</p>
-                  <p><strong>Room Code:</strong> {inviteRoom}</p>
-                  <p><strong>Link:</strong> {window.location.origin}{window.location.pathname}?room={inviteRoom}</p>
-                  <p>Click the link or enter the code in the Video Room to join.</p>
-                  <p>See you in class! 📚</p>
-                </div>
-              </div>
-            </div>
-            <div className="invite-modal-footer">
-              <button className="btn-go-room" onClick={() => {
-                closeInviteModal();
-                // Navigate to video room with room pre-filled — handled by URL param
-                window.open(`${window.location.pathname}?room=${inviteRoom}`, '_blank');
-              }}>
-                <Icons.Video /> Open Classroom Now
-              </button>
-              <button className="btn-close-modal" onClick={closeInviteModal}>
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Contact Modal */}
+      {/* ---- Add Contact Modal ---- */}
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="invite-modal contact-add-modal" onClick={e => e.stopPropagation()}>
@@ -2674,7 +2631,7 @@ function ContactsPage({ user, setCurrentPage }) {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* ---- Delete Confirmation Modal ---- */}
       {deleteTarget && (
         <div className="modal-overlay" onClick={cancelDelete}>
           <div className="invite-modal delete-confirm-modal" onClick={e => e.stopPropagation()}>
@@ -2697,40 +2654,24 @@ function ContactsPage({ user, setCurrentPage }) {
         </div>
       )}
 
-      {/* Download App Section */}
-      <div className="download-app-section">
-        <div className="download-app-card">
-          <div className="download-app-icon">
-            📱
+      {/* ---- How to Connect Section ---- */}
+      <div className="how-to-connect">
+        <h3>🔗 How to connect with someone</h3>
+        <div className="connect-steps">
+          <div className="connect-step">
+            <span className="connect-step-num">1</span>
+            <p><strong>Share the app link</strong> with your student, teacher, or parent.</p>
           </div>
-          <div className="download-app-info">
-            <h3>Get the App</h3>
-            <p>Install Linguaclass on your device for easy access anytime.</p>
-            <div className="download-app-steps">
-              <div className="download-step">
-                <span className="step-num">1</span>
-                <div>
-                  <strong>On Mobile/Tablet:</strong>
-                  <p>Open this page in your browser (Chrome/Safari), tap the share/menu button, then select <em>"Add to Home Screen"</em> to install the app.</p>
-                </div>
-              </div>
-              <div className="download-step">
-                <span className="step-num">2</span>
-                <div>
-                  <strong>On Computer:</strong>
-                  <p>Open this page in Chrome/Edge, click the install icon <span style={{ display: 'inline-flex', verticalAlign: 'middle', padding: '2px 6px', borderRadius: 4, background: 'var(--gray-200)', fontSize: 12 }}>⊕</span> in the address bar, or use the menu → "Install Linguaclass".</p>
-                </div>
-              </div>
-              <div className="download-step">
-                <span className="step-num">3</span>
-                <div>
-                  <strong>Bookmark for quick access:</strong>
-                  <p>Press <kbd>Ctrl+D</kbd> (Windows) or <kbd>⌘+D</kbd> (Mac) to bookmark this page.</p>
-                </div>
-              </div>
-            </div>
+          <div className="connect-step">
+            <span className="connect-step-num">2</span>
+            <p><strong>They open the link</strong> in any browser on phone or computer — no install needed.</p>
+          </div>
+          <div className="connect-step">
+            <span className="connect-step-num">3</span>
+            <p><strong>They paste the room code</strong> in the "Join a Room" box above to enter your video call.</p>
           </div>
         </div>
+        <p className="connect-tip">💡 <strong>Tip:</strong> Add their email as a contact first, then call them anytime with one click.</p>
       </div>
     </div>
   );
@@ -3048,12 +2989,29 @@ function VideoRoomPage({ user }) {
   const localStreamRef = useRef(null);
   const whiteboardRef = useRef(null);
 
-  // ---- Detect ?room= URL param for shared invite links ----
+  // ---- Detect ?room= URL param, hash, and sessionStorage for incoming invites ----
   useEffect(() => {
+    // 1. Check search params (?room=xxx)
     const params = new URLSearchParams(window.location.search);
-    const roomParam = params.get('room');
+    let roomParam = params.get('room');
+    // 2. Check hash (#?room=xxx)
+    if (!roomParam && window.location.hash) {
+      try {
+        const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
+        roomParam = hashParams.get('room');
+      } catch(e) {}
+    }
+    // 3. Check sessionStorage (set by ContactsPage call flow)
+    if (!roomParam) {
+      roomParam = sessionStorage.getItem('pending_room');
+    }
     if (roomParam) {
       setRoomInput(roomParam);
+    }
+    // Set user name from contacts call
+    const callContactName = sessionStorage.getItem('pending_call_contact');
+    if (callContactName) {
+      setUserName(callContactName);
     }
   }, []);
 
@@ -3581,92 +3539,82 @@ function VideoRoomPage({ user }) {
     const hasInviteCode = roomInput.length > 3;
     return (
       <div className="video-room">
-        <div className="video-area" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '40px 20px' }}>
-          <div style={{ background: 'rgba(102,126,234,0.15)', borderRadius: '24px', padding: '40px', maxWidth: '480px', width: '100%', textAlign: 'center' }}>
-            <div style={{ marginBottom: '24px' }}>
-              <Icons.Video />
-              <h2 style={{ color: '#fff', marginTop: '12px', fontSize: '24px' }}>Video Classroom</h2>
-              <p style={{ color: '#94a3b8', marginTop: '8px' }}>Join or create a live video room with your class</p>
+        <div className="video-lobby">
+          <div className="video-lobby-card">
+            {/* Header */}
+            <div className="video-lobby-header">
+              <span className="video-lobby-icon">
+                <Icons.Video />
+              </span>
+              <h2>Video Classroom</h2>
+              <p>Create a room or join with a code from your teacher</p>
             </div>
 
-            {/* Direct Join from Invite Link */}
+            {/* Invite Code Banner — shown when code is detected */}
             {hasInviteCode && (
-              <div style={{ marginBottom: '20px', padding: '16px', background: 'rgba(16,185,129,0.15)', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.3)' }}>
-                <p style={{ color: '#34d399', fontSize: '13px', fontWeight: 600, margin: '0 0 4px 0' }}>
-                  <Icons.Link /> You were invited to join
-                </p>
-                <p style={{ color: '#94a3b8', fontSize: '13px', margin: '0 0 12px 0' }}>
-                  Room: <strong style={{ color: '#e2e8f0' }}>{roomInput}</strong>
-                </p>
-                <button
-                  onClick={joinRoom}
-                  style={{
-                    width: '100%', padding: '14px', borderRadius: '10px',
-                    background: 'linear-gradient(135deg, #10b981, #059669)',
-                    color: '#fff', border: 'none', fontSize: '15px', fontWeight: 600, cursor: 'pointer'
-                  }}
-                >
-                  Join Room Now
+              <div className="video-lobby-invite">
+                <span className="video-lobby-invite-icon"><Icons.Link /></span>
+                <div className="video-lobby-invite-info">
+                  <p className="video-lobby-invite-title">You've been invited to join a room!</p>
+                  <p className="video-lobby-invite-room">
+                    Room code: <strong>{roomInput}</strong>
+                  </p>
+                </div>
+                <button className="btn-lobby-join-green" onClick={joinRoom}>
+                  <Icons.Video /> Join Now
                 </button>
+                <p className="video-lobby-not-you">
+                  Not your room? Enter a different code below.
+                </p>
               </div>
             )}
 
-            {/* Create Room */}
-            <div style={{ marginBottom: '24px' }}>
-              <button
-                onClick={createRoom}
-                style={{
-                  width: '100%', padding: '16px', borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #667eea, #764ba2)',
-                  color: '#fff', border: 'none', fontSize: '16px', fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                <Icons.Camera /> Create Classroom (Teacher)
+            {/* Action buttons */}
+            <div className="video-lobby-actions">
+              <button className="btn-lobby-create" onClick={createRoom}>
+                <span className="btn-lobby-icon">🎓</span>
+                <span className="btn-lobby-label">
+                  <strong>Create Classroom</strong>
+                  <small>Start teaching — share the code with students</small>
+                </span>
               </button>
+
+              <div className="video-lobby-divider">
+                <span>or</span>
+              </div>
+
+              {/* Join with code */}
+              <div className="video-lobby-join">
+                <label className="video-lobby-label">Your Name</label>
+                <input
+                  type="text"
+                  className="video-lobby-input"
+                  placeholder="Enter your name"
+                  value={userName}
+                  onChange={e => setUserName(e.target.value)}
+                />
+                <label className="video-lobby-label">Room Code</label>
+                <input
+                  type="text"
+                  className="video-lobby-input"
+                  placeholder="Paste the room code here (e.g. room-abc123)"
+                  value={roomInput}
+                  onChange={e => setRoomInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && joinRoom()}
+                />
+                <button className="btn-lobby-join-room" onClick={joinRoom}>
+                  <Icons.Video /> Join Classroom
+                </button>
+              </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '16px 0', color: '#475569' }}>
-              <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
-              <span style={{ fontSize: '13px' }}>{hasInviteCode ? 'OR USE DIFFERENT ROOM' : 'OR JOIN A ROOM'}</span>
-              <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
-            </div>
-
-            {/* Join Room */}
-            <div>
-              <input
-                type="text"
-                placeholder="Your name"
-                value={userName}
-                onChange={e => setUserName(e.target.value)}
-                style={{
-                  width: '100%', padding: '12px', borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(15,15,26,0.8)',
-                  color: '#fff', fontSize: '14px', marginBottom: '10px', boxSizing: 'border-box'
-                }}
-              />
-              <input
-                type="text"
-                placeholder="Enter room code"
-                value={roomInput}
-                onChange={e => setRoomInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && joinRoom()}
-                style={{
-                  width: '100%', padding: '12px', borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(15,15,26,0.8)',
-                  color: '#fff', fontSize: '14px', marginBottom: '10px', boxSizing: 'border-box'
-                }}
-              />
-              <button
-                onClick={joinRoom}
-                style={{
-                  width: '100%', padding: '14px', borderRadius: '12px',
-                  background: 'rgba(102,126,234,0.3)', border: '1px solid rgba(102,126,234,0.5)',
-                  color: '#fff', fontSize: '15px', fontWeight: 600, cursor: 'pointer'
-                }}
-              >
-                Join Classroom (Student)
-              </button>
+            {/* Help tip */}
+            <div className="video-lobby-tip">
+              <span className="video-lobby-tip-icon">💡</span>
+              <p>
+                <strong>How to get a room code?</strong> Ask your teacher or host to create a room 
+                and share the code with you. Then paste it above.
+              </p>
             </div>
           </div>
         </div>

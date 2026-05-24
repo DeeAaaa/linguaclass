@@ -5060,6 +5060,292 @@ input::placeholder {
 }
 
 /* ============================================
+   VIDEO ROOM LOBBY
+   ============================================ */
+.video-lobby {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 40px 20px;
+  background: linear-gradient(145deg, #0f0f1a, #1a1a2e);
+}
+
+.video-lobby-card {
+  background: rgba(102,126,234,0.08);
+  border: 1px solid rgba(102,126,234,0.15);
+  border-radius: 24px;
+  padding: 40px 36px;
+  max-width: 500px;
+  width: 100%;
+  text-align: center;
+}
+
+.video-lobby-header {
+  margin-bottom: 28px;
+}
+
+.video-lobby-icon svg {
+  width: 48px;
+  height: 48px;
+  color: #818cf8;
+  margin-bottom: 12px;
+}
+
+.video-lobby-header h2 {
+  font-size: 26px;
+  color: #f1f5f9;
+  margin: 0 0 6px 0;
+}
+
+.video-lobby-header p {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Invite code banner */
+.video-lobby-invite {
+  padding: 18px;
+  background: rgba(16,185,129,0.12);
+  border: 1px solid rgba(16,185,129,0.3);
+  border-radius: 14px;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.video-lobby-invite-icon svg {
+  width: 20px;
+  height: 20px;
+  color: #34d399;
+  float: left;
+  margin-right: 10px;
+  margin-top: 2px;
+}
+
+.video-lobby-invite-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #34d399;
+  margin: 0 0 4px 0;
+}
+
+.video-lobby-invite-room {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0 0 14px 0;
+}
+
+.video-lobby-invite-room strong {
+  color: #e2e8f0;
+  font-family: monospace;
+  font-size: 14px;
+  background: rgba(255,255,255,0.05);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.btn-lobby-join-green {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.btn-lobby-join-green:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(16,185,129,0.3);
+}
+
+.btn-lobby-join-green svg {
+  width: 18px;
+  height: 18px;
+}
+
+.video-lobby-not-you {
+  font-size: 11px;
+  color: #64748b;
+  margin: 10px 0 0 0;
+  text-align: center;
+}
+
+/* Action buttons */
+.video-lobby-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.btn-lobby-create {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 18px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(102,126,234,0.25), rgba(118,75,162,0.25));
+  border: 1px solid rgba(102,126,234,0.35);
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+}
+
+.btn-lobby-create:hover {
+  background: linear-gradient(135deg, rgba(102,126,234,0.4), rgba(118,75,162,0.4));
+  border-color: rgba(102,126,234,0.6);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102,126,234,0.2);
+}
+
+.btn-lobby-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.btn-lobby-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.btn-lobby-label strong {
+  font-size: 15px;
+}
+
+.btn-lobby-label small {
+  font-size: 11px;
+  color: rgba(255,255,255,0.6);
+  line-height: 1.4;
+}
+
+.video-lobby-divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: #475569;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.video-lobby-divider::before,
+.video-lobby-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+}
+
+/* Join section */
+.video-lobby-join {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.video-lobby-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.video-lobby-input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(15,15,26,0.8);
+  color: #e2e8f0;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.video-lobby-input:focus {
+  outline: none;
+  border-color: rgba(102,126,234,0.6);
+  box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+}
+
+.video-lobby-input::placeholder {
+  color: #475569;
+}
+
+.btn-lobby-join-room {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(102,126,234,0.25);
+  border: 1px solid rgba(102,126,234,0.4);
+  color: #a5b4fc;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.btn-lobby-join-room:hover {
+  background: rgba(102,126,234,0.4);
+  border-color: rgba(102,126,234,0.6);
+  color: #c7d2fe;
+  transform: translateY(-1px);
+}
+
+.btn-lobby-join-room svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Help tip */
+.video-lobby-tip {
+  margin-top: 24px;
+  padding: 14px 18px;
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.15);
+  border-radius: 12px;
+  display: flex;
+  gap: 10px;
+  text-align: left;
+}
+
+.video-lobby-tip-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.video-lobby-tip p {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.video-lobby-tip p strong {
+  color: #e2e8f0;
+}
+
+/* ============================================
    VIDEO ROOM
    ============================================ */
 .video-room {
@@ -7238,58 +7524,24 @@ input::placeholder {
 .contact-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-top: 2px;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--gray-100);
 }
 
-.contact-status {
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.btn-invite-contact {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  border: none;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  background: linear-gradient(135deg, #4f46e5, #6366f1);
-  color: #fff;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.btn-invite-contact:hover {
-  background: linear-gradient(135deg, #4338ca, #4f46e5);
-  box-shadow: 0 4px 12px rgba(99,102,241,0.4);
-  transform: translateY(-1px);
-}
-
-.btn-invite-contact svg {
-  width: 14px;
-  height: 14px;
-}
-
-/* Contact Action Buttons Row */
-.contact-actions-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
+/* ---- Call Button (Primary Action) ---- */
 .btn-call-contact {
+  flex: 1;
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 7px 12px;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
   border: none;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
   background: linear-gradient(135deg, #10b981, #059669);
   color: #fff;
@@ -7299,33 +7551,35 @@ input::placeholder {
 
 .btn-call-contact:hover {
   background: linear-gradient(135deg, #059669, #047857);
-  box-shadow: 0 4px 12px rgba(16,185,129,0.4);
+  box-shadow: 0 4px 16px rgba(16,185,129,0.4);
   transform: translateY(-1px);
 }
 
 .btn-call-contact svg {
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
 }
 
+/* ---- Remove Button (Subtle) ---- */
 .btn-remove-contact {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid #fecaca;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--gray-200);
   border-radius: 8px;
-  background: #fef2f2;
-  color: #ef4444;
+  background: transparent;
+  color: var(--gray-400);
   cursor: pointer;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .btn-remove-contact:hover {
-  background: #ef4444;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(239,68,68,0.3);
+  background: #fef2f2;
+  color: #ef4444;
+  border-color: #fecaca;
 }
 
 .btn-remove-contact svg {
@@ -7333,7 +7587,7 @@ input::placeholder {
   height: 16px;
 }
 
-/* Add Contact Button */
+/* ---- Add Contact Button ---- */
 .btn-add-contact {
   display: flex;
   align-items: center;
@@ -7360,6 +7614,399 @@ input::placeholder {
 .btn-add-contact svg {
   width: 16px;
   height: 16px;
+}
+
+/* ---- Share App Banner ---- */
+.share-app-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border: 1px solid #bfdbfe;
+  border-radius: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.share-app-banner-icon {
+  font-size: 36px;
+  flex-shrink: 0;
+}
+
+.share-app-banner-text {
+  flex: 1;
+  min-width: 180px;
+}
+
+.share-app-banner-text h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--gray-800);
+  margin-bottom: 2px;
+}
+
+.share-app-banner-text p {
+  font-size: 13px;
+  color: var(--gray-600);
+  line-height: 1.4;
+}
+
+.share-app-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.share-app-url-box {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: #fff;
+  border: 1px solid var(--gray-300);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.share-app-url-box code {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--gray-600);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+  background: var(--gray-50);
+  font-family: monospace;
+}
+
+.btn-copy-app-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.btn-copy-app-link:hover {
+  background: #1d4ed8;
+}
+
+.btn-copy-app-link svg {
+  width: 14px;
+  height: 14px;
+}
+
+.btn-share-app {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-share-app:hover {
+  background: linear-gradient(135deg, #4338ca, #4f46e5);
+  box-shadow: 0 4px 12px rgba(99,102,241,0.4);
+  transform: translateY(-1px);
+}
+
+.btn-share-app svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ---- Install App Banner ---- */
+.install-app-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-radius: 14px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  color: #fff;
+}
+
+.install-app-banner-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.install-app-banner-text {
+  flex: 1;
+  min-width: 160px;
+}
+
+.install-app-banner-text strong {
+  font-size: 15px;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.install-app-banner-text p {
+  font-size: 12px;
+  color: rgba(255,255,255,0.85);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.install-app-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-install-app {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border: 2px solid rgba(255,255,255,0.5);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-install-app:hover {
+  background: rgba(255,255,255,0.35);
+  border-color: #fff;
+  transform: translateY(-1px);
+}
+
+.btn-install-app svg {
+  width: 16px;
+  height: 16px;
+}
+
+.btn-dismiss-install {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: background 0.2s;
+}
+
+.btn-dismiss-install:hover {
+  background: rgba(255,255,255,0.4);
+}
+
+.btn-dismiss-install svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ---- Join Room Section ---- */
+.join-room-section {
+  background: #fff;
+  border: 2px solid #2563eb;
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+}
+
+.join-room-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.join-room-icon {
+  font-size: 28px;
+}
+
+.join-room-header h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.join-room-desc {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0 0 14px 0;
+  line-height: 1.5;
+}
+
+.join-room-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.join-room-input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: monospace;
+  background: #f8fafc;
+  transition: border-color 0.2s;
+  color: #1e293b;
+  min-width: 0;
+}
+
+.join-room-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+
+.join-room-input::placeholder {
+  color: #94a3b8;
+  font-family: inherit;
+}
+
+.btn-join-room {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: #fff;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-join-room:hover {
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  box-shadow: 0 4px 12px rgba(37,99,235,0.4);
+  transform: translateY(-1px);
+}
+
+.btn-join-room svg {
+  width: 18px;
+  height: 18px;
+}
+
+.btn-download-app {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 2px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-download-app:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+.btn-download-app svg {
+  width: 20px;
+  height: 20px;
+}
+
+.join-room-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #ef4444;
+  font-weight: 500;
+}
+
+/* ---- How to Connect Section ---- */
+.how-to-connect {
+  margin-top: 32px;
+  padding: 24px;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: 16px;
+}
+
+.how-to-connect h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--gray-800);
+  margin-bottom: 16px;
+}
+
+.connect-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.connect-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.connect-step-num {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #2563eb;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.connect-step p {
+  font-size: 14px;
+  color: var(--gray-600);
+  line-height: 1.5;
+  padding-top: 3px;
+}
+
+.connect-tip {
+  font-size: 13px;
+  color: var(--gray-600);
+  padding: 12px;
+  background: #dbeafe;
+  border-radius: 8px;
+  line-height: 1.5;
 }
 
 /* Add Contact Form */
@@ -7412,124 +8059,6 @@ input::placeholder {
 /* Delete Confirm Modal */
 .delete-confirm-modal {
   max-width: 420px;
-}
-
-/* Download App Section */
-.download-app-section {
-  margin-top: 40px;
-  padding-top: 24px;
-  border-top: 1px solid var(--gray-200);
-}
-
-.download-app-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 20px;
-  padding: 24px;
-  background: linear-gradient(135deg, #eff6ff, #dbeafe);
-  border-radius: 16px;
-  border: 1px solid #bfdbfe;
-}
-
-.download-app-icon {
-  flex-shrink: 0;
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #2563eb, #3b82f6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-}
-
-.download-app-info h3 {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--gray-800);
-  margin-bottom: 4px;
-}
-
-.download-app-info > p {
-  font-size: 14px;
-  color: var(--gray-600);
-  margin-bottom: 16px;
-}
-
-.download-app-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.download-step {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-}
-
-.step-num {
-  flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: #2563eb;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.download-step strong {
-  font-size: 14px;
-  color: var(--gray-800);
-  display: block;
-  margin-bottom: 2px;
-}
-
-.download-step p {
-  font-size: 13px;
-  color: var(--gray-600);
-  line-height: 1.5;
-}
-
-.download-step kbd {
-  display: inline-block;
-  padding: 1px 6px;
-  font-size: 12px;
-  font-family: monospace;
-  background: var(--gray-100);
-  border: 1px solid var(--gray-300);
-  border-radius: 4px;
-  color: var(--gray-700);
-}
-
-@media (max-width: 768px) {
-  .download-app-card {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-  }
-  .download-step {
-    flex-direction: column;
-    align-items: center;
-  }
-  .btn-add-contact {
-    margin-left: 0;
-    width: 100%;
-    justify-content: center;
-  }
-  .contact-actions-row {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-  .contact-footer {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
 }
 
 /* Invite Modal */
@@ -7817,13 +8346,6 @@ input::placeholder {
   .contacts-page {
     padding: 16px;
   }
-  .contacts-stats {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
-  .contact-stat-card {
-    padding: 14px;
-  }
   .contacts-grid {
     grid-template-columns: 1fr;
   }
@@ -7831,14 +8353,74 @@ input::placeholder {
     flex-direction: column;
     align-items: stretch;
   }
-  .contacts-filters {
-    justify-content: center;
-  }
   .contact-card {
     flex-direction: row;
   }
   .invite-modal {
     margin: 10px;
+  }
+  .share-app-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .share-app-banner-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+  .share-app-url-box {
+    width: 100%;
+  }
+  .share-app-url-box code {
+    max-width: none;
+    flex: 1;
+  }
+  .btn-share-app {
+    width: 100%;
+    justify-content: center;
+  }
+  .btn-add-contact {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
+  .install-app-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .install-app-banner-actions {
+    width: 100%;
+  }
+  .btn-install-app {
+    flex: 1;
+    justify-content: center;
+  }
+  .join-room-section {
+    padding: 16px;
+  }
+  .join-room-input-row {
+    flex-wrap: wrap;
+  }
+  .join-room-input {
+    flex: 1 1 100%;
+  }
+  .btn-join-room {
+    flex: 1;
+    justify-content: center;
+  }
+  .btn-download-app {
+    width: 44px;
+  }
+  .video-lobby-card {
+    padding: 24px 20px;
+    margin: 0 8px;
+  }
+  .video-lobby-header h2 {
+    font-size: 22px;
+  }
+  .btn-lobby-create,
+  .btn-lobby-join-green,
+  .btn-lobby-join-room {
+    padding: 14px 16px;
   }
 }
 
