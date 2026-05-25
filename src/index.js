@@ -48,15 +48,16 @@ let deferredPrompt = null;
 let installBannerShown = false;
 
 window.addEventListener('beforeinstallprompt', (e) => {
-  console.log('📲 PWA beforeinstallprompt fired!');
+  console.log('📲 PWA beforeinstallprompt fired! App is installable.');
   // Prevent the mini-infobar from appearing on mobile
   e.preventDefault();
   // Stash the event so it can be triggered later
   deferredPrompt = e;
 
-  // Show the install banner after a short delay
+  // Show the install banner after a short delay (quicker on desktop)
   if (!installBannerShown) {
-    setTimeout(showInstallBanner, 3000);
+    const delay = /Mobi|Android/i.test(navigator.userAgent) ? 3000 : 800;
+    setTimeout(showInstallBanner, delay);
   }
 });
 

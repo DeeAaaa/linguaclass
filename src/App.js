@@ -583,19 +583,15 @@ function LandingPage({ onLogin }) {
             <h3>{t('downloadForAndroid')}</h3>
             <p className="dc-desc">{t('downloadAPKDesc')}</p>
             <div className="dc-buttons">
-              <button className="btn-download-apk" onClick={() => {
+              <a href="https://github.com/DeeAaaa/linguaclass/releases/latest" target="_blank" rel="noopener noreferrer" className="btn-download-apk">
+                <Icons.Classroom size={18} /> {t('downloadAPKFromGithub')}
+              </a>
+              <button className="btn-download-apk-secondary" onClick={() => {
                 const evt = new Event('trigger-pwa-install');
                 window.dispatchEvent(evt);
               }}>
-                <Icons.Classroom size={18} /> {t('installNow')}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> {t('installNow')}
               </button>
-              <a href="#apk-download" className="btn-download-apk-secondary" onClick={(e) => {
-                e.preventDefault();
-                const el = document.getElementById('apk-download');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> {t('downloadAPK')}
-              </a>
             </div>
           </div>
           <div className="download-card">
@@ -632,6 +628,10 @@ function LandingPage({ onLogin }) {
           <div className="apk-info">
             <h3>{t('downloadAPK')}</h3>
             <p>{t('downloadAPKComing')}</p>
+            <a href="https://github.com/DeeAaaa/linguaclass/releases/latest" target="_blank" rel="noopener noreferrer" className="btn-download-apk btn-download-apk-big">
+              <Icons.Classroom size={22} /> {t('downloadAPKFromGithub')}
+            </a>
+            <p style={{marginTop:8,fontSize:'0.78rem',color:'#94a3b8'}}>{t('downloadAPKSize')}</p>
             <div className="apk-features">
               <div className="get-app-feature">
                 <span className="gaf-icon">📴</span>
@@ -1626,18 +1626,12 @@ function DashboardPage({ user, setCurrentPage }) {
         <div className="dash-download-platforms">
           {/* Android */}
           <button className="dash-dl-card android" onClick={() => {
-            const evt = new Event('trigger-pwa-install');
-            window.dispatchEvent(evt);
-            // If PWA install not available after a tick, show guide
-            setTimeout(() => {
-              if (!window.__deferredPromptFired) {
-                setInstallGuide('android');
-              }
-            }, 500);
+            // Direct APK download link
+            window.open('https://github.com/DeeAaaa/linguaclass/releases/latest', '_blank');
           }}>
             <span className="dash-dl-icon">🤖</span>
-            <span className="dash-dl-name">{t('downloadForAndroid')}</span>
-            <span className="dash-dl-hint">Chrome · PWA</span>
+            <span className="dash-dl-name">{t('downloadAPK')}</span>
+            <span className="dash-dl-hint">GitHub · APK</span>
           </button>
           {/* iOS */}
           <button className="dash-dl-card ios" onClick={() => setInstallGuide('ios')}>
@@ -1684,22 +1678,11 @@ function DashboardPage({ user, setCurrentPage }) {
                   <div className="dash-guide-steps">
                     <div className="guide-step-row"><span>1</span> Open in <strong>Chrome</strong> browser</div>
                     <div className="guide-step-row"><span>2</span> Tap <strong>⋮</strong> menu → <strong>Install app</strong></div>
-                    <div className="guide-step-row"><span>3</span> Or tap the install banner at top</div>
+                    <div className="guide-step-row"><span>3</span> Or <strong>download the APK</strong> from GitHub</div>
                   </div>
-                  <button className="dash-guide-action" onClick={() => {
-                    // Try PWA install again first
-                    const evt = new Event('trigger-pwa-install');
-                    window.dispatchEvent(evt);
-                    // Fallback: open in Chrome if on Android
-                    setTimeout(() => {
-                      if (!window.__deferredPromptFired) {
-                        const url = window.location.origin + window.location.pathname;
-                        window.open('intent://' + url.replace(/https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end', '_blank');
-                      }
-                    }, 600);
-                  }}>
-                    📲 {t('installNow')}
-                  </button>
+                  <a href="https://github.com/DeeAaaa/linguaclass/releases/latest" target="_blank" rel="noopener noreferrer" className="dash-guide-action" style={{textDecoration:'none'}}>
+                    📱 {t('downloadAPKFromGithub')}
+                  </a>
                 </>
               ) : (
                 <>

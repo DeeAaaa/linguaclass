@@ -1086,6 +1086,12 @@ input::placeholder {
   transform: translateY(-2px);
   box-shadow: 0 6px 24px rgba(16, 185, 129, 0.45);
 }
+.btn-download-apk-big {
+  padding: 0.9rem 2rem !important;
+  font-size: 1rem !important;
+  border-radius: 30px !important;
+  text-decoration: none;
+}
 .btn-download-apk-secondary {
   display: inline-flex;
   align-items: center;
