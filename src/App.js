@@ -1688,16 +1688,31 @@ function DashboardPage({ user, setCurrentPage }) {
                 <>
                   <div className="dash-guide-icon">💻</div>
                   <h4>{t('installDesktop')}</h4>
-                  <p>{t('installDesktopStep')}</p>
+                  <p id="desktop-guide-status">{t('installDesktopStep')}</p>
                   <div className="dash-guide-steps">
                     <div className="guide-step-row"><span>1</span> Open in <strong>Chrome</strong> or <strong>Edge</strong></div>
-                    <div className="guide-step-row"><span>2</span> Click <strong>Install</strong> icon in address bar <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+                    <div className="guide-step-row"><span>2</span> Click <strong>Install</strong> icon in address bar ↓</div>
                     <div className="guide-step-row"><span>3</span> Or use <strong>⋮ → More tools → Create shortcut</strong></div>
                   </div>
-                  <button className="dash-guide-action" onClick={() => {
-                    // Try PWA install again
+                  <button className="dash-guide-action" onClick={async () => {
+                    const btn = document.activeElement;
+                    btn.textContent = '⏳ Trying...';
+                    // Try PWA install
                     const evt = new Event('trigger-pwa-install');
                     window.dispatchEvent(evt);
+                    // Wait and check result
+                    await new Promise(r => setTimeout(r, 800));
+                    if (!window.__deferredPromptFired) {
+                      // PWA not available - show helpful fallback
+                      const statusEl = document.getElementById('desktop-guide-status');
+                      if (statusEl) {
+                        statusEl.innerHTML = '<span style="color:#ef4444;font-weight:600;">⚠ Browser doesn\'t support one-click install</span><br><span style="font-size:0.82rem;color:#64748b">Look for the install icon ↑ in your address bar, or try Chrome/Edge.</span>';
+                      }
+                      btn.textContent = '🔍 Look at Address Bar ↑';
+                      btn.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+                    } else {
+                      btn.textContent = '✓ Installing...';
+                    }
                   }}>
                     📲 {t('installNow')}
                   </button>

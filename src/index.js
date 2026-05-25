@@ -47,8 +47,12 @@ if ('serviceWorker' in navigator) {
 let deferredPrompt = null;
 let installBannerShown = false;
 
+// Expose PWA status globally so React components can read it
+window.__pwaInstallable = false;
+
 window.addEventListener('beforeinstallprompt', (e) => {
   console.log('📲 PWA beforeinstallprompt fired! App is installable.');
+  window.__pwaInstallable = true;
   // Prevent the mini-infobar from appearing on mobile
   e.preventDefault();
   // Stash the event so it can be triggered later
