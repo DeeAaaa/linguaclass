@@ -1029,6 +1029,19 @@ function DashboardPage({ user, setCurrentPage }) {
   const [hoveredCard, setHoveredCard] = useState(null);
   const [installGuide, setInstallGuide] = useState(null); // 'android' | 'ios' | 'desktop' | null
 
+  // Listen for install guide event from pwa-install fallback
+  useEffect(() => {
+    const handler = () => {
+      // Determine platform from user agent
+      const ua = navigator.userAgent;
+      if (/iPhone|iPad|iPod/.test(ua)) setInstallGuide('ios');
+      else if (/Android/.test(ua)) setInstallGuide('android');
+      else setInstallGuide('desktop');
+    };
+    window.addEventListener('show-generic-install-guide', handler);
+    return () => window.removeEventListener('show-generic-install-guide', handler);
+  }, []);
+
   // Content Manager - loads from localStorage, falls back to hardcoded defaults
   const cm = useContentManager();
 
@@ -1673,6 +1686,20 @@ function DashboardPage({ user, setCurrentPage }) {
                     <div className="guide-step-row"><span>2</span> Tap <strong>⋮</strong> menu → <strong>Install app</strong></div>
                     <div className="guide-step-row"><span>3</span> Or tap the install banner at top</div>
                   </div>
+                  <button className="dash-guide-action" onClick={() => {
+                    // Try PWA install again first
+                    const evt = new Event('trigger-pwa-install');
+                    window.dispatchEvent(evt);
+                    // Fallback: open in Chrome if on Android
+                    setTimeout(() => {
+                      if (!window.__deferredPromptFired) {
+                        const url = window.location.origin + window.location.pathname;
+                        window.open('intent://' + url.replace(/https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end', '_blank');
+                      }
+                    }, 600);
+                  }}>
+                    📲 {t('installNow')}
+                  </button>
                 </>
               ) : (
                 <>
@@ -1684,6 +1711,13 @@ function DashboardPage({ user, setCurrentPage }) {
                     <div className="guide-step-row"><span>2</span> Click <strong>Install</strong> icon in address bar <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
                     <div className="guide-step-row"><span>3</span> Or use <strong>⋮ → More tools → Create shortcut</strong></div>
                   </div>
+                  <button className="dash-guide-action" onClick={() => {
+                    // Try PWA install again
+                    const evt = new Event('trigger-pwa-install');
+                    window.dispatchEvent(evt);
+                  }}>
+                    📲 {t('installNow')}
+                  </button>
                 </>
               )}
             </div>

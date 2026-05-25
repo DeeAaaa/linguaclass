@@ -10241,6 +10241,33 @@ input::placeholder {
   vertical-align: middle;
 }
 
+/* Install action button inside guide popup */
+.dash-guide-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 18px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+}
+.dash-guide-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45);
+}
+.dash-guide-action:active {
+  transform: translateY(0);
+}
+
 @media (max-width: 768px) {
   .role-indicator {
     margin: 8px 12px 0;

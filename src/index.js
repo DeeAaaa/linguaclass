@@ -48,6 +48,7 @@ let deferredPrompt = null;
 let installBannerShown = false;
 
 window.addEventListener('beforeinstallprompt', (e) => {
+  console.log('📲 PWA beforeinstallprompt fired!');
   // Prevent the mini-infobar from appearing on mobile
   e.preventDefault();
   // Stash the event so it can be triggered later
@@ -78,29 +79,33 @@ window.addEventListener('appinstalled', () => {
 window.addEventListener('trigger-pwa-install', async () => {
   if (deferredPrompt) {
     window.__deferredPromptFired = true;
+    console.log('📲 Triggering PWA install dialog...');
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     console.log('User install choice:', outcome);
     deferredPrompt = null;
     removeInstallBanner();
   } else if (isPWA) {
-    // Already installed - show toast
+    window.__deferredPromptFired = true; // already installed counts as success
     const toast = document.createElement('div');
     toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#10b981;color:#fff;padding:12px 24px;border-radius:24px;z-index:9999;font-family:system-ui;font-weight:600;box-shadow:0 4px 20px rgba(16,185,129,0.4);animation:slideUp 0.3s ease-out;';
     toast.textContent = '✓ App is already installed!';
     document.body.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.4s'; setTimeout(() => toast.remove(), 400); }, 2500);
   } else {
-    // PWA install not available — try landing page guide, else show instructions
-    const guideEl = document.getElementById('get-app');
-    if (guideEl) {
-      guideEl.scrollIntoView({ behavior: 'smooth' });
-      guideEl.querySelector('.install-guides')?.classList.add('highlight-pulse');
-      setTimeout(() => guideEl.querySelector('.install-guides')?.classList.remove('highlight-pulse'), 2000);
-    } else {
-      // Dashboard or other page — show a toast with install help
-      window.dispatchEvent(new CustomEvent('show-generic-install-guide'));
-    }
+    // PWA install not available — notify React to show guide
+    console.log('⚠️ PWA install not available (beforeinstallprompt never fired). Showing guide.');
+    window.dispatchEvent(new CustomEvent('show-generic-install-guide'));
+  }
+});
+
+// Listen for guide trigger from landing page install buttons
+window.addEventListener('show-generic-install-guide', () => {
+  const guideEl = document.getElementById('get-app');
+  if (guideEl) {
+    guideEl.scrollIntoView({ behavior: 'smooth' });
+    guideEl.querySelector('.install-guides')?.classList.add('highlight-pulse');
+    setTimeout(() => guideEl.querySelector('.install-guides')?.classList.remove('highlight-pulse'), 2000);
   }
 });
 
