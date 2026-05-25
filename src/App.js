@@ -311,7 +311,7 @@ const Icons = {
 // LANDING PAGE
 // ============================================
 function LandingPage({ onLogin }) {
-  const { t } = useTranslation();
+  const { t, lang, toggleLanguage } = useTranslation();
   const [mode, setMode] = useState('login'); // 'login' | 'register' — Sign In active by default
   const [authMethod, setAuthMethod] = useState('email'); // 'email' | 'phone'
   const [name, setName] = useState('');
@@ -400,6 +400,14 @@ function LandingPage({ onLogin }) {
             <Icons.Classroom />
             <span>{t('brand')}</span>
           </div>
+        </div>
+        <div className="nav-right">
+          <button className="lang-switcher-btn" onClick={toggleLanguage} title={lang === 'en' ? 'Switch to Chinese' : '切换到英文'}>
+            <span className="lang-flag">{lang === 'en' ? '🇬🇧' : '🇨🇳'}</span>
+            <span className="lang-current">{lang === 'en' ? 'English' : '中文'}</span>
+            <span className="lang-arrow">→</span>
+            <span className="lang-target">{lang === 'en' ? '中文' : 'English'}</span>
+          </button>
         </div>
       </nav>
 
