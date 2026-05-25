@@ -163,7 +163,8 @@ const FEATURED_CONTENT = [
     readTime: '8 min read',
     category: 'Communication',
     image: 'https://picsum.photos/seed/comm1/400/250',
-    date: '2026-05-15'
+    date: '2026-05-15',
+    url: ''
   },
   {
     id: 2,
@@ -196,7 +197,8 @@ const FEATURED_CONTENT = [
     readTime: '9 chapters',
     category: 'Classic Fiction',
     image: 'https://picsum.photos/seed/1984book/400/250',
-    date: 'Classic'
+    date: 'Classic',
+    url: ''
   },
   {
     id: 5,
@@ -207,7 +209,8 @@ const FEATURED_CONTENT = [
     readTime: '5 min read',
     category: 'Grammar',
     image: 'https://picsum.photos/seed/grammar/400/250',
-    date: '2026-05-18'
+    date: '2026-05-18',
+    url: ''
   },
   {
     id: 6,
@@ -218,7 +221,8 @@ const FEATURED_CONTENT = [
     duration: '22:15',
     category: 'Speaking',
     image: 'https://picsum.photos/seed/pronun/400/250',
-    date: '2026-05-12'
+    date: '2026-05-12',
+    url: ''
   },
 ];
 
@@ -704,17 +708,17 @@ function useContentManager() {
   const [achievements, setAchievements] = useState(() => load('cms_achievements', ACHIEVEMENTS));
   const [quickLessons, setQuickLessons] = useState(() => load('cms_lessons', QUICK_LESSONS));
   const [readingItems, setReadingItems] = useState(() => load('cms_reading', [
-    { id: 'r1', title: 'The Power of Reading', desc: 'Discover how daily reading transforms your language skills and opens new worlds of knowledge.', image: 'https://picsum.photos/seed/reading1/600/400', featured: true },
-    { id: 'r2', title: '5 Habits of Successful Learners', meta: 'Article • 6 min read', image: 'https://picsum.photos/seed/read2/80/80' },
-    { id: 'r3', title: 'The Missing Piece', meta: 'Story • 15 min', image: 'https://picsum.photos/seed/read3/80/80' },
-    { id: 'r4', title: 'Pride and Prejudice', meta: 'Book • Chapter 1', image: 'https://picsum.photos/seed/read4/80/80' },
-    { id: 'r5', title: 'Vocabulary Building Guide', meta: 'Guide • 10 min', image: 'https://picsum.photos/seed/read5/80/80' },
+    { id: 'r1', title: 'The Power of Reading', desc: 'Discover how daily reading transforms your language skills and opens new worlds of knowledge.', image: 'https://picsum.photos/seed/reading1/600/400', featured: true, url: '' },
+    { id: 'r2', title: '5 Habits of Successful Learners', meta: 'Article • 6 min read', image: 'https://picsum.photos/seed/read2/80/80', url: '' },
+    { id: 'r3', title: 'The Missing Piece', meta: 'Story • 15 min', image: 'https://picsum.photos/seed/read3/80/80', url: '' },
+    { id: 'r4', title: 'Pride and Prejudice', meta: 'Book • Chapter 1', image: 'https://picsum.photos/seed/read4/80/80', url: '' },
+    { id: 'r5', title: 'Vocabulary Building Guide', meta: 'Guide • 10 min', image: 'https://picsum.photos/seed/read5/80/80', url: '' },
   ]));
   const [videoItems, setVideoItems] = useState(() => load('cms_videos', [
-    { id: 'v1', title: 'Complete English Grammar Course', desc: 'Master grammar fundamentals in this comprehensive video series.', author: 'Dr. Sarah Mitchell', views: '2.4K views', duration: '22:15', image: 'https://picsum.photos/seed/vidmain/500/300', featured: true },
-    { id: 'v2', title: 'Business English Basics', author: 'Prof. James Wilson', duration: '15:30', image: 'https://picsum.photos/seed/vid1/160/100' },
-    { id: 'v3', title: 'Pronunciation Tips', author: 'Ms. Emily Chen', duration: '12:45', image: 'https://picsum.photos/seed/vid2/160/100' },
-    { id: 'v4', title: 'Writing Workshop', author: 'Prof. James Wilson', duration: '18:20', image: 'https://picsum.photos/seed/vid3/160/100' },
+    { id: 'v1', title: 'Complete English Grammar Course', desc: 'Master grammar fundamentals in this comprehensive video series.', author: 'Dr. Sarah Mitchell', views: '2.4K views', duration: '22:15', image: 'https://picsum.photos/seed/vidmain/500/300', featured: true, url: '' },
+    { id: 'v2', title: 'Business English Basics', author: 'Prof. James Wilson', duration: '15:30', image: 'https://picsum.photos/seed/vid1/160/100', url: '' },
+    { id: 'v3', title: 'Pronunciation Tips', author: 'Ms. Emily Chen', duration: '12:45', image: 'https://picsum.photos/seed/vid2/160/100', url: '' },
+    { id: 'v4', title: 'Writing Workshop', author: 'Prof. James Wilson', duration: '18:20', image: 'https://picsum.photos/seed/vid3/160/100', url: '' },
   ]));
 
   // Persist on change
@@ -728,23 +732,43 @@ function useContentManager() {
   return { schedules, setSchedules, featuredContent, setFeaturedContent, achievements, setAchievements, quickLessons, setQuickLessons, readingItems, setReadingItems, videoItems, setVideoItems };
 }
 
-// Shared editor modal component for all content types
+// ============================================
+// TOAST NOTIFICATION
+// ============================================
+let toastTimer = null;
+function showToast(msg) {
+  const el = document.getElementById('admin-toast');
+  if (el) {
+    el.textContent = msg; el.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+  }
+}
+
+// ============================================
+// SHARED CONTENT EDITOR MODAL
+// ============================================
 function ContentEditorModal({ open, onClose, title, fields, data, onSave, onDelete }) {
   // Hooks MUST be called unconditionally (before any early returns)
   const [editData, setEditData] = useState(() => data ? { ...data } : {});
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => { if (data) { setEditData({ ...data }); } }, [data]);
+  useEffect(() => { if (data) { setEditData({ ...data }); } else { setEditData({}); } }, [data]);
 
   // Conditional render AFTER all hooks
   if (!open) return null;
 
   const handleChange = (key, val) => setEditData(prev => ({ ...prev, [key]: val }));
+
   const handleImageUpload = (key) => {
     const input = document.createElement('input');
     input.type = 'file'; input.accept = 'image/*';
     input.onchange = (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
+      if (file.size > 500 * 1024) {
+        showToast('⚠️ 图片 >500KB！建议压缩为JPG或使用外部图片链接');
+      }
       const reader = new FileReader();
       reader.onload = () => handleChange(key, reader.result);
       reader.readAsDataURL(file);
@@ -752,46 +776,88 @@ function ContentEditorModal({ open, onClose, title, fields, data, onSave, onDele
     input.click();
   };
 
+  const handleSave = () => {
+    setSaving(true);
+    onSave(editData);
+    showToast('✅ 内容已保存！');
+    setTimeout(() => { setSaving(false); onClose(); }, 150);
+  };
+
+  const handleDelete = () => {
+    if (onDelete && data?.id) {
+      onDelete(data.id);
+      showToast('🗑️ 内容已删除');
+      onClose();
+    }
+  };
+
+  // Close only when clicking the dark overlay background (not the modal itself)
+  const handleOverlayClick = (e) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
   return (
-    <div className="admin-modal-overlay" onClick={(e) => e.target === e.target && onClose()}>
-      <div className="admin-modal">
+    <div className="admin-modal-overlay" onClick={handleOverlayClick}>
+      <div className="admin-modal" onClick={e => e.stopPropagation()}>
         <div className="admin-modal-header">
           <h3>{title}</h3>
           <button className="admin-modal-close" onClick={onClose}><Icons.X /></button>
         </div>
         <div className="admin-modal-body">
-          {fields.map(f => (
-            <div key={f.key} className={`admin-field ${f.type === 'textarea' ? 'admin-field-textarea' : ''} ${f.type === 'image' ? 'admin-field-image' : ''}`}>
-              <label>{f.label}</label>
-              {f.type === 'textarea' ? (
-                <textarea rows={f.rows || 3} value={editData[f.key] || ''} onChange={e => handleChange(f.key, e.target.value)} placeholder={f.placeholder || ''} />
-              ) : f.type === 'select' ? (
-                <select value={editData[f.key] || ''} onChange={e => handleChange(f.key, e.target.value)}>
-                  {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
-              ) : f.type === 'image' ? (
-                <div className="admin-image-field">
-                  {editData[f.key] && <img src={editData[f.key]} alt="preview" className="admin-img-preview" />}
-                  <button type="button" className="btn-admin-upload" onClick={() => handleImageUpload(f.key)}>
-                    <Icons.Upload /> {editData[f.key] ? 'Change Image' : 'Upload Image'}
-                  </button>
-                  {editData[f.key] && <button type="button" className="btn-admin-remove" onClick={() => handleChange(f.key, '')}>Remove</button>}
-                </div>
-              ) : f.type === 'number' ? (
-                <input type="number" value={editData[f.key] ?? ''} onChange={e => handleChange(f.key, Number(e.target.value))} placeholder={f.placeholder || ''} />
-              ) : (
-                <input type="text" value={editData[f.key] || ''} onChange={e => handleChange(f.key, e.target.value)} placeholder={f.placeholder || ''} />
-              )}
-            </div>
-          ))}
+          {fields.map(f => {
+            const cls = `admin-field${f.type === 'textarea' ? ' admin-field-textarea' : ''}${f.type === 'image' ? ' admin-field-image' : ''}`;
+            return (
+              <div key={f.key} className={cls}>
+                <label>
+                  {f.label}
+                  {f.help && <span className="admin-field-help">{f.help}</span>}
+                </label>
+                {f.type === 'textarea' ? (
+                  <textarea rows={f.rows || 3} value={editData[f.key] || ''} onChange={e => handleChange(f.key, e.target.value)} placeholder={f.placeholder || ''} />
+                ) : f.type === 'select' ? (
+                  <select value={editData[f.key] || ''} onChange={e => handleChange(f.key, e.target.value)}>
+                    {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : f.type === 'image' ? (
+                  <div className="admin-image-field">
+                    {editData[f.key] && <img src={editData[f.key]} alt="preview" className="admin-img-preview" />}
+                    <div className="admin-image-actions">
+                      <button type="button" className="btn-admin-upload" onClick={() => handleImageUpload(f.key)}>
+                        <Icons.Upload /> {editData[f.key] ? '换图' : '上传图片'}
+                      </button>
+                      <span className="admin-image-hint">推荐 JPG/PNG ≤500KB · 或粘贴URL</span>
+                    </div>
+                    {editData[f.key] && <button type="button" className="btn-admin-remove" onClick={() => handleChange(f.key, '')}>移除图片</button>}
+                    <input
+                      type="text"
+                      style={{ marginTop: 6 }}
+                      value={editData[f.key] || ''}
+                      onChange={e => handleChange(f.key, e.target.value)}
+                      placeholder="图片链接 (https://...)"
+                    />
+                  </div>
+                ) : f.type === 'url' ? (
+                  <input type="url" value={editData[f.key] || ''} onChange={e => handleChange(f.key, e.target.value)} placeholder={f.placeholder || 'https://...'} />
+                ) : f.type === 'number' ? (
+                  <input type="number" value={editData[f.key] ?? ''} onChange={e => handleChange(f.key, Number(e.target.value))} placeholder={f.placeholder || ''} />
+                ) : (
+                  <input type="text" value={editData[f.key] || ''} onChange={e => handleChange(f.key, e.target.value)} placeholder={f.placeholder || ''} />
+                )}
+              </div>
+            );
+          })}
         </div>
         <div className="admin-modal-footer">
-          {onDelete && data?.id && (
-            <button className="btn-admin-delete" onClick={() => { onDelete(data.id); onClose(); }}><Icons.Trash /> Delete</button>
+          {onDelete && data?.id ? (
+            <button className="btn-admin-delete" onClick={handleDelete}><Icons.Trash /> 删除</button>
+          ) : (
+            <div />
           )}
           <div className="admin-modal-actions">
-            <button className="btn-admin-cancel" onClick={onClose}>Cancel</button>
-            <button className="btn-admin-save" onClick={() => { onSave(editData); onClose(); }}><Icons.Save /> Save</button>
+            <button className="btn-admin-cancel" onClick={onClose}>取消</button>
+            <button className="btn-admin-save" onClick={handleSave} disabled={saving}>
+              <Icons.Save /> {saving ? '保存中...' : '保存'}
+            </button>
           </div>
         </div>
       </div>
@@ -848,8 +914,32 @@ function DashboardPage({ user, setCurrentPage }) {
     }
   };
 
+  // Reset to defaults
+  const resetToDefaults = () => {
+    localStorage.removeItem('cms_schedules');
+    localStorage.removeItem('cms_featured');
+    localStorage.removeItem('cms_achievements');
+    localStorage.removeItem('cms_lessons');
+    localStorage.removeItem('cms_reading');
+    localStorage.removeItem('cms_videos');
+    window.location.reload();
+  };
+
   return (
     <div className="dashboard">
+      {/* Toast notification */}
+      <div id="admin-toast" className="admin-toast"></div>
+
+      {/* Admin toolbar (always visible for admin) */}
+      {isAdmin && (
+        <div className="admin-toolbar">
+          <span className="admin-toolbar-label">🔧 管理员模式</span>
+          <button className="btn-admin-reset" onClick={() => { if (window.confirm('确定要重置所有内容为默认值吗？这将清除你所有的自定义内容。')) resetToDefaults(); }}>
+            <Icons.Clear /> 重置为默认
+          </button>
+        </div>
+      )}
+
       {/* Hero Section */}
       <div className="dashboard-hero">
         <div className="hero-bg-pattern"></div>
@@ -1075,19 +1165,20 @@ function DashboardPage({ user, setCurrentPage }) {
           <h2><span>📚</span> {t('featuredContent')}</h2>
           {isAdmin && (
             <button className="btn-admin-section-edit" onClick={() => openEditor({
-              title: 'Add Featured Content',
+              title: '添加精选内容',
               fields: [
-                { key: 'title', label: 'Title', placeholder: 'Article title' },
-                { key: 'excerpt', label: 'Excerpt / Description', type: 'textarea', rows: 3, placeholder: 'Short description...' },
-                { key: 'type', label: 'Type', type: 'select', options: ['article', 'video', 'story', 'book'] },
-                { key: 'category', label: 'Category', placeholder: 'e.g. Grammar, Business...' },
-                { key: 'author', label: 'Author', placeholder: 'Author name' },
-                { key: 'readTime', label: 'Read Time / Duration', placeholder: 'e.g. 8 min read or 15:30' },
-                { key: 'image', label: 'Cover Image', type: 'image' },
+                { key: 'title', label: '标题', placeholder: '文章标题' },
+                { key: 'excerpt', label: '摘要/描述', type: 'textarea', rows: 3, placeholder: '简短描述...' },
+                { key: 'type', label: '类型', type: 'select', options: ['article', 'video', 'story', 'book'] },
+                { key: 'category', label: '分类', placeholder: 'e.g. Grammar, Business...' },
+                { key: 'author', label: '作者', placeholder: '作者名' },
+                { key: 'readTime', label: '阅读时间/时长', placeholder: 'e.g. 8 min read or 15:30' },
+                { key: 'image', label: '封面图片', type: 'image', help: 'JPG/PNG/WebP ≤500KB，或粘贴URL' },
+                { key: 'url', label: '链接地址', type: 'url', help: '视频→YouTube | 文章→网页 | PDF→GoogleDrive', placeholder: 'https://... 访问者可点击打开' },
               ],
               data: null,
               onSave: (d) => cm.setFeaturedContent(prev => [...prev, { ...d, id: Date.now(), date: new Date().toISOString().split('T')[0] }]),
-            })}><Icons.Plus /> Add Content</button>
+            })}><Icons.Plus /> 添加内容</button>
           )}
           <div className="content-tabs">
             <button className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>{t('all')}</button>
@@ -1102,16 +1193,16 @@ function DashboardPage({ user, setCurrentPage }) {
             <div
               key={content.id}
               className={`content-card ${content.type}`}
-              onMouseEnter={() => setHoveredCard(content.id)}
-              onMouseLeave={() => setHoveredCard(null)}
+              style={{ cursor: content.url ? 'pointer' : 'default' }}
+              onClick={() => content.url ? window.open(content.url, '_blank') : null}
             >
               <div className="card-image">
-                <img src={content.image} alt={content.title} />
+                <img src={content.image || 'https://picsum.photos/seed/content/400/250'} alt={content.title} />
                 <div className="card-overlay">
                   <span className="type-badge" style={{ backgroundColor: getTypeColor(content.type) }}>
                     {getTypeIcon(content.type)} {t(content.type)}
                   </span>
-                  <button className="play-btn">
+                  <button className="play-btn" onClick={(e) => { e.stopPropagation(); content.url ? window.open(content.url, '_blank') : showToast('该内容暂无链接'); }}>
                     {content.type === 'video' ? <Icons.Play /> : <Icons.Book />}
                   </button>
                 </div>
@@ -1130,14 +1221,15 @@ function DashboardPage({ user, setCurrentPage }) {
                 </div>
               </div>
               {isAdmin && (
-                <div className="admin-card-actions-overlay" style={{ opacity: hoveredCard === content.id ? 1 : 0 }}>
+                <div className="admin-card-actions-overlay" style={{ position:'absolute', top:8, right:8, zIndex:10, opacity: 1 }}>
                   <button className="admin-card-edit" onClick={(e) => { e.stopPropagation(); openEditor({
-                    title: 'Edit Content',
+                    title: '编辑内容',
                     fields: [
-                      { key: 'title', label: 'Title' }, { key: 'excerpt', label: 'Excerpt / Description', type: 'textarea', rows: 3 },
-                      { key: 'type', label: 'Type', type: 'select', options: ['article', 'video', 'story', 'book'] },
-                      { key: 'category', label: 'Category' }, { key: 'author', label: 'Author' },
-                      { key: 'readTime', label: 'Read Time / Duration' }, { key: 'image', label: 'Image', type: 'image' },
+                      { key: 'title', label: '标题' }, { key: 'excerpt', label: '摘要', type: 'textarea', rows: 3 },
+                      { key: 'type', label: '类型', type: 'select', options: ['article', 'video', 'story', 'book'] },
+                      { key: 'category', label: '分类' }, { key: 'author', label: '作者' },
+                      { key: 'readTime', label: '阅读时间' }, { key: 'image', label: '图片', type: 'image', help: 'JPG/PNG/WebP ≤500KB 或URL' },
+                      { key: 'url', label: '链接', type: 'url', help: '视频→YouTube | 文章→网页 | PDF→Drive', placeholder: 'https://...' },
                     ],
                     data: content,
                     onSave: (d) => cm.setFeaturedContent(prev => prev.map(c => c.id === content.id ? { ...c, ...d } : c)),
@@ -1157,37 +1249,39 @@ function DashboardPage({ user, setCurrentPage }) {
           <p className="reading-subtitle">Expand your mind with these curated pieces</p>
           {isAdmin && (
             <button className="btn-admin-section-edit" onClick={() => openEditor({
-              title: 'Add Reading Item',
+              title: '添加阅读内容',
               fields: [
-                { key: 'title', label: 'Title', placeholder: 'Article or book title' },
-                { key: 'desc', label: 'Description (for featured)', type: 'textarea', rows: 2, placeholder: 'Short description for featured items' },
-                { key: 'meta', label: 'Meta info', placeholder: 'e.g. Article • 6 min read' },
-                { key: 'image', label: 'Image', type: 'image' },
-                { key: 'featured', label: 'Featured item?', type: 'select', options: ['true', 'false'] },
+                { key: 'title', label: '标题', placeholder: '文章或书籍标题' },
+                { key: 'desc', label: '描述（精选卡片用）', type: 'textarea', rows: 2, placeholder: '精选项目的简短描述' },
+                { key: 'meta', label: '元信息', placeholder: 'e.g. Article • 6 min read' },
+                { key: 'image', label: '封面图片', type: 'image', help: 'JPG/PNG/WebP ≤500KB 或URL' },
+                { key: 'url', label: '链接地址', type: 'url', help: 'PDF/DOCX→GoogleDrive | 网页→URL', placeholder: 'https://... 访问者可点击打开' },
+                { key: 'featured', label: '精选展示？', type: 'select', options: ['true', 'false'] },
               ],
               data: null,
               onSave: (d) => cm.setReadingItems(prev => [...prev, { ...d, id: 'r' + Date.now(), featured: d.featured === 'true' }]),
-            })}><Icons.Plus /> Add Item</button>
+            })}><Icons.Plus /> 添加阅读</button>
           )}
         </div>
         <div className="reading-grid">
           {cm.readingItems.filter(r => r.featured).map(rItem => (
-            <div key={rItem.id} className="reading-featured">
-              <img src={rItem.image} alt={rItem.title} />
+            <div key={rItem.id} className="reading-featured" style={{ position: 'relative' }}>
+              <img src={rItem.image || 'https://picsum.photos/seed/reading1/600/400'} alt={rItem.title} />
               <div className="reading-overlay">
                 <span className="featured-badge">✨ Featured</span>
                 <h3>{rItem.title}</h3>
                 <p>{rItem.desc}</p>
-                <button className="btn-read-more">{t('startReading')}</button>
+                <button className="btn-read-more" onClick={() => rItem.url ? window.open(rItem.url, '_blank') : showToast('该内容暂无链接')}>{t('startReading')}</button>
               </div>
               {isAdmin && (
-                <div className="admin-card-actions-overlay" style={{ position:'absolute', top:8, right:8, zIndex:5 }}>
+                <div className="admin-card-actions-overlay" style={{ position:'absolute', top:8, right:8, zIndex:5, opacity: 1 }}>
                   <button className="admin-card-edit" onClick={() => openEditor({
-                    title: 'Edit Reading Item',
+                    title: '编辑阅读内容',
                     fields: [
-                      { key: 'title', label: 'Title' }, { key: 'desc', label: 'Description', type: 'textarea', rows: 2 },
-                      { key: 'meta', label: 'Meta info' }, { key: 'image', label: 'Image', type: 'image' },
-                      { key: 'featured', label: 'Featured?', type: 'select', options: ['true','false'] },
+                      { key: 'title', label: '标题' }, { key: 'desc', label: '描述', type: 'textarea', rows: 2 },
+                      { key: 'meta', label: '元信息' }, { key: 'image', label: '图片', type: 'image', help: 'JPG/PNG/WebP ≤500KB 或URL' },
+                      { key: 'url', label: '链接地址', type: 'url', help: 'PDF/DOCX→GoogleDrive | 网页→URL', placeholder: 'https://...' },
+                      { key: 'featured', label: '精选？', type: 'select', options: ['true','false'] },
                     ],
                     data: rItem,
                     onSave: (d) => cm.setReadingItems(prev => prev.map(r => r.id === rItem.id ? { ...r, ...d, featured: d.featured === 'true' } : r)),
@@ -1196,9 +1290,8 @@ function DashboardPage({ user, setCurrentPage }) {
                 </div>
               )}
             </div>
-          )) || cm.readingItems.length > 0 ? (
-            cm.readingItems.find(r => r.featured) ? null : <div />
-          ) : (
+          ))}
+          {cm.readingItems.filter(r => r.featured).length === 0 && (
             <div className="reading-featured">
               <img src="https://picsum.photos/seed/reading1/600/400" alt="Featured reading" />
               <div className="reading-overlay">
@@ -1211,23 +1304,24 @@ function DashboardPage({ user, setCurrentPage }) {
           )}
           <div className="reading-list">
             {cm.readingItems.filter(r => !r.featured).map(rItem => (
-              <div key={rItem.id} className="reading-item">
-                <img src={rItem.image} alt="" />
+              <div key={rItem.id} className="reading-item" style={{ cursor: rItem.url ? 'pointer' : 'default' }} onClick={() => rItem.url && window.open(rItem.url, '_blank')}>
+                <img src={rItem.image || 'https://picsum.photos/seed/read2/80/80'} alt="" />
                 <div className="reading-item-info">
                   <h4>{rItem.title}</h4>
                   <p>{rItem.meta}</p>
                 </div>
                 {isAdmin && (
-                  <button className="admin-card-edit admin-list-edit" onClick={() => openEditor({
-                    title: 'Edit Reading Item',
+                  <button className="admin-card-edit admin-list-edit" onClick={(e) => { e.stopPropagation(); openEditor({
+                    title: '编辑阅读',
                     fields: [
-                      { key: 'title', label: 'Title' }, { key: 'meta', label: 'Meta info' },
-                      { key: 'image', label: 'Image', type: 'image' },
+                      { key: 'title', label: '标题' }, { key: 'meta', label: '元信息' },
+                      { key: 'url', label: '链接', type: 'url', help: '外部阅读链接 (PDF/网页)', placeholder: 'https://...' },
+                      { key: 'image', label: '图片', type: 'image', help: 'JPG/PNG/WebP ≤500KB 或URL' },
                     ],
                     data: rItem,
                     onSave: (d) => cm.setReadingItems(prev => prev.map(r => r.id === rItem.id ? { ...r, ...d } : r)),
                     onDelete: (id) => cm.setReadingItems(prev => prev.filter(r => r.id !== id)),
-                  })}><Icons.Trash /></button>
+                  }); }}><Icons.Trash /></button>
                 )}
               </div>
             ))}
@@ -1250,27 +1344,28 @@ function DashboardPage({ user, setCurrentPage }) {
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             {isAdmin && (
               <button className="btn-admin-section-edit" onClick={() => openEditor({
-                title: 'Add Video',
+                title: '添加视频',
                 fields: [
-                  { key: 'title', label: 'Title', placeholder: 'Video title' },
-                  { key: 'desc', label: 'Description', type: 'textarea', rows: 2, placeholder: 'What is this video about?' },
-                  { key: 'author', label: 'Author / Instructor', placeholder: 'Teacher name' },
-                  { key: 'duration', label: 'Duration', placeholder: 'e.g. 22:15 or 1:30:00' },
-                  { key: 'views', label: 'Views info', placeholder: 'e.g. 2.4K views' },
-                  { key: 'image', label: 'Thumbnail', type: 'image' },
+                  { key: 'title', label: '视频标题', placeholder: '视频标题' },
+                  { key: 'desc', label: '描述', type: 'textarea', rows: 2, placeholder: '这个视频关于什么？' },
+                  { key: 'author', label: '讲师/作者', placeholder: '讲师姓名' },
+                  { key: 'duration', label: '时长', placeholder: 'e.g. 22:15 or 1:30:00' },
+                  { key: 'views', label: '观看信息', placeholder: 'e.g. 2.4K views' },
+                  { key: 'image', label: '封面缩略图', type: 'image', help: 'JPG/PNG ≤500KB 或 URL' },
+                  { key: 'url', label: '视频链接', type: 'url', help: '推荐 YouTube/Vimeo/B站 链接', placeholder: 'https://... 访问者可点击观看' },
                 ],
                 data: null,
                 onSave: (d) => cm.setVideoItems(prev => [...prev, { ...d, id: 'v' + Date.now(), featured: false }]),
-              })}><Icons.Plus /> Add Video</button>
+              })}><Icons.Plus /> 添加视频</button>
             )}
-            <button className="view-all-btn">{t('viewAll')} {t('video')}s →</button>
+            <button className="view-all-btn" onClick={() => setCurrentPage('video')}>{t('viewAll')} {t('video')}s →</button>
           </div>
         </div>
         <div className="video-grid">
           {cm.videoItems.filter(v => v.featured).map(vItem => (
-            <div key={vItem.id} className="video-featured-card">
+            <div key={vItem.id} className="video-featured-card" style={{ position: 'relative', cursor: vItem.url ? 'pointer' : 'default' }} onClick={() => vItem.url ? window.open(vItem.url, '_blank') : showToast('该视频暂无链接')}>
               <div className="video-thumbnail">
-                <img src={vItem.image} alt={vItem.title} />
+                <img src={vItem.image || 'https://picsum.photos/seed/vidmain/500/300'} alt={vItem.title} />
                 <div className="video-duration">{vItem.duration}</div>
                 <div className="play-overlay"><div className="play-circle"><Icons.Play /></div></div>
               </div>
@@ -1283,22 +1378,24 @@ function DashboardPage({ user, setCurrentPage }) {
                 </div>
               </div>
               {isAdmin && (
-                <div className="admin-card-actions-overlay" style={{ position:'absolute', top:8, right:8, zIndex:5 }}>
-                  <button className="admin-card-edit" onClick={() => openEditor({
-                    title: 'Edit Video',
+                <div className="admin-card-actions-overlay" style={{ position:'absolute', top:8, right:8, zIndex:5, opacity: 1 }}>
+                  <button className="admin-card-edit" onClick={(e) => { e.stopPropagation(); openEditor({
+                    title: '编辑视频',
                     fields: [
-                      { key: 'title', label: 'Title' }, { key: 'desc', label: 'Description', type: 'textarea', rows: 2 },
-                      { key: 'author', label: 'Author' }, { key: 'duration', label: 'Duration' },
-                      { key: 'views', label: 'Views' }, { key: 'image', label: 'Thumbnail', type: 'image' },
+                      { key: 'title', label: '标题' }, { key: 'desc', label: '描述', type: 'textarea', rows: 2 },
+                      { key: 'author', label: '讲师' }, { key: 'duration', label: '时长' },
+                      { key: 'views', label: '观看数' }, { key: 'image', label: '封面', type: 'image', help: 'JPG/PNG ≤500KB 或URL' },
+                      { key: 'url', label: '视频链接', type: 'url', help: 'YouTube/Vimeo/B站', placeholder: 'https://...' },
                     ],
                     data: vItem,
                     onSave: (d) => cm.setVideoItems(prev => prev.map(v => v.id === vItem.id ? { ...v, ...d } : v)),
                     onDelete: (id) => cm.setVideoItems(prev => prev.filter(v => v.id !== id)),
-                  })}><Icons.Edit /></button>
+                  }); }}><Icons.Edit /></button>
                 </div>
               )}
             </div>
-          )) || cm.videoItems.length > 0 ? null : (
+          ))}
+          {cm.videoItems.filter(v => v.featured).length === 0 && (
             <div className="video-featured-card">
               <div className="video-thumbnail">
                 <img src="https://picsum.photos/seed/vidmain/500/300" alt="Featured video" />
@@ -1314,9 +1411,9 @@ function DashboardPage({ user, setCurrentPage }) {
           )}
           <div className="video-list-small">
             {cm.videoItems.filter(v => !v.featured).map(vItem => (
-              <div key={vItem.id} className="video-item">
+              <div key={vItem.id} className="video-item" style={{ cursor: vItem.url ? 'pointer' : 'default' }} onClick={() => vItem.url ? window.open(vItem.url, '_blank') : null}>
                 <div className="video-thumb">
-                  <img src={vItem.image} alt="" />
+                  <img src={vItem.image || 'https://picsum.photos/seed/vid1/160/100'} alt="" />
                   <span className="vid-duration">{vItem.duration}</span>
                 </div>
                 <div className="video-item-info">
@@ -1324,16 +1421,17 @@ function DashboardPage({ user, setCurrentPage }) {
                   <p>{vItem.author}</p>
                 </div>
                 {isAdmin && (
-                  <button className="admin-list-edit" onClick={() => openEditor({
-                    title: 'Edit Video',
+                  <button className="admin-list-edit" onClick={(e) => { e.stopPropagation(); openEditor({
+                    title: '编辑视频',
                     fields: [
-                      { key: 'title', label: 'Title' }, { key: 'author', label: 'Author' },
-                      { key: 'duration', label: 'Duration' }, { key: 'image', label: 'Image', type: 'image' },
+                      { key: 'title', label: '标题' }, { key: 'author', label: '讲师' },
+                      { key: 'duration', label: '时长' }, { key: 'image', label: '图片', type: 'image', help: 'JPG/PNG ≤500KB 或URL' },
+                      { key: 'url', label: '链接', type: 'url', help: 'YouTube/Vimeo/B站', placeholder: 'https://...' },
                     ],
                     data: vItem,
                     onSave: (d) => cm.setVideoItems(prev => prev.map(v => v.id === vItem.id ? { ...v, ...d } : v)),
                     onDelete: (id) => cm.setVideoItems(prev => prev.filter(v => v.id !== id)),
-                  })}><Icons.Trash /></button>
+                  }); }}><Icons.Trash /></button>
                 )}
               </div>
             ))}
@@ -3080,6 +3178,10 @@ function FilesPage({ user }) {
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('⚠️ 文件超过 10MB！大文件建议用外部链接（Google Drive/YouTube等）');
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       const newFile = {
@@ -3158,11 +3260,16 @@ function FilesPage({ user }) {
                 ref={fileInputRef}
                 onChange={handleFileUpload}
                 style={{ display: 'none' }}
-                accept="*/*"
+                accept=".pdf,.docx,.doc,.txt,.md,.xlsx,.xls,.csv,.pptx,.ppt,.mp4,.webm,.mov,.mp3,.wav,.ogg,.jpg,.jpeg,.png,.webp,.gif,.svg"
               />
-              <button className="btn-primary" onClick={() => fileInputRef.current?.click()}>
-                <Icons.Upload /> Upload
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button className="btn-primary" onClick={() => fileInputRef.current?.click()}>
+                  <Icons.Upload /> Upload
+                </button>
+                <span style={{ fontSize: '12px', color: '#94a3b8', maxWidth: '280px' }}>
+                  📄 PDF/DOCX/TXT/XLSX | 🎬 MP4/WebM | 🎵 MP3 | 🖼️ JPG/PNG ≤10MB
+                </span>
+              </div>
             </>
           )}
         </div>
