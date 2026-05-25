@@ -2689,10 +2689,78 @@ function ContactsPage({ user, setCurrentPage }) {
 // ============================================
 // FILES PAGE
 // ============================================
+// ============================================
+// FILE UPLOAD HELPERS
+// ============================================
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function inferCategory(filename) {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  const mediaExts = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'mp3', 'wav', 'ogg', 'flac', 'aac'];
+  const docExts = ['doc', 'docx', 'txt', 'rtf', 'odt', 'md'];
+  const templateExts = ['pptx', 'ppt', 'key', 'xlsx', 'xls', 'csv'];
+  if (mediaExts.includes(ext)) return 'recordings';
+  if (templateExts.includes(ext)) return 'templates';
+  if (docExts.includes(ext)) return 'materials';
+  if (ext === 'pdf') return 'materials';
+  return 'materials'; // default
+}
+
+// ============================================
+// FILES PAGE
+// ============================================
 function FilesPage({ user }) {
   const [viewMode, setViewMode] = useState('grid');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [uploadedFiles, setUploadedFiles] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('uploaded_files') || '[]'); } catch { return []; }
+  });
   const canUpload = user?.role === 'admin' || user?.role === 'teacher';
+  const fileInputRef = useRef(null);
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const newFile = {
+        id: Date.now(),
+        name: file.name,
+        size: formatFileSize(file.size),
+        date: new Date().toISOString().split('T')[0],
+        category: inferCategory(file.name),
+        dataUrl: reader.result,
+        type: file.type,
+        uploadedBy: user?.name || 'User',
+      };
+      const updated = [newFile, ...uploadedFiles];
+      setUploadedFiles(updated);
+      localStorage.setItem('uploaded_files', JSON.stringify(updated));
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; // allow re-uploading same file
+  };
+
+  const handleDeleteFile = (id) => {
+    const updated = uploadedFiles.filter(f => f.id !== id);
+    setUploadedFiles(updated);
+    localStorage.setItem('uploaded_files', JSON.stringify(updated));
+  };
+
+  const handleDownloadFile = (file) => {
+    if (file.dataUrl) {
+      const a = document.createElement('a');
+      a.href = file.dataUrl;
+      a.download = file.name;
+      a.click();
+    }
+  };
+
+  const allFiles = [...uploadedFiles, ...SAMPLE_FILES];
 
   const categories = [
     { id: 'all', label: 'All Files' },
@@ -2702,8 +2770,8 @@ function FilesPage({ user }) {
   ];
 
   const filteredFiles = selectedCategory === 'all' 
-    ? SAMPLE_FILES 
-    : SAMPLE_FILES.filter(f => f.category === selectedCategory);
+    ? allFiles 
+    : allFiles.filter(f => f.category === selectedCategory);
 
   return (
     <div className="files-page">
@@ -2729,9 +2797,18 @@ function FilesPage({ user }) {
             </button>
           </div>
           {canUpload && (
-            <button className="btn-primary">
-              <Icons.Upload /> Upload
-            </button>
+            <>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                style={{ display: 'none' }}
+                accept="*/*"
+              />
+              <button className="btn-primary" onClick={() => fileInputRef.current?.click()}>
+                <Icons.Upload /> Upload
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -2739,20 +2816,40 @@ function FilesPage({ user }) {
       {viewMode === 'grid' ? (
         <div className="files-grid">
           {filteredFiles.map(file => (
-            <div key={file.id} className="file-card">
+            <div key={file.id} className={`file-card ${file.dataUrl ? 'uploaded' : ''}`}>
               <div className="file-preview">
-                <Icons.Files />
+                {file.dataUrl && file.type?.startsWith('image/') ? (
+                  <img src={file.dataUrl} alt={file.name} />
+                ) : (
+                  <Icons.Files />
+                )}
               </div>
               <div className="file-details">
                 <h4>{file.name}</h4>
                 <p>{file.size}</p>
                 <span className="file-date">{file.date}</span>
+                {file.uploadedBy && <span className="file-uploader">by {file.uploadedBy}</span>}
               </div>
               <div className="file-actions">
-                <button className="icon-btn"><Icons.Download /></button>
+                {file.dataUrl ? (
+                  <button className="icon-btn" title="Download" onClick={() => handleDownloadFile(file)}><Icons.Download /></button>
+                ) : (
+                  <button className="icon-btn" title="Download"><Icons.Download /></button>
+                )}
+                {file.dataUrl && canUpload && (
+                  <button className="icon-btn delete" title="Delete" onClick={() => handleDeleteFile(file.id)}>
+                    <Icons.Trash />
+                  </button>
+                )}
               </div>
             </div>
           ))}
+          {filteredFiles.length === 0 && (
+            <div className="files-empty">
+              <Icons.Files />
+              <p>No files in this category</p>
+            </div>
+          )}
         </div>
       ) : (
         <div className="files-table">
@@ -2767,9 +2864,26 @@ function FilesPage({ user }) {
               <span className="file-name"><Icons.Files /> {file.name}</span>
               <span>{file.size}</span>
               <span>{file.date}</span>
-              <button className="icon-btn"><Icons.Download /></button>
+              <span className="table-actions">
+                {file.dataUrl ? (
+                  <button className="icon-btn" title="Download" onClick={() => handleDownloadFile(file)}><Icons.Download /></button>
+                ) : (
+                  <button className="icon-btn" title="Download"><Icons.Download /></button>
+                )}
+                {file.dataUrl && canUpload && (
+                  <button className="icon-btn delete" title="Delete" onClick={() => handleDeleteFile(file.id)}>
+                    <Icons.Trash />
+                  </button>
+                )}
+              </span>
             </div>
           ))}
+          {filteredFiles.length === 0 && (
+            <div className="files-empty">
+              <Icons.Files />
+              <p>No files in this category</p>
+            </div>
+          )}
         </div>
       )}
     </div>
