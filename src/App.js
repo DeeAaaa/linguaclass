@@ -691,17 +691,142 @@ function AppLayout({ children, user, onLogout, currentPage, setCurrentPage }) {
 }
 
 // ============================================
+// CONTENT MANAGER - localStorage-backed CMS
+// ============================================
+function useContentManager() {
+  const load = (key, fallback) => {
+    try { const d = localStorage.getItem(key); return d ? JSON.parse(d) : fallback; } catch { return fallback; }
+  };
+  const save = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} };
+
+  const [schedules, setSchedules] = useState(() => load('cms_schedules', SAMPLE_SCHEDULES));
+  const [featuredContent, setFeaturedContent] = useState(() => load('cms_featured', FEATURED_CONTENT));
+  const [achievements, setAchievements] = useState(() => load('cms_achievements', ACHIEVEMENTS));
+  const [quickLessons, setQuickLessons] = useState(() => load('cms_lessons', QUICK_LESSONS));
+  const [readingItems, setReadingItems] = useState(() => load('cms_reading', [
+    { id: 'r1', title: 'The Power of Reading', desc: 'Discover how daily reading transforms your language skills and opens new worlds of knowledge.', image: 'https://picsum.photos/seed/reading1/600/400', featured: true },
+    { id: 'r2', title: '5 Habits of Successful Learners', meta: 'Article • 6 min read', image: 'https://picsum.photos/seed/read2/80/80' },
+    { id: 'r3', title: 'The Missing Piece', meta: 'Story • 15 min', image: 'https://picsum.photos/seed/read3/80/80' },
+    { id: 'r4', title: 'Pride and Prejudice', meta: 'Book • Chapter 1', image: 'https://picsum.photos/seed/read4/80/80' },
+    { id: 'r5', title: 'Vocabulary Building Guide', meta: 'Guide • 10 min', image: 'https://picsum.photos/seed/read5/80/80' },
+  ]));
+  const [videoItems, setVideoItems] = useState(() => load('cms_videos', [
+    { id: 'v1', title: 'Complete English Grammar Course', desc: 'Master grammar fundamentals in this comprehensive video series.', author: 'Dr. Sarah Mitchell', views: '2.4K views', duration: '22:15', image: 'https://picsum.photos/seed/vidmain/500/300', featured: true },
+    { id: 'v2', title: 'Business English Basics', author: 'Prof. James Wilson', duration: '15:30', image: 'https://picsum.photos/seed/vid1/160/100' },
+    { id: 'v3', title: 'Pronunciation Tips', author: 'Ms. Emily Chen', duration: '12:45', image: 'https://picsum.photos/seed/vid2/160/100' },
+    { id: 'v4', title: 'Writing Workshop', author: 'Prof. James Wilson', duration: '18:20', image: 'https://picsum.photos/seed/vid3/160/100' },
+  ]));
+
+  // Persist on change
+  useEffect(() => { save('cms_schedules', schedules); }, [schedules]);
+  useEffect(() => { save('cms_featured', featuredContent); }, [featuredContent]);
+  useEffect(() => { save('cms_achievements', achievements); }, [achievements]);
+  useEffect(() => { save('cms_lessons', quickLessons); }, [quickLessons]);
+  useEffect(() => { save('cms_reading', readingItems); }, [readingItems]);
+  useEffect(() => { save('cms_videos', videoItems); }, [videoItems]);
+
+  return { schedules, setSchedules, featuredContent, setFeaturedContent, achievements, setAchievements, quickLessons, setQuickLessons, readingItems, setReadingItems, videoItems, setVideoItems };
+}
+
+// Shared editor modal component for all content types
+function ContentEditorModal({ open, onClose, title, fields, data, onSave, onDelete }) {
+  // Hooks MUST be called unconditionally (before any early returns)
+  const [editData, setEditData] = useState(() => data ? { ...data } : {});
+
+  useEffect(() => { if (data) { setEditData({ ...data }); } }, [data]);
+
+  // Conditional render AFTER all hooks
+  if (!open) return null;
+
+  const handleChange = (key, val) => setEditData(prev => ({ ...prev, [key]: val }));
+  const handleImageUpload = (key) => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => handleChange(key, reader.result);
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  };
+
+  return (
+    <div className="admin-modal-overlay" onClick={(e) => e.target === e.target && onClose()}>
+      <div className="admin-modal">
+        <div className="admin-modal-header">
+          <h3>{title}</h3>
+          <button className="admin-modal-close" onClick={onClose}><Icons.X /></button>
+        </div>
+        <div className="admin-modal-body">
+          {fields.map(f => (
+            <div key={f.key} className={`admin-field ${f.type === 'textarea' ? 'admin-field-textarea' : ''} ${f.type === 'image' ? 'admin-field-image' : ''}`}>
+              <label>{f.label}</label>
+              {f.type === 'textarea' ? (
+                <textarea rows={f.rows || 3} value={editData[f.key] || ''} onChange={e => handleChange(f.key, e.target.value)} placeholder={f.placeholder || ''} />
+              ) : f.type === 'select' ? (
+                <select value={editData[f.key] || ''} onChange={e => handleChange(f.key, e.target.value)}>
+                  {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              ) : f.type === 'image' ? (
+                <div className="admin-image-field">
+                  {editData[f.key] && <img src={editData[f.key]} alt="preview" className="admin-img-preview" />}
+                  <button type="button" className="btn-admin-upload" onClick={() => handleImageUpload(f.key)}>
+                    <Icons.Upload /> {editData[f.key] ? 'Change Image' : 'Upload Image'}
+                  </button>
+                  {editData[f.key] && <button type="button" className="btn-admin-remove" onClick={() => handleChange(f.key, '')}>Remove</button>}
+                </div>
+              ) : f.type === 'number' ? (
+                <input type="number" value={editData[f.key] ?? ''} onChange={e => handleChange(f.key, Number(e.target.value))} placeholder={f.placeholder || ''} />
+              ) : (
+                <input type="text" value={editData[f.key] || ''} onChange={e => handleChange(f.key, e.target.value)} placeholder={f.placeholder || ''} />
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="admin-modal-footer">
+          {onDelete && data?.id && (
+            <button className="btn-admin-delete" onClick={() => { onDelete(data.id); onClose(); }}><Icons.Trash /> Delete</button>
+          )}
+          <div className="admin-modal-actions">
+            <button className="btn-admin-cancel" onClick={onClose}>Cancel</button>
+            <button className="btn-admin-save" onClick={() => { onSave(editData); onClose(); }}><Icons.Save /> Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
 // DASHBOARD PAGE
 // ============================================
 function DashboardPage({ user, setCurrentPage }) {
   const { t } = useTranslation();
+  const isAdmin = user?.role === 'admin' || user?.role === 'teacher';
   const [activeTab, setActiveTab] = useState('all');
   const [hoveredCard, setHoveredCard] = useState(null);
-  const todaySchedules = SAMPLE_SCHEDULES.filter(s => s.date === '2026-05-20');
 
-  const filteredContent = activeTab === 'all' 
-    ? FEATURED_CONTENT 
-    : FEATURED_CONTENT.filter(c => c.type === activeTab);
+  // Content Manager - loads from localStorage, falls back to hardcoded defaults
+  const cm = useContentManager();
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todaySchedules = cm.schedules.filter(s => s.date === todayStr);
+
+  const filteredContent = activeTab === 'all'
+    ? cm.featuredContent
+    : cm.featuredContent.filter(c => c.type === activeTab);
+
+  // --- Editor Modal States ---
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorConfig, setEditorConfig] = useState({ title: '', fields: [], data: null, onSave: null, onDelete: null });
+
+  // Helper to open an editor
+  const openEditor = ({ title, fields, data, onSave, onDelete }) => {
+    setEditorConfig({ title, fields, data, onSave, onDelete });
+    setEditorOpen(true);
+  };
 
   const getTypeIcon = (type) => {
     switch(type) {
@@ -771,7 +896,9 @@ function DashboardPage({ user, setCurrentPage }) {
 
       {/* Subjects */}
       <section className="subjects-section">
-        <h2><span>📖</span> {t('mySubjects')}</h2>
+        <div className="section-header-row">
+          <h2><span>📖</span> {t('mySubjects')}</h2>
+        </div>
         <div className="subjects-grid">
           {MAIN_SUBJECTS.map(subject => (
             <div key={subject.id} className="subject-card" style={{ '--subject-color': subject.color }}>
@@ -792,6 +919,21 @@ function DashboardPage({ user, setCurrentPage }) {
       <div className="schedule-bar">
         <div className="schedule-bar-header">
           <h3><Icons.Clock /> {t('todaysClasses')}</h3>
+          {isAdmin && (
+            <button className="btn-admin-section-edit" onClick={() => openEditor({
+              title: 'Add Class',
+              fields: [
+                { key: 'title', label: 'Class Title', placeholder: 'e.g. Advanced English Grammar' },
+                { key: 'subject', label: 'Subject', placeholder: 'e.g. English, Math' },
+                { key: 'teacher', label: 'Teacher', placeholder: "Dr. Sarah Mitchell" },
+                { key: 'time', label: 'Time', placeholder: 'e.g. 09:00' },
+                { key: 'type', label: 'Type', type: 'select', options: ['live', 'recorded'] },
+                { key: 'date', label: 'Date (YYYY-MM-DD)', placeholder: todayStr },
+              ],
+              data: null,
+              onSave: (d) => cm.setSchedules(prev => [...prev, { ...d, id: Date.now(), date: d.date || todayStr }]),
+            })}><Icons.Plus /> Add Class</button>
+          )}
           <span className="schedule-count">{todaySchedules.length} {t('sessions')}</span>
         </div>
         <div className="schedule-scroll">
@@ -808,16 +950,49 @@ function DashboardPage({ user, setCurrentPage }) {
               <button className="btn-join" onClick={() => setCurrentPage('video')}>
                 {cls.type === 'live' ? t('join') : t('watch')}
               </button>
+              {isAdmin && (
+                <button className="admin-list-edit" style={{ marginLeft: 6 }} onClick={() => openEditor({
+                  title: 'Edit Class',
+                  fields: [
+                    { key: 'title', label: 'Title' }, { key: 'subject', label: 'Subject' },
+                    { key: 'teacher', label: 'Teacher' }, { key: 'time', label: 'Time' },
+                    { key: 'type', label: 'Type', type: 'select', options: ['live','recorded'] },
+                    { key: 'date', label: 'Date' },
+                  ],
+                  data: cls,
+                  onSave: (d) => cm.setSchedules(prev => prev.map(s => s.id === cls.id ? { ...s, ...d } : s)),
+                  onDelete: (id) => cm.setSchedules(prev => prev.filter(s => s.id !== id)),
+                })}><Icons.Edit /></button>
+              )}
             </div>
           ))}
+          {todaySchedules.length === 0 && (
+            <div className="schedule-empty">No classes scheduled for today</div>
+          )}
         </div>
       </div>
 
       {/* Progress Section */}
       <section className="progress-section">
-        <h2><span>📊</span> {t('yourProgress')}</h2>
+        <div className="section-header-row">
+          <h2><span>📊</span> {t('yourProgress')}</h2>
+          {isAdmin && (
+            <button className="btn-admin-section-edit" onClick={() => openEditor({
+              title: 'Add Lesson',
+              fields: [
+                { key: 'title', label: 'Title', placeholder: 'e.g. Present Perfect Tense' },
+                { key: 'icon', label: 'Icon (emoji)', placeholder: '📝' },
+                { key: 'progress', label: 'Progress %', type: 'number', placeholder: '0-100' },
+                { key: 'lessons', label: 'Total Lessons', type: 'number', placeholder: 'e.g. 12' },
+                { key: 'completed', label: 'Completed', type: 'number', placeholder: 'e.g. 9' },
+              ],
+              data: null,
+              onSave: (d) => cm.setQuickLessons(prev => [...prev, { ...d, id: Date.now() }]),
+            })}><Icons.Plus /> Add Lesson</button>
+          )}
+        </div>
         <div className="progress-grid">
-          {QUICK_LESSONS.map(lesson => (
+          {cm.quickLessons.map(lesson => (
             <div key={lesson.id} className="progress-card">
               <div className="progress-icon">{lesson.icon}</div>
               <div className="progress-info">
@@ -828,20 +1003,67 @@ function DashboardPage({ user, setCurrentPage }) {
                 </div>
               </div>
               <span className="progress-percent">{lesson.progress}%</span>
+              {isAdmin && (
+                <button className="admin-card-edit admin-list-edit" onClick={() => openEditor({
+                  title: 'Edit Lesson',
+                  fields: [
+                    { key: 'title', label: 'Title' }, { key: 'icon', label: 'Icon (emoji)' },
+                    { key: 'progress', label: 'Progress %', type: 'number' },
+                    { key: 'lessons', label: 'Total Lessons', type: 'number' },
+                    { key: 'completed', label: 'Completed', type: 'number' },
+                  ],
+                  data: lesson,
+                  onSave: (d) => cm.setQuickLessons(prev => prev.map(l => l.id === lesson.id ? { ...l, ...d } : l)),
+                  onDelete: (id) => cm.setQuickLessons(prev => prev.filter(l => l.id !== id)),
+                })}><Icons.Edit /></button>
+              )}
             </div>
           ))}
+          {cm.quickLessons.length === 0 && (
+            <div style={{ gridColumn: '1/-1', textAlign: 'center', color:'#64748b', padding:'2rem' }}>No lessons yet</div>
+          )}
         </div>
       </section>
 
       {/* Achievements Section */}
       <section className="achievements-section">
-        <h2><span>🏅</span> {t('achievementsSection')}</h2>
+        <div className="section-header-row">
+          <h2><span>🏅</span> {t('achievementsSection')}</h2>
+          {isAdmin && (
+            <button className="btn-admin-section-edit" onClick={() => openEditor({
+              title: 'Add Achievement',
+              fields: [
+                { key: 'title', label: 'Title', placeholder: 'e.g. First Steps' },
+                { key: 'description', label: 'Description', placeholder: 'e.g. Complete your first class' },
+                { key: 'icon', label: 'Icon (emoji)', placeholder: '🎯' },
+                { key: 'unlocked', label: 'Unlocked?', type: 'select', options: ['true', 'false'] },
+              ],
+              data: null,
+              onSave: (d) => cm.setAchievements(prev => [...prev, { ...d, id: Date.now(), unlocked: d.unlocked === 'true' }]),
+            })}><Icons.Plus /> Add</button>
+          )}
+        </div>
         <div className="achievements-scroll">
-          {ACHIEVEMENTS.map(ach => (
+          {cm.achievements.map(ach => (
             <div key={ach.id} className={`achievement-badge ${ach.unlocked ? 'unlocked' : 'locked'}`}>
               <div className="achievement-icon">{ach.icon}</div>
               <span className="achievement-title">{ach.title}</span>
               <span className="achievement-desc">{ach.description}</span>
+              {isAdmin && (
+                <div className="admin-card-actions">
+                  <button className="admin-card-edit" onClick={() => openEditor({
+                    title: 'Edit Achievement',
+                    fields: [
+                      { key: 'title', label: 'Title' }, { key: 'description', label: 'Description' },
+                      { key: 'icon', label: 'Icon (emoji)' },
+                      { key: 'unlocked', label: 'Unlocked?', type: 'select', options: ['true', 'false'] },
+                    ],
+                    data: ach,
+                    onSave: (d) => cm.setAchievements(prev => prev.map(a => a.id === ach.id ? { ...a, ...d, unlocked: d.unlocked === 'true' } : a)),
+                    onDelete: (id) => cm.setAchievements(prev => prev.filter(a => a.id !== id)),
+                  })}><Icons.Edit /></button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -851,6 +1073,22 @@ function DashboardPage({ user, setCurrentPage }) {
       <section className="content-section">
         <div className="section-header">
           <h2><span>📚</span> {t('featuredContent')}</h2>
+          {isAdmin && (
+            <button className="btn-admin-section-edit" onClick={() => openEditor({
+              title: 'Add Featured Content',
+              fields: [
+                { key: 'title', label: 'Title', placeholder: 'Article title' },
+                { key: 'excerpt', label: 'Excerpt / Description', type: 'textarea', rows: 3, placeholder: 'Short description...' },
+                { key: 'type', label: 'Type', type: 'select', options: ['article', 'video', 'story', 'book'] },
+                { key: 'category', label: 'Category', placeholder: 'e.g. Grammar, Business...' },
+                { key: 'author', label: 'Author', placeholder: 'Author name' },
+                { key: 'readTime', label: 'Read Time / Duration', placeholder: 'e.g. 8 min read or 15:30' },
+                { key: 'image', label: 'Cover Image', type: 'image' },
+              ],
+              data: null,
+              onSave: (d) => cm.setFeaturedContent(prev => [...prev, { ...d, id: Date.now(), date: new Date().toISOString().split('T')[0] }]),
+            })}><Icons.Plus /> Add Content</button>
+          )}
           <div className="content-tabs">
             <button className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>{t('all')}</button>
             <button className={`tab ${activeTab === 'article' ? 'active' : ''}`} onClick={() => setActiveTab('article')}>📄 {t('article')}s</button>
@@ -861,8 +1099,8 @@ function DashboardPage({ user, setCurrentPage }) {
         </div>
         <div className="content-grid">
           {filteredContent.map(content => (
-            <div 
-              key={content.id} 
+            <div
+              key={content.id}
               className={`content-card ${content.type}`}
               onMouseEnter={() => setHoveredCard(content.id)}
               onMouseLeave={() => setHoveredCard(null)}
@@ -891,6 +1129,22 @@ function DashboardPage({ user, setCurrentPage }) {
                   </span>
                 </div>
               </div>
+              {isAdmin && (
+                <div className="admin-card-actions-overlay" style={{ opacity: hoveredCard === content.id ? 1 : 0 }}>
+                  <button className="admin-card-edit" onClick={(e) => { e.stopPropagation(); openEditor({
+                    title: 'Edit Content',
+                    fields: [
+                      { key: 'title', label: 'Title' }, { key: 'excerpt', label: 'Excerpt / Description', type: 'textarea', rows: 3 },
+                      { key: 'type', label: 'Type', type: 'select', options: ['article', 'video', 'story', 'book'] },
+                      { key: 'category', label: 'Category' }, { key: 'author', label: 'Author' },
+                      { key: 'readTime', label: 'Read Time / Duration' }, { key: 'image', label: 'Image', type: 'image' },
+                    ],
+                    data: content,
+                    onSave: (d) => cm.setFeaturedContent(prev => prev.map(c => c.id === content.id ? { ...c, ...d } : c)),
+                    onDelete: (id) => cm.setFeaturedContent(prev => prev.filter(c => c.id !== id)),
+                  }); }}><Icons.Edit /></button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -901,46 +1155,90 @@ function DashboardPage({ user, setCurrentPage }) {
         <div className="reading-header">
           <h2><span>📖</span> {t('readingCorner')}</h2>
           <p className="reading-subtitle">Expand your mind with these curated pieces</p>
+          {isAdmin && (
+            <button className="btn-admin-section-edit" onClick={() => openEditor({
+              title: 'Add Reading Item',
+              fields: [
+                { key: 'title', label: 'Title', placeholder: 'Article or book title' },
+                { key: 'desc', label: 'Description (for featured)', type: 'textarea', rows: 2, placeholder: 'Short description for featured items' },
+                { key: 'meta', label: 'Meta info', placeholder: 'e.g. Article • 6 min read' },
+                { key: 'image', label: 'Image', type: 'image' },
+                { key: 'featured', label: 'Featured item?', type: 'select', options: ['true', 'false'] },
+              ],
+              data: null,
+              onSave: (d) => cm.setReadingItems(prev => [...prev, { ...d, id: 'r' + Date.now(), featured: d.featured === 'true' }]),
+            })}><Icons.Plus /> Add Item</button>
+          )}
         </div>
         <div className="reading-grid">
-          <div className="reading-featured">
-            <img src="https://picsum.photos/seed/reading1/600/400" alt="Featured reading" />
-            <div className="reading-overlay">
-              <span className="featured-badge">✨ Featured</span>
-              <h3>The Power of Reading</h3>
-              <p>Discover how daily reading transforms your language skills and opens new worlds of knowledge.</p>
-              <button className="btn-read-more">{t('startReading')}</button>
+          {cm.readingItems.filter(r => r.featured).map(rItem => (
+            <div key={rItem.id} className="reading-featured">
+              <img src={rItem.image} alt={rItem.title} />
+              <div className="reading-overlay">
+                <span className="featured-badge">✨ Featured</span>
+                <h3>{rItem.title}</h3>
+                <p>{rItem.desc}</p>
+                <button className="btn-read-more">{t('startReading')}</button>
+              </div>
+              {isAdmin && (
+                <div className="admin-card-actions-overlay" style={{ position:'absolute', top:8, right:8, zIndex:5 }}>
+                  <button className="admin-card-edit" onClick={() => openEditor({
+                    title: 'Edit Reading Item',
+                    fields: [
+                      { key: 'title', label: 'Title' }, { key: 'desc', label: 'Description', type: 'textarea', rows: 2 },
+                      { key: 'meta', label: 'Meta info' }, { key: 'image', label: 'Image', type: 'image' },
+                      { key: 'featured', label: 'Featured?', type: 'select', options: ['true','false'] },
+                    ],
+                    data: rItem,
+                    onSave: (d) => cm.setReadingItems(prev => prev.map(r => r.id === rItem.id ? { ...r, ...d, featured: d.featured === 'true' } : r)),
+                    onDelete: (id) => cm.setReadingItems(prev => prev.filter(r => r.id !== id)),
+                  })}><Icons.Edit /></button>
+                </div>
+              )}
             </div>
-          </div>
+          )) || cm.readingItems.length > 0 ? (
+            cm.readingItems.find(r => r.featured) ? null : <div />
+          ) : (
+            <div className="reading-featured">
+              <img src="https://picsum.photos/seed/reading1/600/400" alt="Featured reading" />
+              <div className="reading-overlay">
+                <span className="featured-badge">✨ Featured</span>
+                <h3>The Power of Reading</h3>
+                <p>Discover how daily reading transforms your language skills and opens new worlds of knowledge.</p>
+                <button className="btn-read-more">{t('startReading')}</button>
+              </div>
+            </div>
+          )}
           <div className="reading-list">
-            <div className="reading-item">
-              <img src="https://picsum.photos/seed/read2/80/80" alt="" />
-              <div className="reading-item-info">
-                <h4>5 Habits of Successful Learners</h4>
-                <p>{t('article')} • 6 {t('minRead')}</p>
+            {cm.readingItems.filter(r => !r.featured).map(rItem => (
+              <div key={rItem.id} className="reading-item">
+                <img src={rItem.image} alt="" />
+                <div className="reading-item-info">
+                  <h4>{rItem.title}</h4>
+                  <p>{rItem.meta}</p>
+                </div>
+                {isAdmin && (
+                  <button className="admin-card-edit admin-list-edit" onClick={() => openEditor({
+                    title: 'Edit Reading Item',
+                    fields: [
+                      { key: 'title', label: 'Title' }, { key: 'meta', label: 'Meta info' },
+                      { key: 'image', label: 'Image', type: 'image' },
+                    ],
+                    data: rItem,
+                    onSave: (d) => cm.setReadingItems(prev => prev.map(r => r.id === rItem.id ? { ...r, ...d } : r)),
+                    onDelete: (id) => cm.setReadingItems(prev => prev.filter(r => r.id !== id)),
+                  })}><Icons.Trash /></button>
+                )}
               </div>
-            </div>
-            <div className="reading-item">
-              <img src="https://picsum.photos/seed/read3/80/80" alt="" />
-              <div className="reading-item-info">
-                <h4>The Missing Piece</h4>
-                <p>{t('story')} • 15 min</p>
-              </div>
-            </div>
-            <div className="reading-item">
-              <img src="https://picsum.photos/seed/read4/80/80" alt="" />
-              <div className="reading-item-info">
-                <h4>Pride and Prejudice</h4>
-                <p>{t('book')} • Chapter 1</p>
-              </div>
-            </div>
-            <div className="reading-item">
-              <img src="https://picsum.photos/seed/read5/80/80" alt="" />
-              <div className="reading-item-info">
-                <h4>Vocabulary Building Guide</h4>
-                <p>Guide • 10 min</p>
-              </div>
-            </div>
+            ))}
+            {cm.readingItems.filter(r => !r.featured).length === 0 && (
+              <>
+                <div className="reading-item"><img src="https://picsum.photos/seed/read2/80/80" alt="" /><div className="reading-item-info"><h4>5 Habits of Successful Learners</h4><p>{t('article')} • 6 {t('minRead')}</p></div></div>
+                <div className="reading-item"><img src="https://picsum.photos/seed/read3/80/80" alt="" /><div className="reading-item-info"><h4>The Missing Piece</h4><p>{t('story')} • 15 min</p></div></div>
+                <div className="reading-item"><img src="https://picsum.photos/seed/read4/80/80" alt="" /><div className="reading-item-info"><h4>Pride and Prejudice</h4><p>{t('book')} • Chapter 1</p></div></div>
+                <div className="reading-item"><img src="https://picsum.photos/seed/read5/80/80" alt="" /><div className="reading-item-info"><h4>Vocabulary Building Guide</h4><p>Guide • 10 min</p></div></div>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -949,60 +1247,117 @@ function DashboardPage({ user, setCurrentPage }) {
       <section className="video-showcase">
         <div className="showcase-header">
           <h2><span>🎬</span> {t('videoLibrary')}</h2>
-          <button className="view-all-btn">{t('viewAll')} {t('video')}s →</button>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {isAdmin && (
+              <button className="btn-admin-section-edit" onClick={() => openEditor({
+                title: 'Add Video',
+                fields: [
+                  { key: 'title', label: 'Title', placeholder: 'Video title' },
+                  { key: 'desc', label: 'Description', type: 'textarea', rows: 2, placeholder: 'What is this video about?' },
+                  { key: 'author', label: 'Author / Instructor', placeholder: 'Teacher name' },
+                  { key: 'duration', label: 'Duration', placeholder: 'e.g. 22:15 or 1:30:00' },
+                  { key: 'views', label: 'Views info', placeholder: 'e.g. 2.4K views' },
+                  { key: 'image', label: 'Thumbnail', type: 'image' },
+                ],
+                data: null,
+                onSave: (d) => cm.setVideoItems(prev => [...prev, { ...d, id: 'v' + Date.now(), featured: false }]),
+              })}><Icons.Plus /> Add Video</button>
+            )}
+            <button className="view-all-btn">{t('viewAll')} {t('video')}s →</button>
+          </div>
         </div>
         <div className="video-grid">
-          <div className="video-featured-card">
-            <div className="video-thumbnail">
-              <img src="https://picsum.photos/seed/vidmain/500/300" alt="Featured video" />
-              <div className="video-duration">22:15</div>
-              <div className="play-overlay">
-                <div className="play-circle"><Icons.Play /></div>
+          {cm.videoItems.filter(v => v.featured).map(vItem => (
+            <div key={vItem.id} className="video-featured-card">
+              <div className="video-thumbnail">
+                <img src={vItem.image} alt={vItem.title} />
+                <div className="video-duration">{vItem.duration}</div>
+                <div className="play-overlay"><div className="play-circle"><Icons.Play /></div></div>
+              </div>
+              <div className="video-info">
+                <h3>{vItem.title}</h3>
+                <p>{vItem.desc}</p>
+                <div className="video-meta">
+                  <span>👤 {vItem.author}</span>
+                  <span>👁️ {vItem.views}</span>
+                </div>
+              </div>
+              {isAdmin && (
+                <div className="admin-card-actions-overlay" style={{ position:'absolute', top:8, right:8, zIndex:5 }}>
+                  <button className="admin-card-edit" onClick={() => openEditor({
+                    title: 'Edit Video',
+                    fields: [
+                      { key: 'title', label: 'Title' }, { key: 'desc', label: 'Description', type: 'textarea', rows: 2 },
+                      { key: 'author', label: 'Author' }, { key: 'duration', label: 'Duration' },
+                      { key: 'views', label: 'Views' }, { key: 'image', label: 'Thumbnail', type: 'image' },
+                    ],
+                    data: vItem,
+                    onSave: (d) => cm.setVideoItems(prev => prev.map(v => v.id === vItem.id ? { ...v, ...d } : v)),
+                    onDelete: (id) => cm.setVideoItems(prev => prev.filter(v => v.id !== id)),
+                  })}><Icons.Edit /></button>
+                </div>
+              )}
+            </div>
+          )) || cm.videoItems.length > 0 ? null : (
+            <div className="video-featured-card">
+              <div className="video-thumbnail">
+                <img src="https://picsum.photos/seed/vidmain/500/300" alt="Featured video" />
+                <div className="video-duration">22:15</div>
+                <div className="play-overlay"><div className="play-circle"><Icons.Play /></div></div>
+              </div>
+              <div className="video-info">
+                <h3>Complete English Grammar Course</h3>
+                <p>Master grammar fundamentals in this comprehensive video series.</p>
+                <div className="video-meta"><span>👤 Dr. Sarah Mitchell</span><span>👁️ 2.4K views</span></div>
               </div>
             </div>
-            <div className="video-info">
-              <h3>Complete English Grammar Course</h3>
-              <p>Master grammar fundamentals in this comprehensive video series.</p>
-              <div className="video-meta">
-                <span>👤 Dr. Sarah Mitchell</span>
-                <span>👁️ 2.4K views</span>
-              </div>
-            </div>
-          </div>
+          )}
           <div className="video-list-small">
-            <div className="video-item">
-              <div className="video-thumb">
-                <img src="https://picsum.photos/seed/vid1/160/100" alt="" />
-                <span className="vid-duration">15:30</span>
+            {cm.videoItems.filter(v => !v.featured).map(vItem => (
+              <div key={vItem.id} className="video-item">
+                <div className="video-thumb">
+                  <img src={vItem.image} alt="" />
+                  <span className="vid-duration">{vItem.duration}</span>
+                </div>
+                <div className="video-item-info">
+                  <h4>{vItem.title}</h4>
+                  <p>{vItem.author}</p>
+                </div>
+                {isAdmin && (
+                  <button className="admin-list-edit" onClick={() => openEditor({
+                    title: 'Edit Video',
+                    fields: [
+                      { key: 'title', label: 'Title' }, { key: 'author', label: 'Author' },
+                      { key: 'duration', label: 'Duration' }, { key: 'image', label: 'Image', type: 'image' },
+                    ],
+                    data: vItem,
+                    onSave: (d) => cm.setVideoItems(prev => prev.map(v => v.id === vItem.id ? { ...v, ...d } : v)),
+                    onDelete: (id) => cm.setVideoItems(prev => prev.filter(v => v.id !== id)),
+                  })}><Icons.Trash /></button>
+                )}
               </div>
-              <div className="video-item-info">
-                <h4>Business English Basics</h4>
-                <p>Prof. James Wilson</p>
-              </div>
-            </div>
-            <div className="video-item">
-              <div className="video-thumb">
-                <img src="https://picsum.photos/seed/vid2/160/100" alt="" />
-                <span className="vid-duration">12:45</span>
-              </div>
-              <div className="video-item-info">
-                <h4>Pronunciation Tips</h4>
-                <p>Ms. Emily Chen</p>
-              </div>
-            </div>
-            <div className="video-item">
-              <div className="video-thumb">
-                <img src="https://picsum.photos/seed/vid3/160/100" alt="" />
-                <span className="vid-duration">18:20</span>
-              </div>
-              <div className="video-item-info">
-                <h4>Writing Workshop</h4>
-                <p>Prof. James Wilson</p>
-              </div>
-            </div>
+            ))}
+            {cm.videoItems.filter(v => !v.featured).length === 0 && (
+              <>
+                <div className="video-item"><div className="video-thumb"><img src="https://picsum.photos/seed/vid1/160/100" alt="" /><span className="vid-duration">15:30</span></div><div className="video-item-info"><h4>Business English Basics</h4><p>Prof. James Wilson</p></div></div>
+                <div className="video-item"><div className="video-thumb"><img src="https://picsum.photos/seed/vid2/160/100" alt="" /><span className="vid-duration">12:45</span></div><div className="video-item-info"><h4>Pronunciation Tips</h4><p>Ms. Emily Chen</p></div></div>
+                <div className="video-item"><div className="video-thumb"><img src="https://picsum.photos/seed/vid3/160/100" alt="" /><span className="vid-duration">18:20</span></div><div className="video-item-info"><h4>Writing Workshop</h4><p>Prof. James Wilson</p></div></div>
+              </>
+            )}
           </div>
         </div>
       </section>
+
+      {/* Editor Modal */}
+      <ContentEditorModal
+        open={editorOpen}
+        onClose={() => setEditorOpen(false)}
+        title={editorConfig.title}
+        fields={editorConfig.fields}
+        data={editorConfig.data}
+        onSave={editorConfig.onSave}
+        onDelete={editorConfig.onDelete}
+      />
     </div>
   );
 }

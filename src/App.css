@@ -9544,3 +9544,372 @@ input::placeholder {
     font-size: 9px;
   }
 }
+
+/* ============================================
+   ADMIN CONTENT MANAGEMENT SYSTEM (CMS) STYLES
+   ============================================ */
+
+/* Section header row with edit button */
+.section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.section-header-row h2 {
+  margin: 0 !important;
+}
+
+.btn-admin-section-edit {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+}
+.btn-admin-section-edit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+  background: linear-gradient(135deg, #4338ca, #4f46e5);
+}
+
+/* Admin card-level edit buttons */
+.admin-card-actions {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 10;
+}
+.achievement-badge:hover .admin-card-actions,
+.content-card:hover .admin-card-actions {
+  opacity: 1;
+}
+
+.admin-card-edit {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.9);
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #4f46e5;
+  transition: all 0.15s;
+}
+.admin-card-edit:hover {
+  background: #4f46e5;
+  color: white;
+  border-color: #4f46e5;
+}
+
+.admin-card-actions-overlay {
+  position: absolute;
+  z-index: 10;
+  transition: opacity 0.15s;
+}
+
+.admin-list-edit {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  cursor: pointer;
+  color: #64748b;
+  margin-left: auto;
+  transition: all 0.15s;
+  padding: 0;
+}
+.admin-list-edit:hover {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}
+.admin-list-edit svg { width: 13px; height: 13px; }
+
+.schedule-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #94a3b8;
+  padding: 1.5rem;
+  font-size: 0.9rem;
+}
+
+/* --- Admin Modal (Content Editor) --- */
+.admin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,0.55);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.15s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.admin-modal {
+  background: #fff;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 540px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+  animation: slideUp 0.2s ease;
+}
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.admin-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 22px;
+  border-bottom: 1px solid #f1f5f9;
+  position: sticky;
+  top: 0;
+  background: white;
+  border-radius: 16px 16px 0 0;
+  z-index: 1;
+}
+.admin-modal-header h3 {
+  margin: 0;
+  font-size: 17px;
+  color: #1e293b;
+  font-weight: 700;
+}
+.admin-modal-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  transition: all 0.15s;
+}
+.admin-modal-close:hover {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #ef4444;
+}
+
+.admin-modal-body {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.admin-field label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 5px;
+}
+.admin-field input[type="text"],
+.admin-field input[type="number"],
+.admin-field textarea,
+.admin-field select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: #1e293b;
+  background: #fafbfc;
+  transition: all 0.15s;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.admin-field input:focus,
+.admin-field textarea:focus,
+.admin-field select:focus {
+  border-color: #4f46e5;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(79,70,229,0.12);
+}
+.admin-field textarea { resize: vertical; min-height: 60px; }
+
+/* Image field in modal */
+.admin-image-field {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.admin-img-preview {
+  width: 80px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+}
+.btn-admin-upload {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-admin-upload:hover { filter: brightness(1.05); transform: translateY(-1px); }
+.btn-admin-remove {
+  padding: 7px 12px;
+  background: #fef2f2;
+  color: #ef4444;
+  border: 1.5px solid #fecaca;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-admin-remove:hover { background: #ef4444; color: white; border-color: #ef4444; }
+
+.admin-modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 22px;
+  border-top: 1px solid #f1f5f9;
+  position: sticky;
+  bottom: 0;
+  background: #fafafa;
+  border-radius: 0 0 16px 16px;
+}
+.admin-modal-actions {
+  display: flex;
+  gap: 8px;
+}
+.btn-admin-cancel {
+  padding: 8px 18px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-admin-cancel:hover { background: #f1f5f9; }
+.btn-admin-save {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 20px;
+  background: linear-gradient(135deg, #059669, #10b981);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: 0 2px 8px rgba(5,150,105,0.3);
+}
+.btn-admin-save:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(5,150,105,0.35); }
+.btn-admin-delete {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 18px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: 0 2px 8px rgba(239,68,68,0.3);
+}
+.btn-admin-delete:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(239,68,68,0.4); }
+
+/* Reading list item - make room for delete button */
+.reading-item {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 8px !important;
+  border-radius: 10px !important;
+  transition: background 0.15s;
+}
+.reading-item:hover { background: #f8fafc; }
+
+/* Video item with delete button */
+.video-item {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+/* Progress card with edit button */
+.progress-card {
+  position: relative !important;
+}
+
+/* Schedule card - add some right padding */
+.schedule-card {
+  position: relative !important;
+}
+
+/* Achievement badge - make room for edit button */
+.achievement-badge {
+  position: relative !important;
+}
+
+/* Content card - ensure overlay is above everything */
+.content-card {
+  position: relative !important;
+  overflow: hidden;
+}
+
+/* Mobile responsive for admin UI */
+@media (max-width: 768px) {
+  .admin-modal {
+    width: 96%;
+    max-height: 90vh;
+    border-radius: 12px;
+  }
+  .section-header-row {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .btn-admin-section-edit {
+    order: -1;
+    align-self: flex-end;
+  }
+}
