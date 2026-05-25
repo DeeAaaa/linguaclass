@@ -308,7 +308,7 @@ const Icons = {
   Admin: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/><path d="M9 12l2 2 4-4"/></svg>,
   PlusCircle: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>,
   MinusCircle: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>,
-  Classroom: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10l-10-4-10 4 10 4 10-4z"/><path d="M6 12v5c0 2 6 4 6 4s6-2 6-4v-5"/><circle cx="12" cy="10" r="3"/></svg>,
+  Classroom: ({ size = 20 }) => <svg width={size} height={size} viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="lg-w" x1="12" y1="0" x2="108" y2="120" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#3b82f6"/><stop offset="50%" stopColor="#6366f1"/><stop offset="100%" stopColor="#8b5cf6"/></linearGradient></defs><path d="M60 22c0 0-24-8-40-4-4 .8-8 4-8 10v60c0 6 6 10 12 8 12-4 28-8 36-8" fill="url(#lg-w)" opacity=".95"/><path d="M60 22c0 0 24-8 40-4 4 .8 8 4 8 10v60c0 6-6 10-12 8-12-4-28-8-36-8" fill="url(#lg-w)" opacity=".85"/><line x1="60" y1="22" x2="60" y2="88" stroke="#fff" strokeWidth="2" opacity=".4"/><ellipse cx="60" cy="48" rx="22" ry="14" fill="#fff" opacity=".95"/><path d="M48 56l6 6-2-8z" fill="#fff" opacity=".95"/><circle cx="50" cy="46" r="3" fill="url(#lg-w)"/><circle cx="60" cy="46" r="3" fill="url(#lg-w)"/><circle cx="70" cy="46" r="3" fill="url(#lg-w)"/><path d="M56 18l4-4 4 4-4-1.5z" fill="#60a5fa" opacity=".9"/><path d="M52 18h4v4h-4z" fill="#60a5fa" opacity=".7"/></svg>,
 };
 
 // ============================================
@@ -401,7 +401,7 @@ function LandingPage({ onLogin }) {
       <nav className="landing-nav">
         <div className="nav-left">
           <div className="landing-logo">
-            <Icons.Classroom />
+            <Icons.Classroom size={36} />
             <span>{t('brand')}</span>
           </div>
         </div>
@@ -539,6 +539,86 @@ function LandingPage({ onLogin }) {
         </div>
       </div>
 
+      {/* Get the App Section */}
+      <section className="get-app-section" id="get-app">
+        <div className="get-app-container">
+          <div className="get-app-info">
+            <div className="get-app-badge">{t('getTheApp')}</div>
+            <h2>{t('getTheAppTitle')}</h2>
+            <p>{t('getTheAppSubtitle')}</p>
+            <div className="get-app-features">
+              <div className="get-app-feature">
+                <span className="gaf-icon">📴</span>
+                <div>
+                  <strong>{t('featuresOffline')}</strong>
+                  <span>{t('featuresOfflineDesc')}</span>
+                </div>
+              </div>
+              <div className="get-app-feature">
+                <span className="gaf-icon">⚡</span>
+                <div>
+                  <strong>{t('featuresFast')}</strong>
+                  <span>{t('featuresFastDesc')}</span>
+                </div>
+              </div>
+              <div className="get-app-feature">
+                <span className="gaf-icon">🖥️</span>
+                <div>
+                  <strong>{t('featuresFullscreen')}</strong>
+                  <span>{t('featuresFullscreenDesc')}</span>
+                </div>
+              </div>
+              <div className="get-app-feature">
+                <span className="gaf-icon">🔔</span>
+                <div>
+                  <strong>{t('featuresNotifications')}</strong>
+                  <span>{t('featuresNotificationsDesc')}</span>
+                </div>
+              </div>
+            </div>
+            <div className="get-app-actions">
+              <button className="btn-install-app" id="landing-install-btn" onClick={() => {
+                const evt = new Event('trigger-pwa-install');
+                window.dispatchEvent(evt);
+              }}>
+                <Icons.Classroom size={22} />
+                {t('installNow')}
+              </button>
+              <span className="get-app-or">{t('installDesktop')}</span>
+            </div>
+          </div>
+          <div className="get-app-visual">
+            <div className="app-mockup">
+              <div className="mockup-screen">
+                <div className="mockup-statusbar">
+                  <span>9:41</span>
+                  <span>●●●●○ &nbsp;WiFi</span>
+                </div>
+                <div className="mockup-app-icon">
+                  <Icons.Classroom size={44} />
+                </div>
+                <div className="mockup-app-name">Linguaclass</div>
+                <div className="mockup-app-desc">{t('landingTitle')}</div>
+              </div>
+            </div>
+            <div className="install-guides">
+              <div className="install-guide">
+                <div className="guide-platform">🍎 {t('installIOS')}</div>
+                <div className="guide-step">{t('installIOSStep')}</div>
+              </div>
+              <div className="install-guide">
+                <div className="guide-platform">🤖 {t('installAndroid')}</div>
+                <div className="guide-step">{t('installAndroidStep')}</div>
+              </div>
+              <div className="install-guide">
+                <div className="guide-platform">💻 {t('installDesktop')}</div>
+                <div className="guide-step">{t('installDesktopStep')}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <div className="announcement-bar">
         <div className="announcement-content">
           <span className="announcement-label">{t('latest')}</span>
@@ -602,7 +682,7 @@ function AppLayout({ children, user, onLogout, currentPage, setCurrentPage }) {
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''} ${mobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header">
           <div className="logo">
-            <Icons.Classroom />
+            <Icons.Classroom size={28} />
             <span>{t('brand')}</span>
           </div>
           <button className="sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
@@ -748,7 +828,7 @@ function showToast(msg) {
 // ============================================
 // SHARED CONTENT EDITOR MODAL
 // ============================================
-function ContentEditorModal({ open, onClose, title, fields, data, onSave, onDelete }) {
+function ContentEditorModal({ open, onClose, title, fields, data, onSave, onDelete, t }) {
   // Hooks MUST be called unconditionally (before any early returns)
   const [editData, setEditData] = useState(() => data ? { ...data } : {});
   const [saving, setSaving] = useState(false);
@@ -767,7 +847,7 @@ function ContentEditorModal({ open, onClose, title, fields, data, onSave, onDele
       const file = e.target.files?.[0];
       if (!file) return;
       if (file.size > 500 * 1024) {
-        showToast('⚠️ 图片 >500KB！建议压缩为JPG或使用外部图片链接');
+        showToast(t('imageTooLarge'));
       }
       const reader = new FileReader();
       reader.onload = () => handleChange(key, reader.result);
@@ -779,14 +859,14 @@ function ContentEditorModal({ open, onClose, title, fields, data, onSave, onDele
   const handleSave = () => {
     setSaving(true);
     onSave(editData);
-    showToast('✅ 内容已保存！');
+    showToast(t('contentSaved'));
     setTimeout(() => { setSaving(false); onClose(); }, 150);
   };
 
   const handleDelete = () => {
     if (onDelete && data?.id) {
       onDelete(data.id);
-      showToast('🗑️ 内容已删除');
+      showToast(t('contentDeleted'));
       onClose();
     }
   };
@@ -823,17 +903,17 @@ function ContentEditorModal({ open, onClose, title, fields, data, onSave, onDele
                     {editData[f.key] && <img src={editData[f.key]} alt="preview" className="admin-img-preview" />}
                     <div className="admin-image-actions">
                       <button type="button" className="btn-admin-upload" onClick={() => handleImageUpload(f.key)}>
-                        <Icons.Upload /> {editData[f.key] ? '换图' : '上传图片'}
+                        <Icons.Upload /> {editData[f.key] ? t('changeImage') : t('uploadImage')}
                       </button>
-                      <span className="admin-image-hint">推荐 JPG/PNG ≤500KB · 或粘贴URL</span>
+                      <span className="admin-image-hint">{t('imageHint')}</span>
                     </div>
-                    {editData[f.key] && <button type="button" className="btn-admin-remove" onClick={() => handleChange(f.key, '')}>移除图片</button>}
+                    {editData[f.key] && <button type="button" className="btn-admin-remove" onClick={() => handleChange(f.key, '')}>{t('removeImage')}</button>}
                     <input
                       type="text"
                       style={{ marginTop: 6 }}
                       value={editData[f.key] || ''}
                       onChange={e => handleChange(f.key, e.target.value)}
-                      placeholder="图片链接 (https://...)"
+                      placeholder={t('imagePlaceholder')}
                     />
                   </div>
                 ) : f.type === 'url' ? (
@@ -849,14 +929,14 @@ function ContentEditorModal({ open, onClose, title, fields, data, onSave, onDele
         </div>
         <div className="admin-modal-footer">
           {onDelete && data?.id ? (
-            <button className="btn-admin-delete" onClick={handleDelete}><Icons.Trash /> 删除</button>
+            <button className="btn-admin-delete" onClick={handleDelete}><Icons.Trash /> {t('delete')}</button>
           ) : (
             <div />
           )}
           <div className="admin-modal-actions">
-            <button className="btn-admin-cancel" onClick={onClose}>取消</button>
+            <button className="btn-admin-cancel" onClick={onClose}>{t('cancel')}</button>
             <button className="btn-admin-save" onClick={handleSave} disabled={saving}>
-              <Icons.Save /> {saving ? '保存中...' : '保存'}
+              <Icons.Save /> {saving ? t('saving') : t('save')}
             </button>
           </div>
         </div>
@@ -933,9 +1013,9 @@ function DashboardPage({ user, setCurrentPage }) {
       {/* Admin toolbar (always visible for admin) */}
       {isAdmin && (
         <div className="admin-toolbar">
-          <span className="admin-toolbar-label">🔧 管理员模式</span>
-          <button className="btn-admin-reset" onClick={() => { if (window.confirm('确定要重置所有内容为默认值吗？这将清除你所有的自定义内容。')) resetToDefaults(); }}>
-            <Icons.Clear /> 重置为默认
+          <span className="admin-toolbar-label">{t('adminMode')}</span>
+          <button className="btn-admin-reset" onClick={() => { if (window.confirm(t('resetConfirm'))) resetToDefaults(); }}>
+            <Icons.Clear /> {t('resetDefaults')}
           </button>
         </div>
       )}
@@ -1202,7 +1282,7 @@ function DashboardPage({ user, setCurrentPage }) {
                   <span className="type-badge" style={{ backgroundColor: getTypeColor(content.type) }}>
                     {getTypeIcon(content.type)} {t(content.type)}
                   </span>
-                  <button className="play-btn" onClick={(e) => { e.stopPropagation(); content.url ? window.open(content.url, '_blank') : showToast('该内容暂无链接'); }}>
+                  <button className="play-btn" onClick={(e) => { e.stopPropagation(); content.url ? window.open(content.url, '_blank') : showToast(t('noContentLink')); }}>
                     {content.type === 'video' ? <Icons.Play /> : <Icons.Book />}
                   </button>
                 </div>
@@ -1363,7 +1443,7 @@ function DashboardPage({ user, setCurrentPage }) {
         </div>
         <div className="video-grid">
           {cm.videoItems.filter(v => v.featured).map(vItem => (
-            <div key={vItem.id} className="video-featured-card" style={{ position: 'relative', cursor: vItem.url ? 'pointer' : 'default' }} onClick={() => vItem.url ? window.open(vItem.url, '_blank') : showToast('该视频暂无链接')}>
+            <div key={vItem.id} className="video-featured-card" style={{ position: 'relative', cursor: vItem.url ? 'pointer' : 'default' }} onClick={() => vItem.url ? window.open(vItem.url, '_blank') : showToast(t('noVideoLink'))}>
               <div className="video-thumbnail">
                 <img src={vItem.image || 'https://picsum.photos/seed/vidmain/500/300'} alt={vItem.title} />
                 <div className="video-duration">{vItem.duration}</div>
@@ -1455,6 +1535,7 @@ function DashboardPage({ user, setCurrentPage }) {
         data={editorConfig.data}
         onSave={editorConfig.onSave}
         onDelete={editorConfig.onDelete}
+        t={t}
       />
     </div>
   );
@@ -3167,6 +3248,7 @@ function inferCategory(filename) {
 // FILES PAGE
 // ============================================
 function FilesPage({ user }) {
+  const { t } = useTranslation();
   const [viewMode, setViewMode] = useState('grid');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [uploadedFiles, setUploadedFiles] = useState(() => {
@@ -3179,7 +3261,7 @@ function FilesPage({ user }) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) {
-      showToast('⚠️ 文件超过 10MB！大文件建议用外部链接（Google Drive/YouTube等）');
+      showToast(t('fileTooLarge'));
       return;
     }
     const reader = new FileReader();

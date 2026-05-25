@@ -66,6 +66,39 @@ window.addEventListener('appinstalled', () => {
   removeInstallBanner();
   // Clear stored prompt
   localStorage.setItem('pwa_installed', 'true');
+  // Update any "Install" buttons to show "Installed ✓"
+  document.querySelectorAll('.btn-install-app').forEach(btn => {
+    btn.innerHTML = '✓ Already Installed';
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+  });
+});
+
+// Listen for custom install trigger from React components
+window.addEventListener('trigger-pwa-install', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log('User install choice:', outcome);
+    deferredPrompt = null;
+    removeInstallBanner();
+  } else if (isPWA) {
+    // Already installed - show toast
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#10b981;color:#fff;padding:12px 24px;border-radius:24px;z-index:9999;font-family:system-ui;font-weight:600;box-shadow:0 4px 20px rgba(16,185,129,0.4);animation:slideUp 0.3s ease-out;';
+    toast.textContent = '✓ App is already installed!';
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.4s'; setTimeout(() => toast.remove(), 400); }, 2500);
+  } else {
+    // PWA install not available in this browser — open install guide section
+    const guideEl = document.getElementById('get-app');
+    if (guideEl) {
+      guideEl.scrollIntoView({ behavior: 'smooth' });
+      // Flash the install guides
+      guideEl.querySelector('.install-guides')?.classList.add('highlight-pulse');
+      setTimeout(() => guideEl.querySelector('.install-guides')?.classList.remove('highlight-pulse'), 2000);
+    }
+  }
 });
 
 // Check if user already dismissed or installed
