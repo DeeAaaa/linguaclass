@@ -361,6 +361,17 @@ const translations = {
     downloadForIOS: 'For iOS',
     downloadDesktopApp: 'Desktop App',
 
+    // === ROLE INDICATORS ===
+    roleStudent: '👨‍🎓 Student',
+    roleTeacher: '👩‍🏫 Teacher',
+    roleParent: '👨‍👩‍👧 Parent',
+    roleAdmin: '🔧 Admin',
+
+    // === DASHBOARD DOWNLOAD ===
+    dashboardDownloadTitle: 'Take Linguaclass Everywhere',
+    dashboardDownloadSubtitle: 'Install our app for the best experience on any device',
+    dashboardDownloadBtn: '📱 Download App',
+
     // === ADMIN ===
     adminMode: '🔧 Admin Mode',
     resetDefaults: 'Reset to Defaults',
@@ -740,6 +751,17 @@ const translations = {
     downloadForAndroid: '安卓版',
     downloadForIOS: 'iOS 版',
     downloadDesktopApp: '电脑版',
+
+    // === ROLE INDICATORS ===
+    roleStudent: '👨‍🎓 学生',
+    roleTeacher: '👩‍🏫 老师',
+    roleParent: '👨‍👩‍👧 家长',
+    roleAdmin: '🔧 管理员',
+
+    // === DASHBOARD DOWNLOAD ===
+    dashboardDownloadTitle: '随时随地学习',
+    dashboardDownloadSubtitle: '安装我们的应用，在任何设备上获得最佳体验',
+    dashboardDownloadBtn: '📱 下载应用',
 
     // === ADMIN ===
     adminMode: '🔧 管理员模式',

@@ -1084,15 +1084,15 @@ function DashboardPage({ user, setCurrentPage }) {
       {/* Toast notification */}
       <div id="admin-toast" className="admin-toast"></div>
 
-      {/* Admin toolbar (always visible for admin) */}
-      {isAdmin && (
-        <div className="admin-toolbar">
-          <span className="admin-toolbar-label">{t('adminMode')}</span>
-          <button className="btn-admin-reset" onClick={() => { if (window.confirm(t('resetConfirm'))) resetToDefaults(); }}>
+      {/* Role indicator (visible for all users) */}
+      <div className="role-indicator">
+        <span className="role-badge">{t('role' + (user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1)))}</span>
+        {isAdmin && (
+          <button className="btn-dash-reset" onClick={() => { if (window.confirm(t('resetConfirm'))) resetToDefaults(); }}>
             <Icons.Clear /> {t('resetDefaults')}
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Hero Section */}
       <div className="dashboard-hero">
@@ -1596,6 +1596,30 @@ function DashboardPage({ user, setCurrentPage }) {
                 <div className="video-item"><div className="video-thumb"><img src="https://picsum.photos/seed/vid3/160/100" alt="" /><span className="vid-duration">18:20</span></div><div className="video-item-info"><h4>Writing Workshop</h4><p>Prof. James Wilson</p></div></div>
               </>
             )}
+          </div>
+        </div>
+      </section>
+
+      {/* Dashboard Download Section — visible to all logged-in users */}
+      <section className="dash-download-section">
+        <div className="dash-download-inner">
+          <div className="dash-download-text">
+            <div className="dash-download-badge">{t('getTheApp')}</div>
+            <h3>{t('dashboardDownloadTitle')}</h3>
+            <p>{t('dashboardDownloadSubtitle')}</p>
+          </div>
+          <div className="dash-download-actions">
+            <button className="btn-dash-download" onClick={() => {
+              const evt = new Event('trigger-pwa-install');
+              window.dispatchEvent(evt);
+            }}>
+              <Icons.Classroom size={20} /> {t('installNow')}
+            </button>
+            <span className="dash-download-platforms">
+              <span title={t('downloadForAndroid')}>🤖</span>
+              <span title={t('downloadForIOS')}>🍎</span>
+              <span title={t('downloadDesktopApp')}>💻</span>
+            </span>
           </div>
         </div>
       </section>
