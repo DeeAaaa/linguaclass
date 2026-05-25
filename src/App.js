@@ -304,6 +304,7 @@ const Icons = {
   Admin: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/><path d="M9 12l2 2 4-4"/></svg>,
   PlusCircle: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>,
   MinusCircle: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>,
+  Classroom: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10l-10-4-10 4 10 4 10-4z"/><path d="M6 12v5c0 2 6 4 6 4s6-2 6-4v-5"/><circle cx="12" cy="10" r="3"/></svg>,
 };
 
 // ============================================
@@ -396,7 +397,7 @@ function LandingPage({ onLogin }) {
       <nav className="landing-nav">
         <div className="nav-left">
           <div className="landing-logo">
-            <Icons.Book />
+            <Icons.Classroom />
             <span>{t('brand')}</span>
           </div>
         </div>
@@ -589,7 +590,7 @@ function AppLayout({ children, user, onLogout, currentPage, setCurrentPage }) {
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''} ${mobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header">
           <div className="logo">
-            <Icons.Book />
+            <Icons.Classroom />
             <span>{t('brand')}</span>
           </div>
           <button className="sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
@@ -3688,9 +3689,13 @@ function VideoRoomPage({ user }) {
             </div>
           </div>
         ) : (
-          <div className="video-grid">
-            {/* Local tile */}
-            <div className={`video-box ${userRole === 'Teacher' ? 'main' : ''}`}>
+          <div className={`video-grid ${remotePeers.length > 0 ? 'has-remotes' : ''}`}>
+            {/* Remote peer tiles — fill main area */}
+            {remotePeers.map(peer => (
+              <RemoteVideoTile key={peer.userId} peer={peer} />
+            ))}
+            {/* Local tile — full-size when alone, PIP when others present */}
+            <div className={`video-box local-box ${remotePeers.length > 0 ? 'pip' : ''}`}>
               <div className="video-active">
                 <video 
                   ref={localVideoRef} 
@@ -3710,11 +3715,7 @@ function VideoRoomPage({ user }) {
                 {userRole === 'Teacher' && <span className="role-badge">Teacher</span>}
               </div>
             </div>
-            {/* Remote peer tiles */}
-            {remotePeers.map(peer => (
-              <RemoteVideoTile key={peer.userId} peer={peer} />
-            ))}
-            {/* Empty slots for better grid look */}
+            {/* Empty slot when alone */}
             {remotePeers.length === 0 && (
               <div className="video-box">
                 <div className="video-off" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
@@ -3822,6 +3823,9 @@ function VideoRoomPage({ user }) {
           </button>
           <button className={`tab ${activePanel === 'contacts' ? 'active' : ''}`} onClick={() => setActivePanel('contacts')}>
             <Icons.Contacts /> Contacts
+          </button>
+          <button className={`tab ${activePanel === 'people' ? 'active' : ''}`} onClick={() => setActivePanel('people')}>
+            <Icons.People /> People <span className="tab-badge">{totalPeople}</span>
           </button>
         </div>
 
@@ -4089,6 +4093,66 @@ function VideoRoomPage({ user }) {
                 <span className="call-connected-text">Call Connected!</span>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ---- People / Group Call Panel ---- */}
+      {activePanel === 'people' && (
+        <div className="people-panel">
+          <div className="people-header">
+            <h4>People in this room</h4>
+            <span className="people-count">{totalPeople} participants</span>
+          </div>
+          <div className="people-list">
+            {/* Self */}
+            <div className="people-item self">
+              <div className="people-avatar" style={{ background: 'linear-gradient(135deg, #667eea, #764ba2)' }}>
+                {userName.charAt(0).toUpperCase()}
+              </div>
+              <div className="people-info">
+                <span className="people-name">{userName} (You)</span>
+                <span className="people-role">{userRole}</span>
+              </div>
+              <span className="people-status">
+                <span className="status-dot online"></span>
+                Host
+              </span>
+            </div>
+            {/* Remote peers */}
+            {remotePeers.map(peer => (
+              <div key={peer.userId} className="people-item">
+                <div className="people-avatar" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+                  {(peer.userName || '?').charAt(0).toUpperCase()}
+                </div>
+                <div className="people-info">
+                  <span className="people-name">{peer.userName || 'Unknown'}</span>
+                  <span className="people-role">{peer.role || 'Student'}</span>
+                </div>
+                <span className="people-status">
+                  <span className={`status-dot ${peer.stream ? 'online' : 'connecting'}`}></span>
+                  {peer.stream ? 'Connected' : 'Connecting…'}
+                </span>
+              </div>
+            ))}
+            {remotePeers.length === 0 && (
+              <div className="people-empty">
+                <Icons.People />
+                <p>No one else here yet</p>
+                <span>Share the room code to invite others</span>
+              </div>
+            )}
+          </div>
+          {/* Group Call Tip */}
+          <div className="people-group-tip">
+            <span className="people-tip-icon">👥</span>
+            <div>
+              <strong>Group Call</strong>
+              <p>Share the room code <code>{roomId}</code> with multiple people — they can all join the same room for a group video call.</p>
+              <button className="btn-people-invite" onClick={copyInviteLink}>
+                <Icons.Link /> Copy Invite Link
+              </button>
+            </div>
           </div>
         </div>
       )}
