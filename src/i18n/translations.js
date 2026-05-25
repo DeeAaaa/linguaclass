@@ -353,6 +353,13 @@ const translations = {
     featuresFullscreenDesc: 'No browser distractions',
     featuresNotifications: 'Push Notifications',
     featuresNotificationsDesc: 'Never miss a class',
+    downloadAPK: '📱 Download APK',
+    downloadAPKDesc: 'Get the Android app directly',
+    downloadAPKComing: 'APK coming soon — use PWA install for now',
+    downloadQR: 'Scan to Download',
+    downloadForAndroid: 'For Android',
+    downloadForIOS: 'For iOS',
+    downloadDesktopApp: 'Desktop App',
 
     // === ADMIN ===
     adminMode: '🔧 Admin Mode',
@@ -726,6 +733,13 @@ const translations = {
     featuresFullscreenDesc: '无浏览器干扰',
     featuresNotifications: '推送通知',
     featuresNotificationsDesc: '不错过任何课程',
+    downloadAPK: '📱 下载安卓应用',
+    downloadAPKDesc: '直接下载 Android 应用',
+    downloadAPKComing: 'APK 即将上线 — 请先用 PWA 安装',
+    downloadQR: '扫码下载',
+    downloadForAndroid: '安卓版',
+    downloadForIOS: 'iOS 版',
+    downloadDesktopApp: '电脑版',
 
     // === ADMIN ===
     adminMode: '🔧 管理员模式',

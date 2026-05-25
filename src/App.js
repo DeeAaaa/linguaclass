@@ -308,7 +308,36 @@ const Icons = {
   Admin: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/><path d="M9 12l2 2 4-4"/></svg>,
   PlusCircle: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>,
   MinusCircle: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>,
-  Classroom: ({ size = 20 }) => <svg width={size} height={size} viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="lg-w" x1="12" y1="0" x2="108" y2="120" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#3b82f6"/><stop offset="50%" stopColor="#6366f1"/><stop offset="100%" stopColor="#8b5cf6"/></linearGradient></defs><path d="M60 22c0 0-24-8-40-4-4 .8-8 4-8 10v60c0 6 6 10 12 8 12-4 28-8 36-8" fill="url(#lg-w)" opacity=".95"/><path d="M60 22c0 0 24-8 40-4 4 .8 8 4 8 10v60c0 6-6 10-12 8-12-4-28-8-36-8" fill="url(#lg-w)" opacity=".85"/><line x1="60" y1="22" x2="60" y2="88" stroke="#fff" strokeWidth="2" opacity=".4"/><ellipse cx="60" cy="48" rx="22" ry="14" fill="#fff" opacity=".95"/><path d="M48 56l6 6-2-8z" fill="#fff" opacity=".95"/><circle cx="50" cy="46" r="3" fill="url(#lg-w)"/><circle cx="60" cy="46" r="3" fill="url(#lg-w)"/><circle cx="70" cy="46" r="3" fill="url(#lg-w)"/><path d="M56 18l4-4 4 4-4-1.5z" fill="#60a5fa" opacity=".9"/><path d="M52 18h4v4h-4z" fill="#60a5fa" opacity=".7"/></svg>,
+  Classroom: ({ size = 20 }) => (
+    <svg width={size} height={size} viewBox="0 0 120 120" fill="none">
+      <defs>
+        <linearGradient id="lga" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#3b82f6"/>
+          <stop offset="60%" stopColor="#6366f1"/>
+          <stop offset="100%" stopColor="#8b5cf6"/>
+        </linearGradient>
+        <linearGradient id="lgb" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#a78bfa"/>
+          <stop offset="100%" stopColor="#60a5fa"/>
+        </linearGradient>
+      </defs>
+      <rect x="6" y="6" width="108" height="108" rx="28" fill="url(#lga)"/>
+      <circle cx="60" cy="60" r="42" stroke="rgba(255,255,255,0.1)" strokeWidth="1" fill="none"/>
+      <path d="M60 38L60 90Q60 80 48 74Q36 68 28 72Q20 76 20 82L20 84Q28 75 38 73Q48 71 54 76L54 42Q48 37 38 38Q28 39 20 45L20 42Q28 35 38 34Q48 33 54 37" fill="white" opacity="0.92"/>
+      <path d="M60 38L60 90Q60 80 72 74Q84 68 92 72Q100 76 100 82L100 84Q92 75 82 73Q72 71 66 76L66 42Q72 37 82 38Q92 39 100 45L100 42Q92 35 82 34Q72 33 66 37" fill="white" opacity="0.85"/>
+      <line x1="60" y1="38" x2="60" y2="88" stroke="rgba(99,102,241,0.3)" strokeWidth="1.5"/>
+      <line x1="32" y1="48" x2="50" y2="47" stroke="rgba(59,130,246,0.2)" strokeWidth="2" strokeLinecap="round"/>
+      <line x1="30" y1="55" x2="52" y2="54" stroke="rgba(59,130,246,0.15)" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="30" y1="62" x2="50" y2="61" stroke="rgba(59,130,246,0.1)" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="70" y1="47" x2="88" y2="48" stroke="rgba(139,92,246,0.2)" strokeWidth="2" strokeLinecap="round"/>
+      <line x1="68" y1="54" x2="90" y2="55" stroke="rgba(139,92,246,0.15)" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="68" y1="61" x2="88" y2="62" stroke="rgba(139,92,246,0.1)" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M42 26Q60 16 78 26" stroke="url(#lgb)" strokeWidth="4" strokeLinecap="round" fill="none" opacity="0.9"/>
+      <circle cx="50" cy="24" r="2.5" fill="white" opacity="0.75"/>
+      <circle cx="60" cy="20" r="2.5" fill="white" opacity="0.75"/>
+      <circle cx="70" cy="24" r="2.5" fill="white" opacity="0.75"/>
+    </svg>
+  ),
 };
 
 // ============================================
@@ -541,80 +570,125 @@ function LandingPage({ onLogin }) {
 
       {/* Get the App Section */}
       <section className="get-app-section" id="get-app">
-        <div className="get-app-container">
-          <div className="get-app-info">
-            <div className="get-app-badge">{t('getTheApp')}</div>
-            <h2>{t('getTheAppTitle')}</h2>
-            <p>{t('getTheAppSubtitle')}</p>
-            <div className="get-app-features">
-              <div className="get-app-feature">
-                <span className="gaf-icon">📴</span>
-                <div>
-                  <strong>{t('featuresOffline')}</strong>
-                  <span>{t('featuresOfflineDesc')}</span>
-                </div>
-              </div>
-              <div className="get-app-feature">
-                <span className="gaf-icon">⚡</span>
-                <div>
-                  <strong>{t('featuresFast')}</strong>
-                  <span>{t('featuresFastDesc')}</span>
-                </div>
-              </div>
-              <div className="get-app-feature">
-                <span className="gaf-icon">🖥️</span>
-                <div>
-                  <strong>{t('featuresFullscreen')}</strong>
-                  <span>{t('featuresFullscreenDesc')}</span>
-                </div>
-              </div>
-              <div className="get-app-feature">
-                <span className="gaf-icon">🔔</span>
-                <div>
-                  <strong>{t('featuresNotifications')}</strong>
-                  <span>{t('featuresNotificationsDesc')}</span>
-                </div>
-              </div>
+        <div className="get-app-header">
+          <div className="get-app-badge">{t('getTheApp')}</div>
+          <h2>{t('getTheAppTitle')}</h2>
+          <p className="get-app-sub">{t('getTheAppSubtitle')}</p>
+        </div>
+
+        {/* Platform Download Cards */}
+        <div className="download-cards">
+          <div className="download-card">
+            <div className="dc-icon">🤖</div>
+            <h3>{t('downloadForAndroid')}</h3>
+            <p className="dc-desc">{t('downloadAPKDesc')}</p>
+            <div className="dc-buttons">
+              <button className="btn-download-apk" onClick={() => {
+                const evt = new Event('trigger-pwa-install');
+                window.dispatchEvent(evt);
+              }}>
+                <Icons.Classroom size={18} /> {t('installNow')}
+              </button>
+              <a href="#apk-download" className="btn-download-apk-secondary" onClick={(e) => {
+                e.preventDefault();
+                const el = document.getElementById('apk-download');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> {t('downloadAPK')}
+              </a>
             </div>
-            <div className="get-app-actions">
+          </div>
+          <div className="download-card">
+            <div className="dc-icon">🍎</div>
+            <h3>{t('downloadForIOS')}</h3>
+            <p className="dc-desc">{t('installIOSStep')}</p>
+            <div className="dc-buttons">
               <button className="btn-install-app" id="landing-install-btn" onClick={() => {
                 const evt = new Event('trigger-pwa-install');
                 window.dispatchEvent(evt);
               }}>
-                <Icons.Classroom size={22} />
-                {t('installNow')}
+                <Icons.Classroom size={18} /> {t('installNow')}
               </button>
-              <span className="get-app-or">{t('installDesktop')}</span>
+              <span className="dc-note">{t('scanQR')} ↓</span>
             </div>
           </div>
-          <div className="get-app-visual">
-            <div className="app-mockup">
-              <div className="mockup-screen">
-                <div className="mockup-statusbar">
-                  <span>9:41</span>
-                  <span>●●●●○ &nbsp;WiFi</span>
-                </div>
-                <div className="mockup-app-icon">
-                  <Icons.Classroom size={44} />
-                </div>
-                <div className="mockup-app-name">Linguaclass</div>
-                <div className="mockup-app-desc">{t('landingTitle')}</div>
+          <div className="download-card">
+            <div className="dc-icon">💻</div>
+            <h3>{t('downloadDesktopApp')}</h3>
+            <p className="dc-desc">{t('installDesktopStep')}</p>
+            <div className="dc-buttons">
+              <button className="btn-install-app btn-install-desktop" onClick={() => {
+                const evt = new Event('trigger-pwa-install');
+                window.dispatchEvent(evt);
+              }}>
+                <Icons.Classroom size={18} /> {t('installNow')}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* APK Download / QR Section */}
+        <div className="apk-download-area" id="apk-download">
+          <div className="apk-info">
+            <h3>{t('downloadAPK')}</h3>
+            <p>{t('downloadAPKComing')}</p>
+            <div className="apk-features">
+              <div className="get-app-feature">
+                <span className="gaf-icon">📴</span>
+                <div><strong>{t('featuresOffline')}</strong><span>{t('featuresOfflineDesc')}</span></div>
+              </div>
+              <div className="get-app-feature">
+                <span className="gaf-icon">⚡</span>
+                <div><strong>{t('featuresFast')}</strong><span>{t('featuresFastDesc')}</span></div>
+              </div>
+              <div className="get-app-feature">
+                <span className="gaf-icon">🖥️</span>
+                <div><strong>{t('featuresFullscreen')}</strong><span>{t('featuresFullscreenDesc')}</span></div>
+              </div>
+              <div className="get-app-feature">
+                <span className="gaf-icon">🔔</span>
+                <div><strong>{t('featuresNotifications')}</strong><span>{t('featuresNotificationsDesc')}</span></div>
               </div>
             </div>
-            <div className="install-guides">
-              <div className="install-guide">
-                <div className="guide-platform">🍎 {t('installIOS')}</div>
-                <div className="guide-step">{t('installIOSStep')}</div>
+          </div>
+          <div className="apk-visual">
+            <div className="apk-qr-box">
+              <div className="qr-placeholder">
+                <Icons.Classroom size={80} />
               </div>
-              <div className="install-guide">
-                <div className="guide-platform">🤖 {t('installAndroid')}</div>
-                <div className="guide-step">{t('installAndroidStep')}</div>
-              </div>
-              <div className="install-guide">
-                <div className="guide-platform">💻 {t('installDesktop')}</div>
-                <div className="guide-step">{t('installDesktopStep')}</div>
+              <span>{t('scanQR')}</span>
+            </div>
+            <div className="apk-mockup">
+              <div className="app-mockup">
+                <div className="mockup-screen">
+                  <div className="mockup-statusbar">
+                    <span>9:41</span>
+                    <span>●●●●○ &nbsp;WiFi</span>
+                  </div>
+                  <div className="mockup-app-icon">
+                    <Icons.Classroom size={44} />
+                  </div>
+                  <div className="mockup-app-name">Linguaclass</div>
+                  <div className="mockup-app-desc">{t('landingTitle')}</div>
+                </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Platform Install Guides */}
+        <div className="install-guides">
+          <div className="install-guide">
+            <div className="guide-platform">🍎 {t('installIOS')}</div>
+            <div className="guide-step">{t('installIOSStep')}</div>
+          </div>
+          <div className="install-guide">
+            <div className="guide-platform">🤖 {t('installAndroid')}</div>
+            <div className="guide-step">{t('installAndroidStep')}</div>
+          </div>
+          <div className="install-guide">
+            <div className="guide-platform">💻 {t('installDesktop')}</div>
+            <div className="guide-step">{t('installDesktopStep')}</div>
           </div>
         </div>
       </section>
