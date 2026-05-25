@@ -10067,14 +10067,15 @@ input::placeholder {
   margin: 24px 16px;
   background: linear-gradient(135deg, #4f46e5, #6366f1);
   border-radius: 16px;
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
 }
 .dash-download-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 24px 28px;
+  padding: 24px 28px 0;
   flex-wrap: wrap;
 }
 .dash-download-text {
@@ -10104,39 +10105,140 @@ input::placeholder {
   color: rgba(255,255,255,0.8);
   font-size: 0.85rem;
 }
-.dash-download-actions {
+
+/* 3 Platform Cards Row */
+.dash-download-platforms {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 18px 28px 24px;
+}
+.dash-dl-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 10px;
+  background: rgba(255,255,255,0.12);
+  border: 1.5px solid rgba(255,255,255,0.2);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: white;
+  font-family: inherit;
+}
+.dash-dl-card:hover {
+  background: rgba(255,255,255,0.22);
+  border-color: rgba(255,255,255,0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+.dash-dl-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+.dash-dl-name {
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+.dash-dl-hint {
+  font-size: 0.68rem;
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+/* Install Guide Popup */
+.dash-install-guide-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,0.5);
+  backdrop-filter: blur(3px);
+  z-index: 9999;
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: center;
+  animation: fadeIn 0.15s ease;
+}
+.dash-install-guide {
+  background: #fff;
+  border-radius: 18px;
+  padding: 28px 24px 22px;
+  max-width: 380px;
+  width: 90%;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+  animation: slideUp 0.2s ease;
+  text-align: center;
+  position: relative;
+}
+.dash-guide-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.dash-guide-close:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+.dash-guide-icon {
+  font-size: 3rem;
+  margin-bottom: 8px;
+}
+.dash-install-guide h4 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+  color: #1e293b;
+}
+.dash-install-guide > p {
+  margin: 0 0 16px;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+.dash-guide-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+.guide-step-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  color: #334155;
+}
+.guide-step-row span:first-child {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #4f46e5;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
   flex-shrink: 0;
 }
-.btn-dash-download {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 10px 22px;
-  background: white;
-  color: #4f46e5;
-  border: none;
-  border-radius: 10px;
-  font-size: 0.88rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+.guide-step-row strong {
+  color: #1e293b;
 }
-.btn-dash-download:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(0,0,0,0.18);
-}
-.dash-download-platforms {
-  display: flex;
-  gap: 8px;
-}
-.dash-download-platforms span {
-  font-size: 1.25rem;
-  opacity: 0.85;
-  cursor: default;
+.guide-step-row svg {
+  vertical-align: middle;
 }
 
 @media (max-width: 768px) {
@@ -10153,18 +10255,48 @@ input::placeholder {
     border-radius: 12px;
   }
   .dash-download-inner {
-    padding: 18px 16px;
+    padding: 18px 16px 0;
     flex-direction: column;
     text-align: center;
     gap: 14px;
   }
-  .dash-download-actions {
-    width: 100%;
-    justify-content: center;
+  .dash-download-platforms {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 12px 16px 18px;
   }
-  .btn-dash-download {
-    width: 100%;
-    justify-content: center;
+  .dash-dl-card {
+    padding: 12px 6px;
+    border-radius: 10px;
+  }
+  .dash-dl-icon {
+    font-size: 1.6rem;
+  }
+  .dash-dl-name {
+    font-size: 0.76rem;
+  }
+  .dash-dl-hint {
+    font-size: 0.62rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dash-download-platforms {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    padding: 10px 10px 14px;
+  }
+  .dash-dl-card {
+    padding: 10px 4px;
+  }
+  .dash-dl-icon {
+    font-size: 1.4rem;
+  }
+  .dash-dl-name {
+    font-size: 0.7rem;
+  }
+  .dash-dl-hint {
+    display: none;
   }
 }
 .admin-toolbar-label {

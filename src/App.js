@@ -1027,6 +1027,7 @@ function DashboardPage({ user, setCurrentPage }) {
   const isAdmin = user?.role === 'admin' || user?.role === 'teacher';
   const [activeTab, setActiveTab] = useState('all');
   const [hoveredCard, setHoveredCard] = useState(null);
+  const [installGuide, setInstallGuide] = useState(null); // 'android' | 'ios' | 'desktop' | null
 
   // Content Manager - loads from localStorage, falls back to hardcoded defaults
   const cm = useContentManager();
@@ -1600,7 +1601,7 @@ function DashboardPage({ user, setCurrentPage }) {
         </div>
       </section>
 
-      {/* Dashboard Download Section — visible to all logged-in users */}
+      {/* Dashboard Download Section — 3 platform-specific buttons */}
       <section className="dash-download-section">
         <div className="dash-download-inner">
           <div className="dash-download-text">
@@ -1608,20 +1609,86 @@ function DashboardPage({ user, setCurrentPage }) {
             <h3>{t('dashboardDownloadTitle')}</h3>
             <p>{t('dashboardDownloadSubtitle')}</p>
           </div>
-          <div className="dash-download-actions">
-            <button className="btn-dash-download" onClick={() => {
-              const evt = new Event('trigger-pwa-install');
-              window.dispatchEvent(evt);
-            }}>
-              <Icons.Classroom size={20} /> {t('installNow')}
-            </button>
-            <span className="dash-download-platforms">
-              <span title={t('downloadForAndroid')}>🤖</span>
-              <span title={t('downloadForIOS')}>🍎</span>
-              <span title={t('downloadDesktopApp')}>💻</span>
-            </span>
-          </div>
         </div>
+        <div className="dash-download-platforms">
+          {/* Android */}
+          <button className="dash-dl-card android" onClick={() => {
+            const evt = new Event('trigger-pwa-install');
+            window.dispatchEvent(evt);
+            // If PWA install not available after a tick, show guide
+            setTimeout(() => {
+              if (!window.__deferredPromptFired) {
+                setInstallGuide('android');
+              }
+            }, 500);
+          }}>
+            <span className="dash-dl-icon">🤖</span>
+            <span className="dash-dl-name">{t('downloadForAndroid')}</span>
+            <span className="dash-dl-hint">Chrome · PWA</span>
+          </button>
+          {/* iOS */}
+          <button className="dash-dl-card ios" onClick={() => setInstallGuide('ios')}>
+            <span className="dash-dl-icon">🍎</span>
+            <span className="dash-dl-name">{t('downloadForIOS')}</span>
+            <span className="dash-dl-hint">Safari · Add to Home</span>
+          </button>
+          {/* Desktop */}
+          <button className="dash-dl-card desktop" onClick={() => {
+            const evt = new Event('trigger-pwa-install');
+            window.dispatchEvent(evt);
+            setTimeout(() => {
+              if (!window.__deferredPromptFired) {
+                setInstallGuide('desktop');
+              }
+            }, 500);
+          }}>
+            <span className="dash-dl-icon">💻</span>
+            <span className="dash-dl-name">{t('downloadDesktopApp')}</span>
+            <span className="dash-dl-hint">Chrome · Edge</span>
+          </button>
+        </div>
+        {/* Install Guide Popup */}
+        {installGuide && (
+          <div className="dash-install-guide-overlay" onClick={() => setInstallGuide(null)}>
+            <div className="dash-install-guide" onClick={e => e.stopPropagation()}>
+              <button className="dash-guide-close" onClick={() => setInstallGuide(null)}>✕</button>
+              {installGuide === 'ios' ? (
+                <>
+                  <div className="dash-guide-icon">🍎</div>
+                  <h4>{t('installIOS')}</h4>
+                  <p>{t('installIOSStep')}</p>
+                  <div className="dash-guide-steps">
+                    <div className="guide-step-row"><span>1</span> Tap <strong>Share</strong> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> in Safari</div>
+                    <div className="guide-step-row"><span>2</span> Scroll and tap <strong>Add to Home Screen</strong></div>
+                    <div className="guide-step-row"><span>3</span> Tap <strong>Add</strong> to install</div>
+                  </div>
+                </>
+              ) : installGuide === 'android' ? (
+                <>
+                  <div className="dash-guide-icon">🤖</div>
+                  <h4>{t('installAndroid')}</h4>
+                  <p>{t('installAndroidStep')}</p>
+                  <div className="dash-guide-steps">
+                    <div className="guide-step-row"><span>1</span> Open in <strong>Chrome</strong> browser</div>
+                    <div className="guide-step-row"><span>2</span> Tap <strong>⋮</strong> menu → <strong>Install app</strong></div>
+                    <div className="guide-step-row"><span>3</span> Or tap the install banner at top</div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="dash-guide-icon">💻</div>
+                  <h4>{t('installDesktop')}</h4>
+                  <p>{t('installDesktopStep')}</p>
+                  <div className="dash-guide-steps">
+                    <div className="guide-step-row"><span>1</span> Open in <strong>Chrome</strong> or <strong>Edge</strong></div>
+                    <div className="guide-step-row"><span>2</span> Click <strong>Install</strong> icon in address bar <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+                    <div className="guide-step-row"><span>3</span> Or use <strong>⋮ → More tools → Create shortcut</strong></div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Editor Modal */}

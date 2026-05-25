@@ -77,6 +77,7 @@ window.addEventListener('appinstalled', () => {
 // Listen for custom install trigger from React components
 window.addEventListener('trigger-pwa-install', async () => {
   if (deferredPrompt) {
+    window.__deferredPromptFired = true;
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     console.log('User install choice:', outcome);
@@ -90,13 +91,15 @@ window.addEventListener('trigger-pwa-install', async () => {
     document.body.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.4s'; setTimeout(() => toast.remove(), 400); }, 2500);
   } else {
-    // PWA install not available in this browser — open install guide section
+    // PWA install not available — try landing page guide, else show instructions
     const guideEl = document.getElementById('get-app');
     if (guideEl) {
       guideEl.scrollIntoView({ behavior: 'smooth' });
-      // Flash the install guides
       guideEl.querySelector('.install-guides')?.classList.add('highlight-pulse');
       setTimeout(() => guideEl.querySelector('.install-guides')?.classList.remove('highlight-pulse'), 2000);
+    } else {
+      // Dashboard or other page — show a toast with install help
+      window.dispatchEvent(new CustomEvent('show-generic-install-guide'));
     }
   }
 });
