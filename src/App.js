@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 import { LanguageProvider, useTranslation } from './i18n/LanguageContext';
-import { createPeerConnection, addTracksToPeer, createOffer, handleOffer, handleAnswer, handleIceCandidate, closePeer } from './webrtc';
+import { createPeerConnection, addTracksToPeer, replaceVideoTrack, createOffer, handleOffer, handleAnswer, handleIceCandidate, closePeer } from './webrtc';
 import { supabase, signUp, signIn, signOut, getSession, signUpWithEmailOrPhone, signInWithEmailOrPhone, fetchTeachers, updateTeacher, fetchStudents, fetchContacts, saveContacts, fetchVideoRoomContacts, addVideoRoomContact, removeVideoRoomContact } from './supabase';
 import { joinSignalingRoom } from './signaling';
 
@@ -3572,6 +3572,7 @@ function VideoRoomPage({ user }) {
 
   const localVideoRef = useRef(null);
   const localStreamRef = useRef(null);
+  const screenStreamRef = useRef(null);
   const whiteboardRef = useRef(null);
 
   // ---- Detect ?room= URL param, hash, and sessionStorage for incoming invites ----
@@ -3691,6 +3692,10 @@ function VideoRoomPage({ user }) {
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
       localStreamRef.current = null;
+    }
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach(track => track.stop());
+      screenStreamRef.current = null;
     }
   };
 
@@ -3906,13 +3911,48 @@ function VideoRoomPage({ user }) {
     if (!isScreenSharing) {
       try {
         const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        screenStreamRef.current = screenStream;
         if (localVideoRef.current) localVideoRef.current.srcObject = screenStream;
+
+        // Propagate screen video track to all connected peers
+        const screenVideoTrack = screenStream.getVideoTracks()[0];
+        Object.values(peerConnsRef.current).forEach(pc => {
+          replaceVideoTrack(pc, screenVideoTrack);
+        });
+
+        // Auto-stop when user clicks browser's "Stop sharing" button
+        screenVideoTrack.onended = () => {
+          if (screenStreamRef.current) {
+            screenStreamRef.current.getTracks().forEach(t => t.stop());
+            screenStreamRef.current = null;
+          }
+          if (localVideoRef.current) localVideoRef.current.srcObject = localStreamRef.current;
+          setIsScreenSharing(false);
+          // Restore camera track on all peers
+          const cameraTrack = localStreamRef.current?.getVideoTracks()?.[0] || null;
+          Object.values(peerConnsRef.current).forEach(pc => {
+            replaceVideoTrack(pc, cameraTrack);
+          });
+        };
+
         setIsScreenSharing(true);
       } catch (err) {
         console.log('Screen share cancelled');
       }
     } else {
+      // Stop screen sharing, restore camera
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach(t => t.stop());
+        screenStreamRef.current = null;
+      }
       if (localVideoRef.current) localVideoRef.current.srcObject = localStreamRef.current;
+
+      // Restore camera track on all peers
+      const cameraTrack = localStreamRef.current?.getVideoTracks()?.[0] || null;
+      Object.values(peerConnsRef.current).forEach(pc => {
+        replaceVideoTrack(pc, cameraTrack);
+      });
+
       setIsScreenSharing(false);
     }
   };
@@ -4342,7 +4382,7 @@ function VideoRoomPage({ user }) {
                   placeholder="Add name..."
                   value={newContactName}
                   onChange={e => setNewContactName(e.target.value)}
-                  onKeyPress={e => e.key === 'Enter' && addRoomContact()}
+                  onKeyDown={e => e.key === 'Enter' && addRoomContact()}
                 />
                 <button onClick={addRoomContact} title="Add">+</button>
               </div>
@@ -4432,7 +4472,7 @@ function VideoRoomPage({ user }) {
                 placeholder={t('typeMessage')}
                 value={chatMessage}
                 onChange={e => setChatMessage(e.target.value)}
-                onKeyPress={e => e.key === 'Enter' && sendMessage()}
+                onKeyDown={e => e.key === 'Enter' && sendMessage()}
               />
               <button onClick={sendMessage}><Icons.Send /></button>
             </div>
@@ -4572,7 +4612,7 @@ function VideoRoomPage({ user }) {
                 placeholder="Add contact name..."
                 value={newContactName}
                 onChange={e => setNewContactName(e.target.value)}
-                onKeyPress={e => e.key === 'Enter' && addRoomContact()}
+                onKeyDown={e => e.key === 'Enter' && addRoomContact()}
               />
               <button onClick={addRoomContact} title="Add contact">
                 <Icons.PlusCircle />

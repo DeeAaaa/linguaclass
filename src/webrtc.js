@@ -99,6 +99,16 @@ export function addTracksToPeer(pc, stream) {
   });
 }
 
+/** Replace the video track sent to a peer (used for screen sharing toggle) */
+export function replaceVideoTrack(pc, newVideoTrack) {
+  const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+  if (sender) {
+    sender.replaceTrack(newVideoTrack).catch(e => console.warn('replaceTrack error:', e.message));
+  } else if (newVideoTrack) {
+    pc.addTrack(newVideoTrack);
+  }
+}
+
 export function closePeer(pc) {
   try {
     pc.close();

@@ -2,6 +2,7 @@
 import { supabase } from './supabase';
 
 let activeChannel = null;
+let channelReadyState = 0; // WebSocket.CONNECTING = 0
 
 /**
  * Join a video room via Supabase Realtime broadcast channel.
@@ -31,6 +32,7 @@ export function joinSignalingRoom(roomId, userId, userName, role, callbacks) {
   // Subscribe to the channel
   channel.subscribe(async (status) => {
     if (status === 'SUBSCRIBED') {
+      channelReadyState = 1; // WebSocket.OPEN
       // Announce ourselves to the room
       await channel.send({
         type: 'broadcast',
@@ -56,6 +58,7 @@ export function joinSignalingRoom(roomId, userId, userName, role, callbacks) {
     }
 
     if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+      channelReadyState = 3; // WebSocket.CLOSED
       if (callbacks.onclose) callbacks.onclose();
     }
   });
@@ -66,10 +69,15 @@ export function joinSignalingRoom(roomId, userId, userName, role, callbacks) {
   return {
     send(msgObj) {
       if (channel) {
+        const payload = typeof msgObj === 'string' ? JSON.parse(msgObj) : msgObj;
+        // Inject sender identity so receivers know who sent the message
+        // This matches the pattern from the original WebSocket server (server.js)
+        payload.fromUserId = userId;
+        payload.fromUserName = userName;
         channel.send({
           type: 'broadcast',
           event: 'signal',
-          payload: typeof msgObj === 'string' ? JSON.parse(msgObj) : msgObj
+          payload
         }).catch(e => console.warn('Signal send error:', e.message));
       }
     },
@@ -86,6 +94,6 @@ export function joinSignalingRoom(roomId, userId, userName, role, callbacks) {
       activeChannel = null;
       if (callbacks.onclose) callbacks.onclose();
     },
-    get readyState() { return 1; } // WebSocket.OPEN = 1
+    get readyState() { return channelReadyState; }
   };
 }
