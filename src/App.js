@@ -343,10 +343,29 @@ const Icons = {
 // ============================================
 // LANDING PAGE
 // ============================================
+// ============================================
+// TEACHER MANAGEMENT HELPERS (localStorage)
+// ============================================
+function getStoredTeachers() {
+  try {
+    return JSON.parse(localStorage.getItem('linguaclass_teachers') || '[]');
+  } catch { return []; }
+}
+function saveStoredTeachers(teachers) {
+  localStorage.setItem('linguaclass_teachers', JSON.stringify(teachers));
+}
+
+// ============================================
+// ADMIN MASTER CREDENTIALS
+// ============================================
+const ADMIN_EMAIL = 'admin@linguaclass.com';
+const ADMIN_PASSWORD = 'LinguaAdmin2026';
+
 function LandingPage({ onLogin }) {
   const { t, lang, toggleLanguage } = useTranslation();
   const [mode, setMode] = useState('login'); // 'login' | 'register' — Sign In active by default
   const [authMethod, setAuthMethod] = useState('email'); // 'email' | 'phone'
+  const [loginRole, setLoginRole] = useState('student'); // which role is logging in: 'student' | 'parent' | 'teacher' | 'admin'
   const [name, setName] = useState('');
   const [identifier, setIdentifier] = useState(''); // email or phone depending on authMethod
   const [password, setPassword] = useState('');
@@ -368,25 +387,89 @@ function LandingPage({ onLogin }) {
       return;
     }
     if (!password) { setError('Password is required.'); return; }
+    // Name is required for registration
     if (mode === 'register' && !name) { setError('Name is required.'); return; }
+    // Name required for teacher login (role selected)
+    if (mode === 'login' && role === 'teacher' && !name) { setError('Name is required.'); return; }
+    // For student/parent login, name is optional (we'll generate one)
     if (authMethod === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
       setError('Please enter a valid email address.');
       return;
     }
     setLoading(true);
     try {
+      // ======== ADMIN LOGIN ========
+      if (role === 'admin') {
+        if (identifier.toLowerCase() === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+          onLogin({
+            name: name || 'Administrator',
+            email: ADMIN_EMAIL,
+            role: 'admin',
+            id: 0,
+            phone: ''
+          });
+        } else {
+          setError('Invalid admin credentials. Please check your email and password.');
+        }
+        setLoading(false);
+        return;
+      }
+
+      // ======== TEACHER LOGIN (check admin-created teachers) ========
+      if (role === 'teacher' && mode === 'login') {
+        const teachers = getStoredTeachers();
+        const matched = teachers.find(t =>
+          t.email.toLowerCase() === identifier.toLowerCase() &&
+          t.password === password &&
+          t.status !== 'inactive'
+        );
+        if (matched) {
+          onLogin({
+            name: matched.name,
+            email: matched.email,
+            role: 'teacher',
+            id: matched.id,
+            phone: matched.phone || '',
+            subject: matched.subject
+          });
+          setLoading(false);
+          return;
+        } else {
+          // Also try Supabase
+          try {
+            const result = await signInWithEmailOrPhone(identifier, password);
+            if (result.profile && result.profile.role === 'teacher') {
+              result.profile.phone = result.profile.phone || '';
+              onLogin(result.profile);
+              setLoading(false);
+              return;
+            }
+          } catch (supaErr) {
+            console.warn('Supabase teacher login failed:', supaErr.message);
+          }
+          setError('Invalid teacher credentials. ' + t('teacherLoginRequired'));
+          setLoading(false);
+          return;
+        }
+      }
+
+      // ======== STUDENT / PARENT REGISTRATION & LOGIN ========
       if (mode === 'register') {
+        // Only student and parent can register
+        if (role !== 'student' && role !== 'parent') {
+          setError('This role requires administrator invitation.');
+          setLoading(false);
+          return;
+        }
         // REGISTER — use Supabase
         let result;
         try {
           result = await signUpWithEmailOrPhone(identifier, password, name, role);
-          // If Supabase email confirmation is off, user is signed in immediately
           const prof = authMethod === 'phone'
             ? { id: result.user?.id, name, phone: identifier, role, email: '' }
             : { id: result.user?.id, name, email: identifier, role, phone: '' };
           onLogin(prof);
         } catch (supaErr) {
-          // If Supabase fails (e.g., email already exists), fall back to local demo
           console.warn('Supabase signup failed, using local demo:', supaErr.message);
           onLogin({
             name,
@@ -397,7 +480,7 @@ function LandingPage({ onLogin }) {
           });
         }
       } else {
-        // LOGIN — try Supabase first
+        // STUDENT/PARENT LOGIN — try Supabase first
         try {
           const result = await signInWithEmailOrPhone(identifier, password);
           if (result.profile) {
@@ -410,7 +493,7 @@ function LandingPage({ onLogin }) {
         }
         // Fallback to local demo
         onLogin({
-          name: authMethod === 'email' ? identifier.split('@')[0] : 'User',
+          name: name || (authMethod === 'email' ? identifier.split('@')[0] : 'User'),
           email: authMethod === 'email' ? identifier : '',
           phone: authMethod === 'phone' ? identifier : '',
           role,
@@ -498,24 +581,46 @@ function LandingPage({ onLogin }) {
             {error && <div className="auth-error">{error}</div>}
           </div>
           
-          {/* Role Buttons */}
+          {/* Role Buttons — depends on mode */}
           <div className="role-buttons-container">
-            <button className="btn-role btn-teacher" onClick={() => handleRegister('teacher')} disabled={loading}>
-              <Icons.User />
-              {mode === 'register' ? t('imTeacher') : 'Sign In as Teacher'}
-            </button>
-            <button className="btn-role btn-student" onClick={() => handleRegister('student')} disabled={loading}>
-              <Icons.Video />
-              {mode === 'register' ? t('imStudent') : 'Sign In as Student'}
-            </button>
-            <button className="btn-role btn-parent" onClick={() => handleRegister('parent')} disabled={loading}>
-              <Icons.Users />
-              {mode === 'register' ? t('imParent') : 'Sign In as Parent'}
-            </button>
-            <button className="btn-role btn-admin" onClick={() => handleRegister('admin')} disabled={loading}>
-              <Icons.Shield />
-              {mode === 'register' ? t('imAdmin') : 'Sign In as Admin'}
-            </button>
+            {mode === 'register' ? (
+              <>
+                {/* Register: only Student and Parent can self-register */}
+                <button className="btn-role btn-student" onClick={() => { setLoginRole('student'); handleRegister('student'); }} disabled={loading}>
+                  <Icons.Video />
+                  {t('imStudent')}
+                </button>
+                <button className="btn-role btn-parent" onClick={() => { setLoginRole('parent'); handleRegister('parent'); }} disabled={loading}>
+                  <Icons.Users />
+                  {t('imParent')}
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Login: Student, Parent, Teacher, Admin */}
+                <button className="btn-role btn-student" onClick={() => { setLoginRole('student'); handleRegister('student'); }} disabled={loading}>
+                  <Icons.Video />
+                  {'Sign In as Student'}
+                </button>
+                <button className="btn-role btn-parent" onClick={() => { setLoginRole('parent'); handleRegister('parent'); }} disabled={loading}>
+                  <Icons.Users />
+                  {'Sign In as Parent'}
+                </button>
+                <button className="btn-role btn-teacher" onClick={() => {
+                  setLoginRole('teacher');
+                  // Show name field for teacher login
+                  if (!name) setName('');
+                  handleRegister('teacher');
+                }} disabled={loading}>
+                  <Icons.User />
+                  {'Sign In as Teacher'}
+                </button>
+                <button className="btn-role btn-admin" onClick={() => { setLoginRole('admin'); handleRegister('admin'); }} disabled={loading}>
+                  <Icons.Shield />
+                  {'Sign In as Administrator'}
+                </button>
+              </>
+            )}
           </div>
         </div>
         
@@ -2769,6 +2874,7 @@ function StudentRecordsPage({ user }) {
 // ============================================
 function AdministrationPage({ user }) {
   // eslint-disable-next-line no-unused-vars
+  const { t } = useTranslation();
   const [teachers, setTeachers] = useState([]);
   const [students, setStudents] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -2776,6 +2882,78 @@ function AdministrationPage({ user }) {
   const [expandedTeacher, setExpandedTeacher] = useState(null);
   const [showUnassigned, setShowUnassigned] = useState(false);
   const [searchStudent, setSearchStudent] = useState('');
+
+  // ---- Manage Teachers (admin-created) ----
+  const [managedTeachers, setManagedTeachers] = useState(() => getStoredTeachers());
+  const [showAddTeacherForm, setShowAddTeacherForm] = useState(false);
+  const [editingManagedId, setEditingManagedId] = useState(null);
+  const [newTeacher, setNewTeacher] = useState({ name: '', email: '', password: '', subject: 'English', phone: '' });
+  const [showCredentialId, setShowCredentialId] = useState(null);
+  const [credentialCopied, setCredentialCopied] = useState('');
+
+  const resetTeacherForm = () => {
+    setNewTeacher({ name: '', email: '', password: '', subject: 'English', phone: '' });
+    setEditingManagedId(null);
+    setShowAddTeacherForm(false);
+  };
+
+  const handleCreateTeacher = () => {
+    if (!newTeacher.name || !newTeacher.email || !newTeacher.password) {
+      alert('Please fill in Name, Email, and Password.');
+      return;
+    }
+    const newId = Date.now();
+    const teacher = { ...newTeacher, id: newId, status: 'active', createdAt: new Date().toISOString() };
+    const updated = [...managedTeachers, teacher];
+    setManagedTeachers(updated);
+    saveStoredTeachers(updated);
+    // Also add to the display teachers list
+    setTeachers(prev => [...prev, {
+      id: newId, name: newTeacher.name, email: newTeacher.email,
+      subject: newTeacher.subject, phone: newTeacher.phone,
+      avatar: '👩‍🏫', status: 'active', assignedStudentIds: []
+    }]);
+    resetTeacherForm();
+  };
+
+  const handleUpdateTeacher = () => {
+    if (!editingManagedId) return;
+    const updated = managedTeachers.map(t =>
+      t.id === editingManagedId ? { ...t, ...newTeacher } : t
+    );
+    setManagedTeachers(updated);
+    saveStoredTeachers(updated);
+    // Update in display list too
+    setTeachers(prev => prev.map(t =>
+      t.id === editingManagedId ? { ...t, name: newTeacher.name, email: newTeacher.email, subject: newTeacher.subject, phone: newTeacher.phone } : t
+    ));
+    resetTeacherForm();
+  };
+
+  const handleDeleteManagedTeacher = (id) => {
+    if (!window.confirm(t('teacherDeleteConfirm'))) return;
+    const updated = managedTeachers.filter(t => t.id !== id);
+    setManagedTeachers(updated);
+    saveStoredTeachers(updated);
+    // Toggle status instead of removing from display
+    setTeachers(prev => prev.map(t => t.id === id ? { ...t, status: 'inactive' } : t));
+  };
+
+  const handleToggleStatus = (id, currentStatus) => {
+    const newStatus = currentStatus === 'inactive' ? 'active' : 'inactive';
+    const updated = managedTeachers.map(t =>
+      t.id === id ? { ...t, status: newStatus } : t
+    );
+    setManagedTeachers(updated);
+    saveStoredTeachers(updated);
+    setTeachers(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
+  };
+
+  const startEditManaged = (teacher) => {
+    setNewTeacher({ name: teacher.name, email: teacher.email, password: teacher.password, subject: teacher.subject || 'English', phone: teacher.phone || '' });
+    setEditingManagedId(teacher.id);
+    setShowAddTeacherForm(true);
+  };
 
   // Load data from Supabase (fallback to sample data)
   useEffect(() => {
@@ -2865,6 +3043,201 @@ function AdministrationPage({ user }) {
           </div>
         </div>
       </div>
+
+      {/* ======== MANAGE TEACHERS SECTION ======== */}
+      <div className="admin-section" style={{marginBottom:'24px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}}>
+          <div>
+            <h3 style={{margin:0}}><Icons.User /> {t('manageTeachers')}</h3>
+            <p style={{margin:'4px 0 0',color:'#64748b',fontSize:'0.85rem'}}>{t('addTeacherDesc')}</p>
+          </div>
+          <button
+            onClick={() => { resetTeacherForm(); setShowAddTeacherForm(true); }}
+            style={{
+              background:'linear-gradient(135deg, #4f46e5, #7c3aed)', color:'#fff', border:'none',
+              padding:'10px 20px', borderRadius:'8px', fontWeight:600, cursor:'pointer', fontSize:'0.9rem',
+              display:'flex', alignItems:'center', gap:'6px', boxShadow:'0 2px 8px rgba(79,70,229,0.3)'
+            }}
+          >
+            <Icons.Plus /> {t('addTeacher')}
+          </button>
+        </div>
+
+        {/* Add/Edit Teacher Form */}
+        {showAddTeacherForm && (
+          <div style={{
+            background:'#f8fafc', borderRadius:'12px', padding:'20px', marginBottom:'16px',
+            border:'1px solid #e2e8f0'
+          }}>
+            <h4 style={{margin:'0 0 16px',fontSize:'0.95rem',color:'#334155'}}>
+              {editingManagedId ? t('editTeacher') : t('createTeacher')}
+            </h4>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
+              <div>
+                <label style={{fontSize:'0.8rem',fontWeight:600,color:'#475569',display:'block',marginBottom:'4px'}}>
+                  {t('teacherName')} *
+                </label>
+                <input type="text" value={newTeacher.name}
+                  onChange={e => setNewTeacher({...newTeacher, name: e.target.value})}
+                  placeholder="e.g. Dr. Sarah Mitchell"
+                  style={{width:'100%',padding:'8px 12px',border:'1px solid #cbd5e1',borderRadius:'6px',fontSize:'0.9rem',boxSizing:'border-box'}}
+                />
+              </div>
+              <div>
+                <label style={{fontSize:'0.8rem',fontWeight:600,color:'#475569',display:'block',marginBottom:'4px'}}>
+                  {t('teacherEmail')} *
+                </label>
+                <input type="email" value={newTeacher.email}
+                  onChange={e => setNewTeacher({...newTeacher, email: e.target.value})}
+                  placeholder="teacher@school.com"
+                  style={{width:'100%',padding:'8px 12px',border:'1px solid #cbd5e1',borderRadius:'6px',fontSize:'0.9rem',boxSizing:'border-box'}}
+                />
+              </div>
+              <div>
+                <label style={{fontSize:'0.8rem',fontWeight:600,color:'#475569',display:'block',marginBottom:'4px'}}>
+                  {t('teacherPassword')} *
+                </label>
+                <input type="text" value={newTeacher.password}
+                  onChange={e => setNewTeacher({...newTeacher, password: e.target.value})}
+                  placeholder="Min. 6 characters"
+                  style={{width:'100%',padding:'8px 12px',border:'1px solid #cbd5e1',borderRadius:'6px',fontSize:'0.9rem',boxSizing:'border-box'}}
+                />
+              </div>
+              <div>
+                <label style={{fontSize:'0.8rem',fontWeight:600,color:'#475569',display:'block',marginBottom:'4px'}}>
+                  {t('teacherSubject')}
+                </label>
+                <select value={newTeacher.subject}
+                  onChange={e => setNewTeacher({...newTeacher, subject: e.target.value})}
+                  style={{width:'100%',padding:'8px 12px',border:'1px solid #cbd5e1',borderRadius:'6px',fontSize:'0.9rem',boxSizing:'border-box'}}
+                >
+                  <option>English</option><option>Mathematics</option><option>Science</option>
+                  <option>History</option><option>Art</option><option>Music</option><option>Computer Science</option>
+                </select>
+              </div>
+              <div style={{gridColumn: '1 / -1'}}>
+                <label style={{fontSize:'0.8rem',fontWeight:600,color:'#475569',display:'block',marginBottom:'4px'}}>
+                  {t('teacherPhone')}
+                </label>
+                <input type="tel" value={newTeacher.phone}
+                  onChange={e => setNewTeacher({...newTeacher, phone: e.target.value})}
+                  placeholder="+1 234 567 8900"
+                  style={{width:'100%',padding:'8px 12px',border:'1px solid #cbd5e1',borderRadius:'6px',fontSize:'0.9rem',boxSizing:'border-box',maxWidth:'400px'}}
+                />
+              </div>
+            </div>
+            <div style={{display:'flex',gap:'8px',marginTop:'16px'}}>
+              <button onClick={editingManagedId ? handleUpdateTeacher : handleCreateTeacher}
+                style={{background:'#4f46e5',color:'#fff',border:'none',padding:'10px 24px',borderRadius:'8px',fontWeight:600,cursor:'pointer'}}
+              >
+                {editingManagedId ? t('save') : t('createTeacher')}
+              </button>
+              <button onClick={resetTeacherForm}
+                style={{background:'#e2e8f0',color:'#475569',border:'none',padding:'10px 24px',borderRadius:'8px',fontWeight:600,cursor:'pointer'}}
+              >
+                {t('cancel')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Managed Teachers List */}
+        {managedTeachers.length === 0 ? (
+          <div style={{textAlign:'center',padding:'32px',color:'#94a3b8',fontSize:'0.9rem'}}>
+            <span style={{fontSize:'2rem',display:'block',marginBottom:'8px'}}>👩‍🏫</span>
+            {t('noTeachers')}
+          </div>
+        ) : (
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))',gap:'12px'}}>
+            {managedTeachers.map(teacher => (
+              <div key={teacher.id} style={{
+                background:'#fff', borderRadius:'10px', padding:'16px', border:'1px solid #e2e8f0',
+                boxShadow:'0 1px 3px rgba(0,0,0,0.05)', position:'relative'
+              }}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'10px'}}>
+                  <div>
+                    <div style={{fontWeight:700,fontSize:'0.95rem',color:'#1e293b'}}>
+                      <span style={{marginRight:'8px'}}>{teacher.avatar || '👩‍🏫'}</span>
+                      {teacher.name}
+                    </div>
+                    <div style={{fontSize:'0.8rem',color:'#64748b',marginTop:'2px'}}>{teacher.email}</div>
+                  </div>
+                  <span style={{
+                    fontSize:'0.7rem',fontWeight:700,padding:'3px 10px',borderRadius:'20px',
+                    background: teacher.status === 'active' ? '#dcfce7' : '#fee2e2',
+                    color: teacher.status === 'active' ? '#16a34a' : '#dc2626'
+                  }}>
+                    {teacher.status === 'active' ? t('enabled') : t('disabled')}
+                  </span>
+                </div>
+                <div style={{fontSize:'0.82rem',color:'#475569',marginBottom:'10px'}}>
+                  <span style={{background:'#f1f5f9',padding:'2px 10px',borderRadius:'4px',marginRight:'6px'}}>
+                    📖 {teacher.subject}
+                  </span>
+                  {teacher.phone && <span style={{color:'#94a3b8'}}>📱 {teacher.phone}</span>}
+                </div>
+
+                {/* Credentials toggle */}
+                {showCredentialId === teacher.id && (
+                  <div style={{
+                    background:'#fffbeb',border:'1px solid #fde68a',borderRadius:'8px',padding:'10px 12px',marginBottom:'10px',
+                    fontSize:'0.82rem'
+                  }}>
+                    <div style={{fontWeight:700,marginBottom:'6px',color:'#92400e'}}>{t('teacherCredentials')}</div>
+                    <div style={{marginBottom:'4px'}}>
+                      <span style={{color:'#92400e',fontWeight:600}}>{t('teacherLoginEmail')}:</span> {teacher.email}
+                    </div>
+                    <div>
+                      <span style={{color:'#92400e',fontWeight:600}}>{t('teacherLoginPassword')}:</span> {teacher.password}
+                    </div>
+                    <button onClick={() => {
+                      navigator.clipboard.writeText(`Email: ${teacher.email}\nPassword: ${teacher.password}`).then(() => {
+                        setCredentialCopied(teacher.id.toString());
+                        setTimeout(() => setCredentialCopied(''), 2000);
+                      });
+                    }} style={{
+                      marginTop:'8px',background:'#fef3c7',border:'1px solid #fbbf24',color:'#92400e',
+                      padding:'4px 12px',borderRadius:'4px',cursor:'pointer',fontSize:'0.78rem',fontWeight:600
+                    }}>
+                      📋 {credentialCopied === teacher.id.toString() ? t('credentialsCopied') : t('copyCredentials')}
+                    </button>
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
+                  <button onClick={() => setShowCredentialId(showCredentialId === teacher.id ? null : teacher.id)}
+                    style={{
+                      background:'#fef3c7',border:'1px solid #fbbf24',color:'#92400e',
+                      padding:'5px 12px',borderRadius:'6px',cursor:'pointer',fontSize:'0.78rem',fontWeight:600
+                    }}
+                  >
+                    🔑 {showCredentialId === teacher.id ? t('hideCredentials') : t('showCredentials')}
+                  </button>
+                  <button onClick={() => startEditManaged(teacher)}
+                    style={{background:'#e0e7ff',border:'none',color:'#4338ca',padding:'5px 12px',borderRadius:'6px',cursor:'pointer',fontSize:'0.78rem',fontWeight:600}}>
+                    ✏️ {t('edit')}
+                  </button>
+                  <button onClick={() => handleToggleStatus(teacher.id, teacher.status)}
+                    style={{
+                      background: teacher.status === 'active' ? '#fee2e2' : '#dcfce7',
+                      border:'none',
+                      color: teacher.status === 'active' ? '#dc2626' : '#16a34a',
+                      padding:'5px 12px',borderRadius:'6px',cursor:'pointer',fontSize:'0.78rem',fontWeight:600
+                    }}>
+                    {teacher.status === 'active' ? '🚫 Disable' : '✅ Enable'}
+                  </button>
+                  <button onClick={() => handleDeleteManagedTeacher(teacher.id)}
+                    style={{background:'#fee2e2',border:'none',color:'#dc2626',padding:'5px 10px',borderRadius:'6px',cursor:'pointer',fontSize:'0.78rem',fontWeight:600}}>
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {/* ======== END MANAGE TEACHERS ======== */}
 
       {/* Teachers Grid */}
       <div className="admin-section">
