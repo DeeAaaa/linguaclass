@@ -3668,6 +3668,48 @@ input::placeholder {
   transform: translateY(-1px);
 }
 
+/* Save success notification banner */
+.save-success-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.25rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border: 1px solid #6ee7b7;
+  border-radius: 12px;
+  color: #065f46;
+  font-size: 0.875rem;
+  font-weight: 600;
+  animation: slideDownFade 0.4s ease forwards;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
+.save-success-banner .success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: #10b981;
+  color: white;
+  border-radius: 50%;
+  font-size: 0.875rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+@keyframes slideDownFade {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ============================================
    TIME PICKER MODAL - BEAUTIFUL DESIGN
    ============================================ */
@@ -4878,6 +4920,63 @@ input::placeholder {
   color: var(--gray-400);
 }
 
+/* Search button inside search box */
+.btn-search {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 1rem;
+  background: linear-gradient(135deg, #FF6B6B 0%, #A855F7 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(168, 85, 247, 0.3);
+}
+
+.btn-search:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(168, 85, 247, 0.5);
+}
+
+.btn-search svg {
+  width: 15px;
+  height: 15px;
+  color: white !important;
+}
+
+/* Clear search button */
+.btn-search-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem;
+  background: var(--gray-200);
+  color: var(--gray-600);
+  border: none;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.btn-search-clear:hover {
+  background: #fca5a5;
+  color: #dc2626;
+}
+
+.btn-search-clear svg {
+  width: 13px;
+  height: 13px;
+}
+
 .filter-group {
   display: flex;
   align-items: center;
@@ -5191,6 +5290,67 @@ input::placeholder {
   color: var(--gray-700);
 }
 
+/* Study period display on student cards */
+.study-period .info-value {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  color: #6366f1;
+}
+
+.period-duration {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.1);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Schedule display on student cards */
+.schedule-info .info-value {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  color: #059669;
+}
+
+.schedule-day {
+  font-weight: 600;
+  color: #047857;
+  background: rgba(5, 150, 105, 0.1);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.schedule-time {
+  font-weight: 500;
+  color: #0891b2;
+  background: rgba(8, 145, 178, 0.1);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.schedule-sep {
+  color: var(--gray-400);
+  font-size: 0.65rem;
+}
+
+/* Schedule detail in detail modal */
+.schedule-detail {
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.05), rgba(8, 145, 178, 0.05));
+  border-left: 3px solid #059669;
+  padding-left: 0.5rem !important;
+  border-radius: 0 4px 4px 0;
+}
+
 /* Record Actions (Admin) */
 .record-actions {
   display: flex;
@@ -5331,6 +5491,349 @@ input::placeholder {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+/* Parent Empty State */
+.empty-state.parent-empty {
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 3rem;
+}
+
+.empty-state.parent-empty strong {
+  color: var(--gray-700);
+  font-weight: 600;
+}
+
+.parent-empty-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.parent-empty-hint {
+  margin-top: 0.75rem;
+  color: var(--gray-500);
+  font-size: 0.9rem;
+}
+
+/* Search Box Active State (parent searching all) */
+.search-box.search-active {
+  border-color: var(--primary-400);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+  position: relative;
+}
+
+.search-scope-badge {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--primary-100);
+  color: var(--primary-700);
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.search-box.search-active input {
+  padding-right: 150px;
+}
+
+/* Search suggestions list */
+.search-suggestions {
+  text-align: left;
+  margin-top: 1rem;
+  color: var(--gray-500);
+  font-size: 0.9rem;
+  line-height: 1.8;
+  max-width: 380px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ============ PARENT VIEW: My Children Section ============ */
+.my-children-section {
+  background: linear-gradient(135deg, #f0fdf4, #eff6ff);
+  border: 2px solid #86efac;
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.my-children-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.my-children-header svg {
+  color: #16a34a;
+  width: 24px;
+  height: 24px;
+}
+
+.my-children-header h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #166534;
+  margin: 0;
+}
+
+.my-children-subtitle {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin: 0 0 1rem;
+  padding-left: 32px;
+}
+
+/* Linked child card highlight */
+.record-card.linked-child {
+  border-left: 4px solid #22c55e;
+  background: #ffffff;
+  box-shadow: 0 2px 12px rgba(34, 197, 94, 0.08);
+}
+
+.record-card.linked-child:hover {
+  box-shadow: 0 4px 20px rgba(34, 197, 94, 0.15);
+}
+
+/* ============ PARENT VIEW: Find Your Child (no children linked) ============ */
+.find-child-section {
+  margin-bottom: 2rem;
+}
+
+.find-child-hero {
+  background: linear-gradient(135deg, #fff7ed, #fef2f2);
+  border: 2px solid #fed7aa;
+  border-radius: 16px;
+  padding: 2rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.find-child-hero svg {
+  width: 48px;
+  height: 48px;
+  color: #f97316;
+  margin-bottom: 0.75rem;
+}
+
+.find-child-hero h3 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #9a3412;
+  margin: 0 0 0.5rem;
+}
+
+.find-child-hero p {
+  color: #6b7280;
+  margin: 0 0 0.75rem;
+  line-height: 1.6;
+}
+
+.find-child-hint {
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: inline-block;
+  font-size: 0.9rem;
+  color: #374151;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.find-child-buttons {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.find-child-buttons .btn-primary,
+.find-child-buttons .btn-secondary {
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  border: none;
+}
+
+.find-child-buttons .btn-primary {
+  background: var(--primary-600);
+  color: #fff;
+}
+
+.find-child-buttons .btn-primary:hover {
+  background: var(--primary-700);
+}
+
+.find-child-buttons .btn-secondary {
+  background: #fff;
+  color: var(--gray-700);
+  border: 1px solid var(--gray-300);
+}
+
+.find-child-buttons .btn-secondary:hover {
+  background: var(--gray-50);
+}
+
+/* Demo parent accounts */
+.demo-parent-section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.demo-parent-section h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #374151;
+  margin: 0 0 0.25rem;
+}
+
+.demo-parent-section > p {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin: 0 0 1rem;
+}
+
+.demo-parent-list {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.demo-parent-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 1rem;
+  text-align: center;
+  min-width: 220px;
+}
+
+.demo-avatar {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.demo-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+}
+
+.demo-info strong {
+  color: #111827;
+}
+
+.demo-info span {
+  color: #6b7280;
+}
+
+.demo-info code {
+  background: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #6366f1;
+  word-break: break-all;
+}
+
+.demo-note {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* ============ SEARCH RESULTS SECTION ============ */
+.search-results-section {
+  margin-bottom: 2rem;
+}
+
+.search-results-section h3 {
+  font-size: 1.1rem;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.search-results-section h3 svg {
+  color: var(--primary-500);
+}
+
+.result-count {
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-weight: 400;
+}
+
+/* Info Banner (below toolbar) */
+.info-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.info-banner svg {
+  flex-shrink: 0;
+  color: #16a34a;
+  margin-top: 2px;
+}
+
+.banner-content h4 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #166534;
+  margin: 0 0 0.25rem;
+}
+
+.banner-content p {
+  font-size: 0.82rem;
+  color: #4b5563;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Parent browse banner (blue variant) */
+.parent-browse-banner {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.parent-browse-banner svg {
+  color: #2563eb;
+}
+
+.parent-browse-banner .banner-content h4 {
+  color: #1e40af;
 }
 
 /* Edit Modal */

@@ -88,14 +88,14 @@ const ANNOUNCEMENTS = [
 
 // Student and Parent Management Data
 const SAMPLE_STUDENTS = [
-  { id: 1, name: 'Emma Thompson', grade: 'Grade 5', subject: 'English', teacher: 'Dr. Sarah Mitchell', totalHours: 30, usedHours: 22, daysAttended: 18, totalDays: 30, paymentStatus: 'paid', paymentAmount: 450, completionStatus: 'active', parentName: 'Michael Thompson', parentEmail: 'michael.t@email.com', enrolledDate: '2026-03-15', parentId: 101, avatar: '👧' },
-  { id: 2, name: 'Lucas Chen', grade: 'Grade 6', subject: 'Mathematics', teacher: 'Ms. Emily Chen', totalHours: 20, usedHours: 8, daysAttended: 6, totalDays: 20, paymentStatus: 'paid', paymentAmount: 300, completionStatus: 'active', parentName: 'Sarah Chen', parentEmail: 'sarah.c@email.com', enrolledDate: '2026-04-10', parentId: 102, avatar: '👦' },
-  { id: 3, name: 'Sophia Martinez', grade: 'Grade 5', subject: 'Science', teacher: 'Dr. Robert Kim', totalHours: 40, usedHours: 40, daysAttended: 36, totalDays: 40, paymentStatus: 'paid', paymentAmount: 600, completionStatus: 'completed', parentName: 'Carlos Martinez', parentEmail: 'carlos.m@email.com', enrolledDate: '2026-01-05', parentId: 103, avatar: '👧' },
-  { id: 4, name: 'James Wilson', grade: 'Grade 7', subject: 'English', teacher: 'Prof. James Wilson', totalHours: 25, usedHours: 10, daysAttended: 8, totalDays: 25, paymentStatus: 'pending', paymentAmount: 375, completionStatus: 'active', parentName: 'Lisa Wilson', parentEmail: 'lisa.w@email.com', enrolledDate: '2026-04-22', parentId: 104, avatar: '👦' },
-  { id: 5, name: 'Olivia Brown', grade: 'Grade 6', subject: 'Mathematics', teacher: 'Dr. Sarah Mitchell', totalHours: 35, usedHours: 35, daysAttended: 32, totalDays: 35, paymentStatus: 'paid', paymentAmount: 525, completionStatus: 'completed', parentName: 'David Brown', parentEmail: 'david.b@email.com', enrolledDate: '2026-02-18', parentId: 105, avatar: '👧' },
-  { id: 6, name: 'Mason Taylor', grade: 'Grade 4', subject: 'English', teacher: 'Ms. Emily Chen', totalHours: 15, usedHours: 3, daysAttended: 2, totalDays: 15, paymentStatus: 'paid', paymentAmount: 225, completionStatus: 'active', parentName: 'Amanda Taylor', parentEmail: 'amanda.t@email.com', enrolledDate: '2026-05-01', parentId: 106, avatar: '👦' },
-  { id: 7, name: 'Isabella Anderson', grade: 'Grade 8', subject: 'Science', teacher: 'Dr. Robert Kim', totalHours: 30, usedHours: 18, daysAttended: 15, totalDays: 30, paymentStatus: 'pending', paymentAmount: 450, completionStatus: 'active', parentName: 'Robert Anderson', parentEmail: 'robert.a@email.com', enrolledDate: '2026-03-28', parentId: 107, avatar: '👧' },
-  { id: 8, name: 'Ethan Williams', grade: 'Grade 9', subject: 'Mathematics', teacher: 'Prof. James Wilson', totalHours: 50, usedHours: 26, daysAttended: 22, totalDays: 50, paymentStatus: 'paid', paymentAmount: 750, completionStatus: 'active', parentName: 'Jennifer Williams', parentEmail: 'jennifer.w@email.com', enrolledDate: '2026-02-01', parentId: 108, avatar: '👦' },
+  { id: 1, name: 'Emma Thompson', grade: 'Grade 5', subject: 'English', teacher: 'Dr. Sarah Mitchell', totalHours: 30, usedHours: 22, daysAttended: 18, totalDays: 30, paymentStatus: 'paid', paymentAmount: 450, completionStatus: 'active', parentName: 'Michael Thompson', parentEmail: 'michael.t@email.com', enrolledDate: '2026-03-15', parentId: 101, avatar: '👧', scheduleDay: 'Monday, Wednesday, Friday', scheduleTime: 'Morning 8:00 - 10:00 AM' },
+  { id: 2, name: 'Lucas Chen', grade: 'Grade 6', subject: 'Mathematics', teacher: 'Ms. Emily Chen', totalHours: 20, usedHours: 8, daysAttended: 6, totalDays: 20, paymentStatus: 'paid', paymentAmount: 300, completionStatus: 'active', parentName: 'Sarah Chen', parentEmail: 'sarah.c@email.com', enrolledDate: '2026-04-10', parentId: 102, avatar: '👦', scheduleDay: 'Tuesday, Thursday', scheduleTime: 'Afternoon 2:00 - 4:00 PM' },
+  { id: 3, name: 'Sophia Martinez', grade: 'Grade 5', subject: 'Science', teacher: 'Dr. Robert Kim', totalHours: 40, usedHours: 40, daysAttended: 36, totalDays: 40, paymentStatus: 'paid', paymentAmount: 600, completionStatus: 'completed', parentName: 'Carlos Martinez', parentEmail: 'carlos.m@email.com', enrolledDate: '2026-01-05', parentId: 103, avatar: '👧', scheduleDay: 'Monday to Friday', scheduleTime: 'Morning 7:00 - 8:30 AM' },
+  { id: 4, name: 'James Wilson', grade: 'Grade 7', subject: 'English', teacher: 'Prof. James Wilson', totalHours: 25, usedHours: 10, daysAttended: 8, totalDays: 25, paymentStatus: 'pending', paymentAmount: 375, completionStatus: 'active', parentName: 'Lisa Wilson', parentEmail: 'lisa.w@email.com', enrolledDate: '2026-04-22', parentId: 104, avatar: '👦', scheduleDay: 'Saturday, Sunday', scheduleTime: 'Morning 9:00 - 11:00 AM' },
+  { id: 5, name: 'Olivia Brown', grade: 'Grade 6', subject: 'Mathematics', teacher: 'Dr. Sarah Mitchell', totalHours: 35, usedHours: 35, daysAttended: 32, totalDays: 35, paymentStatus: 'paid', paymentAmount: 525, completionStatus: 'completed', parentName: 'David Brown', parentEmail: 'david.b@email.com', enrolledDate: '2026-02-18', parentId: 105, avatar: '👧', scheduleDay: 'Wednesday, Friday', scheduleTime: 'Evening 6:00 - 8:00 PM' },
+  { id: 6, name: 'Mason Taylor', grade: 'Grade 4', subject: 'English', teacher: 'Ms. Emily Chen', totalHours: 15, usedHours: 3, daysAttended: 2, totalDays: 15, paymentStatus: 'paid', paymentAmount: 225, completionStatus: 'active', parentName: 'Amanda Taylor', parentEmail: 'amanda.t@email.com', enrolledDate: '2026-05-01', parentId: 106, avatar: '👦', scheduleDay: 'Monday, Thursday', scheduleTime: 'Afternoon 3:00 - 5:00 PM' },
+  { id: 7, name: 'Isabella Anderson', grade: 'Grade 8', subject: 'Science', teacher: 'Dr. Robert Kim', totalHours: 30, usedHours: 18, daysAttended: 15, totalDays: 30, paymentStatus: 'pending', paymentAmount: 450, completionStatus: 'active', parentName: 'Robert Anderson', parentEmail: 'robert.a@email.com', enrolledDate: '2026-03-28', parentId: 107, avatar: '👧', scheduleDay: 'Tuesday, Thursday, Saturday', scheduleTime: 'Morning 10:00 AM - 12:00 PM' },
+  { id: 8, name: 'Ethan Williams', grade: 'Grade 9', subject: 'Mathematics', teacher: 'Prof. James Wilson', totalHours: 50, usedHours: 26, daysAttended: 22, totalDays: 50, paymentStatus: 'paid', paymentAmount: 750, completionStatus: 'active', parentName: 'Jennifer Williams', parentEmail: 'jennifer.w@email.com', enrolledDate: '2026-02-01', parentId: 108, avatar: '👦', scheduleDay: 'Monday to Friday', scheduleTime: 'Evening 7:00 - 9:00 PM' },
 ];
 
 // Student Archives: Each entry contains past, present, and future activities for a student on a specific date
@@ -353,6 +353,47 @@ function getStoredTeachers() {
 }
 function saveStoredTeachers(teachers) {
   localStorage.setItem('linguaclass_teachers', JSON.stringify(teachers));
+}
+
+// STUDENT MANAGEMENT HELPERS (localStorage)
+// ============================================
+function getStoredStudents() {
+  try {
+    return JSON.parse(localStorage.getItem('linguaclass_students') || '[]');
+  } catch { return []; }
+}
+function saveStoredStudents(students) {
+  localStorage.setItem('linguaclass_students', JSON.stringify(students));
+}
+
+// Get ALL students (merged: sample + any locally persisted)
+function getAllStudents() {
+  const stored = getStoredStudents();
+  // Merge stored students into sample data, preferring stored versions
+  const merged = [...SAMPLE_STUDENTS];
+  stored.forEach(ss => {
+    const idx = merged.findIndex(s => s.id === ss.id);
+    if (idx >= 0) {
+      merged[idx] = ss;
+    } else {
+      merged.push(ss);
+    }
+  });
+  return merged;
+}
+
+// Get students filtered for a specific parent
+function getStudentsByParentId(parentId) {
+  return getAllStudents().filter(s => s.parentId === parentId);
+}
+
+// Get students filtered by parent email
+function getStudentsByParentEmail(parentEmail) {
+  if (!parentEmail) return [];
+  const email = parentEmail.toLowerCase();
+  return getAllStudents().filter(s =>
+    (s.parentEmail && s.parentEmail.toLowerCase() === email)
+  );
 }
 
 // ============================================
@@ -838,11 +879,13 @@ function AppLayout({ children, user, onLogout, currentPage, setCurrentPage }) {
   }, []);
 
   const isAdminUser = user?.role === 'admin';
+  const isParentUser = user?.role === 'parent';
   const navItems = [
     { id: 'dashboard', icon: Icons.Dashboard, label: t('navDashboard') },
     { id: 'calendar', icon: Icons.Calendar, label: t('navCalendar') },
+    ...(isParentUser ? [{ id: 'studentrecords', icon: Icons.People, label: t('navMyChildren') || 'My Children', role: 'parent' }] : []),
     { id: 'files', icon: Icons.Files, label: t('navFiles') },
-    { id: 'studentrecords', icon: Icons.StudentRecords, label: t('navStudentRecords') },
+    ...(!isParentUser ? [{ id: 'studentrecords', icon: Icons.StudentRecords, label: t('navStudentRecords') }] : []),
     { id: 'contacts', icon: Icons.Contacts, label: t('navContacts') },
     { id: 'video', icon: Icons.Video, label: t('navVideoRoom') },
     ...(isAdminUser ? [{ id: 'admin', icon: Icons.Admin, label: t('navAdmin'), role: 'admin' }] : []),
@@ -1895,10 +1938,11 @@ function CalendarPage({ user }) {
 
   // Get students based on role
   const getViewableStudents = () => {
+    const all = getAllStudents();
     if (isParent) {
-      return SAMPLE_STUDENTS.filter(s => s.parentId === user.parentId);
+      return all.filter(s => s.parentId === user.parentId);
     }
-    return SAMPLE_STUDENTS;
+    return all;
   };
   const viewableStudents = getViewableStudents();
 
@@ -1940,9 +1984,12 @@ function CalendarPage({ user }) {
   const days = getDaysInMonth(currentDate);
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-  // ANY date click opens the registration modal
+  // ANY date click opens the registration modal — only for admin/teacher
   const handleDateClick = (day) => {
     if (!day) return;
+    // Parents and students can only VIEW, not register
+    if (isParent) return; // parents view only
+    if (!canEdit) return; // students view only
     setSelectedDate(day);
     // Pre-fill student if one is selected
     setRegistrationForm({
@@ -1962,7 +2009,7 @@ function CalendarPage({ user }) {
     const startTime = `${registrationForm.startHour}:${registrationForm.startMin}`;
     const endTime = `${registrationForm.endHour}:${registrationForm.endMin}`;
     const dateStr = getDateStr(selectedDate);
-    const student = SAMPLE_STUDENTS.find(s => s.id === parseInt(registrationForm.studentId));
+    const student = viewableStudents.find(s => s.id === parseInt(registrationForm.studentId));
 
     const newArchive = {
       id: Date.now(),
@@ -2015,7 +2062,7 @@ function CalendarPage({ user }) {
                 <select
                   value={selectedStudent?.id || ''}
                   onChange={(e) => {
-                    const s = SAMPLE_STUDENTS.find(s => s.id === parseInt(e.target.value));
+                    const s = viewableStudents.find(s => s.id === parseInt(e.target.value));
                     setSelectedStudent(s);
                   }}
                   className="student-dropdown"
@@ -2082,7 +2129,7 @@ function CalendarPage({ user }) {
                     {hasBooking && (
                       <div className="day-indicator">
                         {allArchives.slice(0, 3).map(a => {
-                          const student = SAMPLE_STUDENTS.find(s => s.id === a.studentId);
+                          const student = getAllStudents().find(s => s.id === a.studentId);
                           return (
                             <span key={a.id} className="booking-dot" title={student ? `${student.name}: ${a.subject}` : a.subject}></span>
                           );
@@ -2151,9 +2198,10 @@ function CalendarPage({ user }) {
                 {studentArchives.length > 0 ? (
                   <div className="time-slots-list">
                     {studentArchives.slice(-5).reverse().map(archive => {
-                      const student = SAMPLE_STUDENTS.find(s => s.id === archive.studentId);
+                      const student = getAllStudents().find(s => s.id === archive.studentId);
                       return (
                         <div key={archive.id} className="time-slot-card" onClick={() => {
+                          if (!canEdit) return;
                           setSelectedStudent(student);
                           handleViewArchive(archive);
                         }}>
@@ -2175,13 +2223,15 @@ function CalendarPage({ user }) {
               </div>
             </>
           )}
-          <button className="btn-add-time-slot" onClick={() => {
-            if (selectedDate) {
-              handleDateClick(selectedDate);
-            }
-          }}>
-            <Icons.Plus /> New Registration
-          </button>
+          {canEdit && (
+            <button className="btn-add-time-slot" onClick={() => {
+              if (selectedDate) {
+                handleDateClick(selectedDate);
+              }
+            }}>
+              <Icons.Plus /> New Registration
+            </button>
+          )}
         </div>
       </div>
 
@@ -2344,10 +2394,12 @@ function CalendarPage({ user }) {
             </div>
 
             <div className="modal-footer">
-              <button className="btn-cancel" onClick={() => setShowRegistrationModal(false)}>Cancel</button>
-              <button className="btn-save" onClick={handleSaveRegistration}>
-                <Icons.Save /> Register Class
-              </button>
+              <button className="btn-cancel" onClick={() => setShowRegistrationModal(false)}>Close</button>
+              {canEdit && (
+                <button className="btn-save" onClick={handleSaveRegistration}>
+                  <Icons.Save /> Register Class
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -2364,36 +2416,91 @@ function StudentRecordsPage({ user }) {
   const isTeacher = user?.role === 'teacher';
   const canEdit = isAdmin || isTeacher;
   const isParent = user?.role === 'parent';
-  const [records, setRecords] = useState(() => {
-    if (isParent) {
-      return SAMPLE_STUDENTS.filter(s => s.parentId === user.parentId);
-    }
-    return SAMPLE_STUDENTS;
-  });
+
+  // ALL students (samples + persisted) — always loaded fresh
+  const getAll = () => getAllStudents();
+
+  // For parents: find MY CHILDREN by matching email or parentId
+  const getMyChildren = () => {
+    if (!isParent) return [];
+    const all = getAll();
+    const email = (user?.email || '').toLowerCase();
+    const pid = user?.parentId;
+    // Match by parentId OR parentEmail
+    const kids = all.filter(s => {
+      if (pid && s.parentId === pid) return true;
+      if (email && s.parentEmail && s.parentEmail.toLowerCase() === email) return true;
+      return false;
+    });
+    return kids;
+  };
+
+  // Main records: for parents, show All Students so they can always browse & search
+  const [records, setRecords] = useState(() => getAll());
+  // Derived: my children that match this parent
+  const myChildren = getMyChildren();
+  const hasLinkedChildren = myChildren.length > 0;
+
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterSubject, setFilterSubject] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [activeSearchQuery, setActiveSearchQuery] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailRecord, setDetailRecord] = useState(null);
+  const [dataInitialized, setDataInitialized] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Persist records changes
+  useEffect(() => {
+    if (dataInitialized) {
+      saveStoredStudents(records);
+    }
+  }, [records, dataInitialized]);
+
+  // Auto-hide success message
+  useEffect(() => {
+    if (saveSuccess) {
+      const timer = setTimeout(() => setSaveSuccess(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [saveSuccess]);
+
+  useEffect(() => {
+    setDataInitialized(true);
+  }, []);
 
   const subjects = ['all', 'English', 'Mathematics', 'Science'];
 
-  const filteredRecords = records.filter(record => {
+  // Searchable pool: always ALL students for parents, records for others
+  const searchPool = isParent ? getAll() : records;
+
+  const filteredRecords = searchPool.filter(record => {
     const matchesStatus = filterStatus === 'all' || record.completionStatus === filterStatus;
     const matchesSubject = filterSubject === 'all' || record.subject === filterSubject;
-    const matchesSearch = record.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      record.parentName.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = activeSearchQuery.toLowerCase().trim();
+    const matchesSearch = q === '' || (
+      record.name.toLowerCase().includes(q) ||
+      (record.parentName && record.parentName.toLowerCase().includes(q)) ||
+      (record.parentEmail && record.parentEmail.toLowerCase().includes(q)) ||
+      (record.teacher && record.teacher.toLowerCase().includes(q)) ||
+      (record.grade && record.grade.toLowerCase().includes(q)) ||
+      (record.subject && record.subject.toLowerCase().includes(q)) ||
+      (record.scheduleDay && record.scheduleDay.toLowerCase().includes(q)) ||
+      (record.scheduleTime && record.scheduleTime.toLowerCase().includes(q))
+    );
     return matchesStatus && matchesSubject && matchesSearch;
   });
 
-  const totalStudents = records.length;
-  const activeStudents = records.filter(r => r.completionStatus === 'active').length;
-  const completedStudents = records.filter(r => r.completionStatus === 'completed').length;
-  const pendingPayments = records.filter(r => r.paymentStatus === 'pending').length;
-  const totalRevenue = records.filter(r => r.paymentStatus === 'paid').reduce((sum, r) => sum + r.paymentAmount, 0);
+  // Stats: for parents, show My Children stats; for admin/teacher, show all
+  const statsPool = isParent && hasLinkedChildren ? myChildren : records;
+  const totalStudents = statsPool.length;
+  const activeStudents = statsPool.filter(r => r.completionStatus === 'active').length;
+  const completedStudents = statsPool.filter(r => r.completionStatus === 'completed').length;
+  const pendingPayments = statsPool.filter(r => r.paymentStatus === 'pending').length;
+  const totalRevenue = statsPool.filter(r => r.paymentStatus === 'paid').reduce((sum, r) => sum + r.paymentAmount, 0);
 
   const handleEditRecord = (record) => {
     setEditingRecord({ ...record });
@@ -2406,13 +2513,62 @@ function StudentRecordsPage({ user }) {
   };
 
   const handleSaveEdit = () => {
-    if (editingRecord.isNew) {
-      setRecords([...records, { ...editingRecord, id: Date.now(), isNew: undefined }]);
-    } else {
-      setRecords(records.map(r => r.id === editingRecord.id ? editingRecord : r));
+    // Auto-assign parentId if parentEmail is provided
+    let recordToSave = { ...editingRecord };
+    if (recordToSave.parentEmail && !recordToSave.parentId) {
+      // Check existing students to find matching parentId
+      const allSaved = getAllStudents();
+      const existing = allSaved.find(s =>
+        s.parentEmail && s.parentEmail.toLowerCase() === recordToSave.parentEmail.toLowerCase()
+      );
+      if (existing && existing.parentId) {
+        recordToSave.parentId = existing.parentId;
+      } else {
+        // Generate a new parentId from email hash
+        let hash = 0;
+        const email = recordToSave.parentEmail.toLowerCase();
+        for (let i = 0; i < email.length; i++) {
+          hash = ((hash << 5) - hash) + email.charCodeAt(i);
+          hash |= 0;
+        }
+        recordToSave.parentId = Math.abs(hash) % 99999 + 100;
+      }
     }
+
+    // Ensure study period fields exist
+    if (!recordToSave.enrolledDate) {
+      recordToSave.enrolledDate = new Date().toISOString().split('T')[0];
+    }
+
+    let updatedRecords;
+    if (editingRecord.isNew) {
+      const newRecord = { ...recordToSave, id: Date.now(), isNew: undefined };
+      updatedRecords = [...records, newRecord];
+    } else {
+      updatedRecords = records.map(r => r.id === editingRecord.id ? recordToSave : r);
+    }
+
+    // IMMEDIATE save to localStorage so parents can find newly registered students right away
+    setRecords(updatedRecords);
+    saveStoredStudents(updatedRecords);
     setShowEditModal(false);
     setEditingRecord(null);
+    setSaveSuccess(true);
+
+    // Also save the student's parent info to contacts for parent linking
+    if (recordToSave.parentEmail) {
+      try {
+        const stored = JSON.parse(localStorage.getItem('linguaclass_student_parent_map') || '{}');
+        stored[recordToSave.parentEmail.toLowerCase()] = {
+          parentName: recordToSave.parentName,
+          parentEmail: recordToSave.parentEmail,
+          parentId: recordToSave.parentId,
+          studentId: editingRecord.isNew ? Date.now() : editingRecord.id,
+          studentName: recordToSave.name
+        };
+        localStorage.setItem('linguaclass_student_parent_map', JSON.stringify(stored));
+      } catch (_) {}
+    }
   };
 
   const handleAddStudent = () => {
@@ -2434,6 +2590,8 @@ function StudentRecordsPage({ user }) {
       enrolledDate: new Date().toISOString().split('T')[0],
       parentId: null,
       avatar: '👤',
+      scheduleDay: '',
+      scheduleTime: '',
       isNew: true,
     });
     setShowEditModal(true);
@@ -2447,6 +2605,99 @@ function StudentRecordsPage({ user }) {
   };
 
   const getProgressPercent = (used, total) => Math.round((used / total) * 100);
+
+  // Helper: render a single student card (reused for parent & admin/teacher views)
+  const renderStudentCard = (record, isLinked = false) => (
+    <div
+      key={record.id}
+      className={`record-card ${isLinked ? 'linked-child' : ''} ${record.paymentStatus === 'pending' ? 'payment-pending' : ''}`}
+      onClick={() => setSelectedStudent(record)}
+    >
+      <div className="record-header">
+        <div className="student-avatar">
+          {record.avatar || record.name.split(' ').map(n => n[0]).join('')}
+        </div>
+        <div className="student-basic">
+          <h4>{record.name}</h4>
+          <span className="grade-badge">{record.grade}</span>
+          <span className={`subject-badge ${record.subject.toLowerCase()}`}>{record.subject}</span>
+        </div>
+        <span className={`status-badge ${record.completionStatus}`}>
+          {record.completionStatus === 'completed' ? <Icons.Check /> : <Icons.Clock />}
+          {record.completionStatus}
+        </span>
+      </div>
+      <div className="progress-section">
+        <div className="progress-bar">
+          <div className="progress-fill" style={{ width: `${getProgressPercent(record.usedHours, record.totalHours)}%` }}></div>
+        </div>
+        <div className="progress-details">
+          <span><Icons.Clock /> {record.usedHours}h / {record.totalHours}h</span>
+          <span><Icons.Calendar /> {record.daysAttended} / {record.totalDays} days</span>
+        </div>
+      </div>
+      <div className="payment-section">
+        <div className={`payment-status ${record.paymentStatus}`}>
+          <Icons.Dollar />
+          <div className="payment-info">
+            <span className="payment-label">{record.paymentStatus === 'paid' ? 'Payment Complete' : 'Payment Pending'}</span>
+            <span className="payment-amount">${record.paymentAmount}</span>
+          </div>
+        </div>
+      </div>
+      <div className="info-grid">
+        <div className="info-item">
+          <Icons.User /><span className="info-label">Teacher</span><span className="info-value">{record.teacher}</span>
+        </div>
+        <div className="info-item study-period">
+          <Icons.Calendar /><span className="info-label">Study Period</span>
+          <span className="info-value">
+            {new Date(record.enrolledDate).toLocaleDateString()} — {record.completionStatus === 'completed' ? new Date(record.enrolledDate).toLocaleDateString(undefined, {year: 'numeric', month: 'short'}) : 'Ongoing'}
+            {(() => {
+              const start = new Date(record.enrolledDate);
+              const now = new Date();
+              const diffMs = now - start;
+              const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+              const months = Math.floor(diffDays / 30);
+              if (months < 1) return <span className="period-duration"> ({diffDays} days)</span>;
+              if (months < 12) return <span className="period-duration"> ({months} month{months > 1 ? 's' : ''})</span>;
+              const years = Math.floor(months / 12);
+              return <span className="period-duration"> ({years} year{years > 1 ? 's' : ''}, {months % 12} month{(months % 12) !== 1 ? 's' : ''})</span>;
+            })()}
+          </span>
+        </div>
+        {(record.scheduleDay || record.scheduleTime) && (
+          <div className="info-item schedule-info">
+            <Icons.Clock /><span className="info-label">Class Schedule</span>
+            <span className="info-value">
+              {record.scheduleDay && <span className="schedule-day">{record.scheduleDay}</span>}
+              {record.scheduleDay && record.scheduleTime && <span className="schedule-sep"> | </span>}
+              {record.scheduleTime && <span className="schedule-time">{record.scheduleTime}</span>}
+            </span>
+          </div>
+        )}
+        <div className="info-item">
+          <Icons.User /><span className="info-label">Parent</span><span className="info-value">{record.parentName}</span>
+        </div>
+      </div>
+      {canEdit && (
+        <div className="record-actions">
+          <button className="btn-edit" onClick={(e) => { e.stopPropagation(); handleEditRecord(record); }}>
+            <Icons.Edit /> Edit
+          </button>
+          <button className="btn-view" onClick={(e) => { e.stopPropagation(); handleViewDetails(record); }}>
+            <Icons.Eye /> View Details
+          </button>
+        </div>
+      )}
+      {isParent && (
+        <div className="contact-section">
+          <button className="btn-contact" onClick={(e) => e.stopPropagation()}><Icons.Mail /> Contact Teacher</button>
+          <button className="btn-contact-alt" onClick={(e) => e.stopPropagation()}><Icons.PhoneCall /> Contact Admin</button>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="records-page">
@@ -2469,7 +2720,7 @@ function StudentRecordsPage({ user }) {
           <div className="stat-icon"><Icons.Users /></div>
           <div className="stat-info">
             <span className="stat-number">{totalStudents}</span>
-            <span className="stat-label">Total Students</span>
+            <span className="stat-label">{isParent && hasLinkedChildren ? 'My Children' : 'Total Students'}</span>
           </div>
         </div>
         <div className="stat-card active">
@@ -2504,16 +2755,46 @@ function StudentRecordsPage({ user }) {
         )}
       </div>
 
+      {/* ===== SAVE SUCCESS NOTIFICATION ===== */}
+      {saveSuccess && (
+        <div className="save-success-banner">
+          <span className="success-icon">✓</span>
+          <span>Student record has been saved successfully. Parents can now find this student by searching.</span>
+        </div>
+      )}
+
       <div className="records-toolbar">
         <div className="toolbar-filters">
-          <div className="search-box">
+          <div className={`search-box ${isParent && activeSearchQuery.trim().length > 0 ? 'search-active' : ''}`}>
             <Icons.User />
             <input
               type="text"
-              placeholder="Search student or parent name..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={isParent
+                ? "Search student or parent name, email, teacher..."
+                : "Search student or parent name..."}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') setActiveSearchQuery(searchInput); }}
             />
+            <button
+              className="btn-search"
+              onClick={() => setActiveSearchQuery(searchInput)}
+              title="Click to search"
+            >
+              <Icons.Search /> Search
+            </button>
+            {activeSearchQuery.trim().length > 0 && (
+              <button
+                className="btn-search-clear"
+                onClick={() => { setSearchInput(''); setActiveSearchQuery(''); }}
+                title="Clear search"
+              >
+                <Icons.X />
+              </button>
+            )}
+            {isParent && activeSearchQuery.trim().length > 0 && (
+              <span className="search-scope-badge">Searching All Students</span>
+            )}
           </div>
           <div className="filter-group">
             <label>Status:</label>
@@ -2539,120 +2820,143 @@ function StudentRecordsPage({ user }) {
         )}
       </div>
 
-      <div className="records-grid">
-        {filteredRecords.map(record => (
-          <div
-            key={record.id}
-            className={`record-card ${record.paymentStatus === 'pending' ? 'payment-pending' : ''}`}
-            onClick={() => setSelectedStudent(record)}
-          >
-            <div className="record-header">
-              <div className="student-avatar">
-                {record.name.split(' ').map(n => n[0]).join('')}
-              </div>
-              <div className="student-basic">
-                <h4>{record.name}</h4>
-                <span className="grade-badge">{record.grade}</span>
-                <span className={`subject-badge ${record.subject.toLowerCase()}`}>{record.subject}</span>
-              </div>
-              <span className={`status-badge ${record.completionStatus}`}>
-                {record.completionStatus === 'completed' ? <Icons.Check /> : <Icons.Clock />}
-                {record.completionStatus}
-              </span>
+      {/* ===== PARENT VIEW: My Children (linked by email/parentId) ===== */}
+      {isParent && hasLinkedChildren && (
+        <div className="my-children-section">
+          <div className="my-children-header">
+            <Icons.People />
+            <h3>My Children ({myChildren.length})</h3>
+          </div>
+          <p className="my-children-subtitle">These students are linked to your account</p>
+          <div className="records-grid">
+            {myChildren.map(record => renderStudentCard(record, true))}
+          </div>
+        </div>
+      )}
+
+      {/* ===== PARENT VIEW: No linked children — Find Your Child ===== */}
+      {isParent && !hasLinkedChildren && activeSearchQuery.trim().length === 0 && (
+        <div className="find-child-section">
+          <div className="find-child-hero">
+            <Icons.People />
+            <h3>Find Your Child</h3>
+            <p>Enter your child's name, your name, or your email address in the search box above and click <strong>Search</strong> to find their student record.</p>
+            <p className="find-child-hint">
+              <strong>Your email:</strong> {user?.email || 'Not set'}<br/>
+              <strong>Your name:</strong> {user?.name || 'Not set'}
+            </p>
+            <div className="find-child-buttons">
+              <button className="btn-primary" onClick={() => { setSearchInput(user?.name || ''); setActiveSearchQuery(user?.name || ''); }}>
+                <Icons.Search /> Search by My Name
+              </button>
+              <button className="btn-secondary" onClick={() => { setSearchInput(user?.email || ''); setActiveSearchQuery(user?.email || ''); }}>
+                <Icons.Search /> Search by My Email
+              </button>
             </div>
-
-            <div className="record-body">
-              <div className="progress-section">
-                <div className="progress-header">
-                  <span>Course Progress</span>
-                  <span>{getProgressPercent(record.usedHours, record.totalHours)}%</span>
-                </div>
-                <div className="progress-bar">
-                  <div
-                    className="progress-fill"
-                    style={{ width: `${getProgressPercent(record.usedHours, record.totalHours)}%` }}
-                  ></div>
-                </div>
-                <div className="progress-details">
-                  <span><Icons.Clock /> {record.usedHours}h / {record.totalHours}h</span>
-                  <span><Icons.Calendar /> {record.daysAttended} / {record.totalDays} days</span>
-                </div>
-              </div>
-
-              <div className="payment-section">
-                <div className={`payment-status ${record.paymentStatus}`}>
-                  <Icons.Dollar />
-                  <div className="payment-info">
-                    <span className="payment-label">{record.paymentStatus === 'paid' ? 'Payment Complete' : 'Payment Pending'}</span>
-                    <span className="payment-amount">${record.paymentAmount}</span>
+          </div>
+          <div className="demo-parent-section">
+            <h4>Demo: Log in as a parent to see linked children</h4>
+            <p>To test parent-child linking, log out and register/login as a parent using one of these emails:</p>
+            <div className="demo-parent-list">
+              {SAMPLE_STUDENTS.slice(0, 3).map(s => (
+                <div key={s.id} className="demo-parent-card">
+                  <span className="demo-avatar">{s.avatar}</span>
+                  <div className="demo-info">
+                    <strong>{s.name}</strong>
+                    <span>Parent: {s.parentName}</span>
+                    <code>Email: {s.parentEmail}</code>
                   </div>
                 </div>
-              </div>
-
-              <div className="info-grid">
-                <div className="info-item">
-                  <Icons.User />
-                  <span className="info-label">Teacher</span>
-                  <span className="info-value">{record.teacher}</span>
-                </div>
-                <div className="info-item">
-                  <Icons.Calendar />
-                  <span className="info-label">Enrolled</span>
-                  <span className="info-value">{new Date(record.enrolledDate).toLocaleDateString()}</span>
-                </div>
-                <div className="info-item">
-                  <Icons.User />
-                  <span className="info-label">Parent</span>
-                  <span className="info-value">{record.parentName}</span>
-                </div>
-              </div>
+              ))}
             </div>
-
-            {canEdit && (
-              <div className="record-actions">
-                <button className="btn-edit" onClick={(e) => { e.stopPropagation(); handleEditRecord(record); }}>
-                  <Icons.Edit /> Edit
-                </button>
-                <button className="btn-view" onClick={(e) => { e.stopPropagation(); handleViewDetails(record); }}>
-                  <Icons.Eye /> View Details
-                </button>
-              </div>
-            )}
-
-            {isParent && (
-              <div className="contact-section">
-                <button className="btn-contact">
-                  <Icons.Mail /> Contact Teacher
-                </button>
-                <button className="btn-contact-alt">
-                  <Icons.PhoneCall /> Contact Admin
-                </button>
-              </div>
-            )}
+            <p className="demo-note">Register with one of the parent emails above to automatically see your child on this page.</p>
           </div>
-        ))}
-      </div>
-
-      {!isAdmin && !isParent && filteredRecords.length === 0 && (
-        <div className="empty-state">
-          <Icons.StudentRecords />
-          <h3>No Student Records Found</h3>
-          <p>No students match your current filters. Try adjusting your search criteria.</p>
         </div>
       )}
 
-      {canEdit && filteredRecords.length === 0 && (
-        <div className="empty-state">
-          <Icons.StudentRecords />
-          <h3>No Records Found</h3>
-          <p>No students match your current filters.</p>
-          <button className="btn-primary" onClick={handleAddStudent}>
-            <Icons.Plus /> Add First Student
-          </button>
+      {/* ===== SEARCH AREA: Always show search for parents ===== */}
+      {isParent && activeSearchQuery.trim().length > 0 && (
+        <div className="search-results-section">
+          <h3>
+            <Icons.Search /> Search Results for "<strong>{activeSearchQuery}</strong>"
+            {filteredRecords.length > 0 && <span className="result-count">({filteredRecords.length} found)</span>}
+          </h3>
+          {filteredRecords.length > 0 && (
+            <div className="records-grid">
+              {filteredRecords.map(record => renderStudentCard(record))}
+            </div>
+          )}
+          {filteredRecords.length === 0 && (
+            <div className="empty-state">
+              <Icons.Search />
+              <h3>No Matching Students</h3>
+              <p>No students match "<strong>{activeSearchQuery}</strong>". Try searching by:</p>
+              <ul className="search-suggestions">
+                <li>Student name (e.g., Emma Thompson)</li>
+                <li>Parent name (e.g., Michael Thompson)</li>
+                <li>Parent email (e.g., michael.t@email.com)</li>
+                <li>Teacher name (e.g., Sarah Mitchell)</li>
+                <li>Study day (e.g., Monday, Wednesday)</li>
+                <li>Study time (e.g., Morning, Evening)</li>
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Edit Modal */}
+      {/* ===== ADMIN / TEACHER View ===== */}
+      {!isParent && (
+        <>
+          <div className="info-banner">
+            <Icons.Shield />
+            <div className="banner-content">
+              <h4>Administrator or Teacher Access</h4>
+              <p>Teachers and administrators can modify student records. Parents can view their children's progress and contact teachers or administrators for any questions.</p>
+            </div>
+          </div>
+          <div className="records-grid">
+            {filteredRecords.map(record => renderStudentCard(record))}
+          </div>
+
+          {filteredRecords.length === 0 && (
+            <div className="empty-state">
+              <Icons.StudentRecords />
+              <h3>No Records Found</h3>
+              <p>No students match your current filters.</p>
+              {canEdit && (
+                <button className="btn-primary" onClick={handleAddStudent}>
+                  <Icons.Plus /> Add First Student
+                </button>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ===== DETAIL MODAL ===== */}
+      {selectedStudent && !showEditModal && !showDetailModal && (
+        <div className="modal-overlay" onClick={() => setSelectedStudent(null)}>
+          <div className="edit-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{selectedStudent.name}</h3>
+              <button className="modal-close" onClick={() => setSelectedStudent(null)}>×</button>
+            </div>
+            <div className="student-detail-content">
+              <p><strong>Grade:</strong> {selectedStudent.grade}</p>
+              <p><strong>Subject:</strong> {selectedStudent.subject}</p>
+              <p><strong>Teacher:</strong> {selectedStudent.teacher}</p>
+              <p><strong>Parent:</strong> {selectedStudent.parentName} ({selectedStudent.parentEmail})</p>
+              <p><strong>Progress:</strong> {selectedStudent.usedHours}/{selectedStudent.totalHours}h ({Math.round((selectedStudent.usedHours/selectedStudent.totalHours)*100)}%)</p>
+              <p><strong>Attendance:</strong> {selectedStudent.daysAttended}/{selectedStudent.totalDays} days</p>
+              <p><strong>Payment:</strong> {selectedStudent.paymentStatus} (${selectedStudent.paymentAmount})</p>
+              {selectedStudent.scheduleDay && <p><strong>Study Day:</strong> {selectedStudent.scheduleDay}</p>}
+              {selectedStudent.scheduleTime && <p><strong>Study Time:</strong> {selectedStudent.scheduleTime}</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== EDIT MODAL ===== */}
       {showEditModal && editingRecord && (
         <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
           <div className="edit-modal" onClick={(e) => e.stopPropagation()}>
@@ -2784,6 +3088,37 @@ function StudentRecordsPage({ user }) {
                   />
                 </div>
               </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Study Day (day of month/week)</label>
+                  <input
+                    type="text"
+                    value={editingRecord.scheduleDay || ''}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, scheduleDay: e.target.value })}
+                    placeholder="e.g. Monday, Wednesday, Friday"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Study Time (time of day)</label>
+                  <select
+                    value={editingRecord.scheduleTime || ''}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, scheduleTime: e.target.value })}
+                  >
+                    <option value="">Select time slot</option>
+                    <option value="Morning 7:00 - 9:00 AM">Morning 7:00 - 9:00 AM</option>
+                    <option value="Morning 8:00 - 10:00 AM">Morning 8:00 - 10:00 AM</option>
+                    <option value="Morning 9:00 - 11:00 AM">Morning 9:00 - 11:00 AM</option>
+                    <option value="Morning 10:00 AM - 12:00 PM">Morning 10:00 AM - 12:00 PM</option>
+                    <option value="Afternoon 1:00 - 3:00 PM">Afternoon 1:00 - 3:00 PM</option>
+                    <option value="Afternoon 2:00 - 4:00 PM">Afternoon 2:00 - 4:00 PM</option>
+                    <option value="Afternoon 3:00 - 5:00 PM">Afternoon 3:00 - 5:00 PM</option>
+                    <option value="Afternoon 4:00 - 6:00 PM">Afternoon 4:00 - 6:00 PM</option>
+                    <option value="Evening 6:00 - 8:00 PM">Evening 6:00 - 8:00 PM</option>
+                    <option value="Evening 7:00 - 9:00 PM">Evening 7:00 - 9:00 PM</option>
+                    <option value="Evening 8:00 - 10:00 PM">Evening 8:00 - 10:00 PM</option>
+                  </select>
+                </div>
+              </div>
               <div className="form-group full">
                 <label>Parent Name</label>
                 <input
@@ -2839,6 +3174,8 @@ function StudentRecordsPage({ user }) {
                 <div className="detail-item"><strong>Payment:</strong> <span className={detailRecord.paymentStatus}>{detailRecord.paymentStatus === 'paid' ? 'Paid' : 'Pending'} — ${detailRecord.paymentAmount}</span></div>
                 <div className="detail-item"><strong>Parent:</strong> {detailRecord.parentName}</div>
                 <div className="detail-item"><strong>Parent Email:</strong> {detailRecord.parentEmail}</div>
+                {detailRecord.scheduleDay && <div className="detail-item schedule-detail"><strong>Study Day:</strong> {detailRecord.scheduleDay}</div>}
+                {detailRecord.scheduleTime && <div className="detail-item schedule-detail"><strong>Study Time:</strong> {detailRecord.scheduleTime}</div>}
               </div>
             </div>
             <div className="modal-footer">
@@ -2955,15 +3292,15 @@ function AdministrationPage({ user }) {
     setShowAddTeacherForm(true);
   };
 
-  // Load data from Supabase (fallback to sample data)
+  // Load data from Supabase (fallback to sample data, merged with localStorage)
   useEffect(() => {
     Promise.all([
       fetchTeachers().catch(() => SAMPLE_TEACHERS),
-      fetchStudents().catch(() => SAMPLE_STUDENTS),
+      fetchStudents().catch(() => getAllStudents()),
       fetchContacts().catch(() => SAMPLE_CONTACTS),
     ]).then(([t, s, c]) => {
       setTeachers(t.length > 0 ? t : SAMPLE_TEACHERS);
-      setStudents(s.length > 0 ? s : SAMPLE_STUDENTS);
+      setStudents(s.length > 0 ? s : getAllStudents());
       setContacts(c.length > 0 ? c : SAMPLE_CONTACTS);
       setDataLoaded(true);
     });
@@ -3375,6 +3712,12 @@ function ContactsPage({ user, setCurrentPage }) {
   const { t } = useTranslation();
   const isAdmin = user?.role === 'admin';
   const isTeacher = user?.role === 'teacher';
+  const isParent = user?.role === 'parent';
+  const isStudentRole = user?.role === 'student';
+  // Only admin and teacher can modify contacts
+  const canModify = isAdmin || isTeacher;
+  // Parent can only view, not modify
+  const canView = isAdmin || isTeacher || isParent;
   const [contacts, setContacts] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -3386,7 +3729,7 @@ function ContactsPage({ user, setCurrentPage }) {
   // Install app
   const [installPrompt, setInstallPrompt] = useState(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
-  // Add contact modal
+  // Add contact modal (only for admin/teacher)
   const [showAddModal, setShowAddModal] = useState(false);
   const [newContact, setNewContact] = useState({ name: '', role: 'Student', email: '', phone: '', subject: '', student: '' });
   // Delete confirmation
@@ -3432,16 +3775,47 @@ function ContactsPage({ user, setCurrentPage }) {
     }
   }, [contacts, dataLoaded]);
 
-  // Visible contacts: admin sees all, teacher sees only assigned students + all teachers/parents, others see all
+  // Visible contacts: role-based filtering
+  // - Admin sees all contacts
+  // - Teacher sees only assigned students + all teachers/parents
+  // - Parent sees only their own child's contacts (student + child's teacher)
+  // - Student sees all (limited)
   const currentTeacher = teachers.find(t => t.email === user?.email);
   const myAssignedStudentIds = currentTeacher?.assignedStudentIds || [];
-  const visibleContacts = isTeacher
-    ? contacts.filter(c => {
-        if (c.role === 'Teacher' || c.role === 'Parent') return true;
-        if (c.role === 'Student') return myAssignedStudentIds.includes(c.id);
-        return false;
-      })
-    : contacts;
+  // Get parent's linked child student IDs (from all persisted students)
+  const allStudentsForParent = getAllStudents();
+  const parentChildIds = isParent
+    ? allStudentsForParent.filter(s => s.parentId === user.parentId).map(s => s.id)
+    : [];
+  // Get parent's linked child names
+  const parentChildNames = isParent
+    ? allStudentsForParent.filter(s => s.parentId === user.parentId).map(s => s.name)
+    : [];
+  // Get teachers assigned to parent's children
+  const parentChildTeacherNames = isParent
+    ? allStudentsForParent.filter(s => s.parentId === user.parentId).map(s => s.teacher)
+    : [];
+
+  const visibleContacts = isAdmin
+    ? contacts
+    : isTeacher
+      ? contacts.filter(c => {
+          if (c.role === 'Teacher' || c.role === 'Parent') return true;
+          if (c.role === 'Student') return myAssignedStudentIds.includes(c.id);
+          return false;
+        })
+      : isParent
+        ? contacts.filter(c => {
+            // Parent sees: their own contact, their child(ren)'s student contacts,
+            // and the teachers assigned to their children
+            if (c.email === user?.email) return true; // parent's own contact
+            if (c.role === 'Student' && parentChildNames.includes(c.name)) return true; // child's student contact
+            if (c.role === 'Teacher' && parentChildTeacherNames.includes(c.name)) return true; // child's teacher
+            // Also match by student field for parent-type contacts
+            if (c.student && parentChildNames.includes(c.student)) return true;
+            return false;
+          })
+        : contacts; // Student sees all (unchanged for now)
 
   const filteredContacts = visibleContacts.filter(c => {
     const q = searchQuery.toLowerCase();
@@ -3637,9 +4011,11 @@ function ContactsPage({ user, setCurrentPage }) {
             onChange={e => setSearchQuery(e.target.value)}
           />
         </div>
-        <button className="btn-add-contact" onClick={openAddModal}>
-          <Icons.PlusCircle /> Add Contact
-        </button>
+        {canModify && (
+          <button className="btn-add-contact" onClick={openAddModal}>
+            <Icons.PlusCircle /> Add Contact
+          </button>
+        )}
       </div>
 
       {/* ---- Contact List ---- */}
@@ -3683,9 +4059,11 @@ function ContactsPage({ user, setCurrentPage }) {
                   <button className="btn-call-contact" onClick={() => handleCallContact(contact)}>
                     <Icons.Video /> Start Call
                   </button>
-                  <button className="btn-remove-contact" onClick={() => handleRemoveContact(contact)} title="Remove from contacts">
-                    <Icons.Trash />
-                  </button>
+                  {canModify && (
+                    <button className="btn-remove-contact" onClick={() => handleRemoveContact(contact)} title="Remove from contacts">
+                      <Icons.Trash />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -5452,10 +5830,19 @@ function App() {
         if (profile.role === 'parent' && !profile.parent_id && profile.email) {
           try {
             const students = await fetchStudents();
-            const matched = students.find(s =>
+            let matched = students.find(s =>
               s.parent_email && s.parent_email.toLowerCase() === profile.email.toLowerCase()
             );
-            if (matched) profileData.parentId = matched.parent_id;
+            if (!matched) {
+              // Also check local persisted students
+              const allLocal = getAllStudents();
+              matched = allLocal.find(s =>
+                s.parentEmail && s.parentEmail.toLowerCase() === profile.email.toLowerCase()
+              );
+              if (matched) profileData.parentId = matched.parentId;
+            } else {
+              profileData.parentId = matched.parent_id;
+            }
           } catch (_) {}
         }
         setUser(profileData);
@@ -5465,7 +5852,8 @@ function App() {
         if (saved) {
           let parsed = JSON.parse(saved);
           if (parsed.role === 'parent' && !parsed.parentId && parsed.email) {
-            const matched = SAMPLE_STUDENTS.find(s =>
+            const allStudents = getAllStudents();
+            const matched = allStudents.find(s =>
               s.parentEmail && s.parentEmail.toLowerCase() === parsed.email.toLowerCase()
             );
             if (matched) {
@@ -5483,7 +5871,8 @@ function App() {
       if (saved) {
         let parsed = JSON.parse(saved);
         if (parsed.role === 'parent' && !parsed.parentId && parsed.email) {
-          const matched = SAMPLE_STUDENTS.find(s =>
+          const allStudents = getAllStudents();
+          const matched = allStudents.find(s =>
             s.parentEmail && s.parentEmail.toLowerCase() === parsed.email.toLowerCase()
           );
           if (matched) {
@@ -5503,11 +5892,45 @@ function App() {
       : { ...userData, id: userData.id || Date.now() };
     // If parent, match email to find correct parentId so they only see their children
     if (data.role === 'parent') {
-      const matched = SAMPLE_STUDENTS.find(s =>
-        s.parentEmail && s.parentEmail.toLowerCase() === (data.email || '').toLowerCase()
+      const allStudents = getAllStudents();
+      const parentEmail = (data.email || '').toLowerCase();
+      let matched = allStudents.find(s =>
+        s.parentEmail && s.parentEmail.toLowerCase() === parentEmail
       );
       if (matched) {
         data.parentId = matched.parentId;
+      }
+      // If still no match, check the parent-student map (newly registered students)
+      if (!data.parentId && parentEmail) {
+        try {
+          const parentMap = JSON.parse(localStorage.getItem('linguaclass_student_parent_map') || '{}');
+          const mappedData = parentMap[parentEmail];
+          if (mappedData && mappedData.parentId) {
+            data.parentId = mappedData.parentId;
+          }
+        } catch (_) {}
+      }
+      // If still no match, try matching by parent name
+      if (!data.parentId) {
+        const matchedByName = allStudents.find(s =>
+          s.parentName && s.parentName.toLowerCase() === (data.name || '').toLowerCase()
+        );
+        if (matchedByName) {
+          data.parentId = matchedByName.parentId;
+        }
+        // Also check the parent map by name
+        if (!data.parentId && (data.name || '').toLowerCase()) {
+          try {
+            const parentMap = JSON.parse(localStorage.getItem('linguaclass_student_parent_map') || '{}');
+            const searchName = (data.name || '').toLowerCase();
+            for (const [, mapData] of Object.entries(parentMap)) {
+              if (mapData.parentName && mapData.parentName.toLowerCase() === searchName) {
+                data.parentId = mapData.parentId;
+                break;
+              }
+            }
+          } catch (_) {}
+        }
       }
     }
     setUser(data);
@@ -5532,7 +5955,14 @@ function App() {
     );
   }
 
+  // ========== ENFORCE ROLE-BASED PAGE ACCESS ==========
   const renderPage = () => {
+    // STRICT GUARD: Only admin can access administration page
+    if (currentPage === 'admin' && user?.role !== 'admin') {
+      // Non-admin tried to access admin page — redirect to dashboard
+      if (setCurrentPage) setCurrentPage('dashboard');
+      return <DashboardPage user={user} setCurrentPage={setCurrentPage} />;
+    }
     switch (currentPage) {
       case 'dashboard': return <DashboardPage user={user} setCurrentPage={setCurrentPage} />;
       case 'calendar': return <CalendarPage user={user} />;
