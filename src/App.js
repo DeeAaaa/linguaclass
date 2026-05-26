@@ -559,11 +559,11 @@ function LandingPage({ onLogin }) {
           </div>
         </div>
         <div className="nav-right">
-          <button className="lang-switcher-btn" onClick={toggleLanguage} title={lang === 'en' ? 'Switch to Chinese' : '切换到英文'}>
-            <span className="lang-flag">{lang === 'en' ? '🇬🇧' : '🇨🇳'}</span>
-            <span className="lang-current">{lang === 'en' ? 'English' : '中文'}</span>
+          <button className="lang-switcher-btn" onClick={toggleLanguage} title={lang === 'en' ? 'Switch to Chinese' : lang === 'zh' ? 'Switch to Russian' : 'Switch to English'}>
+            <span className="lang-flag">{lang === 'en' ? '🇬🇧' : lang === 'zh' ? '🇨🇳' : '🇷🇺'}</span>
+            <span className="lang-current">{lang === 'en' ? 'English' : lang === 'zh' ? '中文' : 'Русский'}</span>
             <span className="lang-arrow">→</span>
-            <span className="lang-target">{lang === 'en' ? '中文' : 'English'}</span>
+            <span className="lang-target">{lang === 'en' ? '中文' : lang === 'zh' ? 'Русский' : 'English'}</span>
           </button>
         </div>
       </nav>
@@ -954,11 +954,11 @@ function AppLayout({ children, user, onLogout, currentPage, setCurrentPage }) {
             {navItems.find(item => item.id === currentPage)?.label || t('navDashboard')}
           </h1>
           <div className="header-actions">
-            <button className="lang-switcher-btn" onClick={toggleLanguage} title={lang === 'en' ? 'Switch to Chinese' : 'Switch to English'}>
-              <span className="lang-flag">{lang === 'en' ? '🇬🇧' : '🇨🇳'}</span>
-              <span className="lang-current">{lang === 'en' ? 'English' : '中文'}</span>
+            <button className="lang-switcher-btn" onClick={toggleLanguage} title={lang === 'en' ? 'Switch to Chinese' : lang === 'zh' ? 'Switch to Russian' : 'Switch to English'}>
+              <span className="lang-flag">{lang === 'en' ? '🇬🇧' : lang === 'zh' ? '🇨🇳' : '🇷🇺'}</span>
+              <span className="lang-current">{lang === 'en' ? 'English' : lang === 'zh' ? '中文' : 'Русский'}</span>
               <span className="lang-arrow">→</span>
-              <span className="lang-target">{lang === 'en' ? '中文' : 'English'}</span>
+              <span className="lang-target">{lang === 'en' ? '中文' : lang === 'zh' ? 'Русский' : 'English'}</span>
             </button>
           </div>
         </header>
