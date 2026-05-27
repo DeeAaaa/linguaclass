@@ -3,6 +3,7 @@ import './App.css';
 import { LanguageProvider, useTranslation } from './i18n/LanguageContext';
 import { createPeerConnection, addTracksToPeer, replaceVideoTrack, createOffer, handleOffer, handleAnswer, handleIceCandidate, closePeer } from './webrtc';
 import { supabase, signUp, signIn, signOut, getSession, signUpWithEmailOrPhone, signInWithEmailOrPhone, fetchTeachers, updateTeacher, fetchStudents, fetchContacts, saveContacts, fetchVideoRoomContacts, addVideoRoomContact, removeVideoRoomContact } from './supabase';
+import { FamilyCodeStep, RegisterForm, LoginForm } from './auth/AuthForms';
 import { joinSignalingRoom } from './signaling';
 
 // ============================================
@@ -450,15 +451,9 @@ function LanguageSwitcher() {
 }
 
 function LandingPage({ onLogin }) {
-  const { t, lang, toggleLanguage } = useTranslation();
-  const [mode, setMode] = useState('login'); // 'login' | 'register' — Sign In active by default
-  const [authMethod, setAuthMethod] = useState('email'); // 'email' | 'phone'
-  const [loginRole, setLoginRole] = useState('student'); // which role is logging in: 'student' | 'parent' | 'teacher' | 'admin'
-  const [name, setName] = useState('');
-  const [identifier, setIdentifier] = useState(''); // email or phone depending on authMethod
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
+  const [authStep, setAuthStep] = useState('choose'); // 'choose' | 'family-setup' | 'register' | 'login'
+  const [family, setFamily] = useState(null);
   const [activeAnnouncement, setActiveAnnouncement] = useState(0);
 
   useEffect(() => {
@@ -468,130 +463,102 @@ function LandingPage({ onLogin }) {
     return () => clearInterval(interval);
   }, []);
 
-  const handleRegister = async (role) => {
-    setError('');
-    if (!identifier) {
-      setError(authMethod === 'email' ? 'Email is required.' : 'Phone number is required.');
-      return;
+  // Called after successful registration (family + account created)
+  const handleRegisterSuccess = (userData) => {
+    onLogin(userData);
+  };
+
+  // Called after successful login for students/parents
+  const handleLoginSuccess = (userData) => {
+    onLogin(userData);
+  };
+
+  // Teacher login flow
+  const handleTeacherLogin = async (identifier, password) => {
+    const teachers = getStoredTeachers();
+    const matched = teachers.find(t =>
+      t.email.toLowerCase() === identifier.toLowerCase() &&
+      t.password === password &&
+      t.status !== 'inactive'
+    );
+    if (matched) {
+      onLogin({
+        name: matched.name,
+        email: matched.email,
+        role: 'teacher',
+        id: matched.id,
+        phone: matched.phone || '',
+        subject: matched.subject
+      });
+      return true;
     }
-    if (!password) { setError('Password is required.'); return; }
-    // Name is required for registration
-    if (mode === 'register' && !name) { setError('Name is required.'); return; }
-    // Name required for teacher login (role selected)
-    if (mode === 'login' && role === 'teacher' && !name) { setError('Name is required.'); return; }
-    // For student/parent login, name is optional (we'll generate one)
-    if (authMethod === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-    setLoading(true);
+    // Try Supabase
     try {
-      // ======== ADMIN LOGIN ========
-      if (role === 'admin') {
-        if (identifier.toLowerCase() === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-          onLogin({
-            name: name || 'Administrator',
-            email: ADMIN_EMAIL,
-            role: 'admin',
-            id: 0,
-            phone: ''
-          });
-        } else {
-          setError('Invalid admin credentials. Please check your email and password.');
-        }
-        setLoading(false);
-        return;
+      const result = await signInWithEmailOrPhone(identifier, password);
+      if (result.profile && result.profile.role === 'teacher') {
+        result.profile.phone = result.profile.phone || '';
+        onLogin(result.profile);
+        return true;
       }
+    } catch (e) { /* fall through */ }
+    return false;
+  };
 
-      // ======== TEACHER LOGIN (check admin-created teachers) ========
-      if (role === 'teacher' && mode === 'login') {
-        const teachers = getStoredTeachers();
-        const matched = teachers.find(t =>
-          t.email.toLowerCase() === identifier.toLowerCase() &&
-          t.password === password &&
-          t.status !== 'inactive'
+  // Admin login
+  const handleAdminLogin = () => {
+    onLogin({
+      name: 'Administrator',
+      email: ADMIN_EMAIL,
+      role: 'admin',
+      id: 0,
+      phone: ''
+    });
+  };
+
+  // Render the current auth step
+  const renderAuthStep = () => {
+    switch (authStep) {
+      case 'family-setup':
+        return (
+          <FamilyCodeStep
+            t={t}
+            onJoinFamily={(fam) => { setFamily(fam); setAuthStep('register'); }}
+            onCreateFamily={(fam) => { setFamily(fam); setAuthStep('register'); }}
+          />
         );
-        if (matched) {
-          onLogin({
-            name: matched.name,
-            email: matched.email,
-            role: 'teacher',
-            id: matched.id,
-            phone: matched.phone || '',
-            subject: matched.subject
-          });
-          setLoading(false);
-          return;
-        } else {
-          // Also try Supabase
-          try {
-            const result = await signInWithEmailOrPhone(identifier, password);
-            if (result.profile && result.profile.role === 'teacher') {
-              result.profile.phone = result.profile.phone || '';
-              onLogin(result.profile);
-              setLoading(false);
-              return;
-            }
-          } catch (supaErr) {
-            console.warn('Supabase teacher login failed:', supaErr.message);
-          }
-          setError('Invalid teacher credentials. ' + t('teacherLoginRequired'));
-          setLoading(false);
-          return;
-        }
-      }
-
-      // ======== STUDENT / PARENT REGISTRATION & LOGIN ========
-      if (mode === 'register') {
-        // Only student and parent can register
-        if (role !== 'student' && role !== 'parent') {
-          setError('This role requires administrator invitation.');
-          setLoading(false);
-          return;
-        }
-        // REGISTER — use Supabase
-        let result;
-        try {
-          result = await signUpWithEmailOrPhone(identifier, password, name, role);
-          const prof = authMethod === 'phone'
-            ? { id: result.user?.id, name, phone: identifier, role, email: '' }
-            : { id: result.user?.id, name, email: identifier, role, phone: '' };
-          onLogin(prof);
-        } catch (supaErr) {
-          console.warn('Supabase signup failed, using local demo:', supaErr.message);
-          onLogin({
-            name,
-            email: authMethod === 'email' ? identifier : '',
-            phone: authMethod === 'phone' ? identifier : '',
-            role,
-            id: Date.now()
-          });
-        }
-      } else {
-        // STUDENT/PARENT LOGIN — try Supabase first
-        try {
-          const result = await signInWithEmailOrPhone(identifier, password);
-          if (result.profile) {
-            result.profile.phone = result.profile.phone || '';
-            onLogin(result.profile);
-            return;
-          }
-        } catch (supaErr) {
-          console.warn('Supabase login failed, using local demo:', supaErr.message);
-        }
-        // Fallback to local demo
-        onLogin({
-          name: name || (authMethod === 'email' ? identifier.split('@')[0] : 'User'),
-          email: authMethod === 'email' ? identifier : '',
-          phone: authMethod === 'phone' ? identifier : '',
-          role,
-          id: Date.now()
-        });
-      }
-    } catch (err) {
-      setError(err.message || 'Authentication failed. Please try again.');
-    } finally {
-      setLoading(false);
+      case 'register':
+        return (
+          <RegisterForm
+            family={family}
+            t={t}
+            onBack={() => { setAuthStep('choose'); setFamily(null); }}
+            onSuccess={handleRegisterSuccess}
+          />
+        );
+      case 'login':
+        return (
+          <LoginForm
+            t={t}
+            onSuccess={handleLoginSuccess}
+            onTeacherLogin={handleTeacherLogin}
+            onAdminLogin={handleAdminLogin}
+          />
+        );
+      default:
+        return (
+          <div className="auth-choice-buttons">
+            <button className="btn-auth-choice btn-auth-register" onClick={() => setAuthStep('family-setup')}>
+              <span className="choice-icon">🏠</span>
+              <span className="choice-title">{t('createAccount') || 'Create Account'}</span>
+              <span className="choice-desc">{t('familyRegisterDesc') || 'Join your family with a family code'}</span>
+            </button>
+            <button className="btn-auth-choice btn-auth-login" onClick={() => setAuthStep('login')}>
+              <span className="choice-icon">🔑</span>
+              <span className="choice-title">{t('signIn') || 'Sign In'}</span>
+              <span className="choice-desc">{t('signInDesc') || 'Already have an account? Sign in here'}</span>
+            </button>
+          </div>
+        );
     }
   };
 
@@ -615,95 +582,15 @@ function LandingPage({ onLogin }) {
         <div className="hero-content">
           <h1>{t('landingTitle')}</h1>
           <p>{t('landingSubtitle')}</p>
-          
-          {/* Registration Form */}
+
+          {/* Auth Step Container */}
           <div className="hero-register-form">
-            <div className="auth-mode-toggle">
-              <button className={mode === 'register' ? 'active' : ''} onClick={() => setMode('register')}>{t('createAccount')}</button>
-              <button className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>Sign In</button>
-            </div>
-            <form onSubmit={e => e.preventDefault()}>
-              {mode === 'register' && (
-                <input
-                  type="text"
-                  placeholder={t('fullName')}
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                />
-              )}
-              {/* Email / Phone toggle */}
-              <div className="auth-method-toggle">
-                <button
-                  type="button"
-                  className={authMethod === 'email' ? 'active' : ''}
-                  onClick={() => { setAuthMethod('email'); setIdentifier(''); }}
-                >
-                  📧 {t('emailLabel') || 'Email'}
-                </button>
-                <button
-                  type="button"
-                  className={authMethod === 'phone' ? 'active' : ''}
-                  onClick={() => { setAuthMethod('phone'); setIdentifier(''); }}
-                >
-                  📱 {t('phoneLabel') || 'Phone'}
-                </button>
-              </div>
-              <input
-                type={authMethod === 'email' ? 'email' : 'tel'}
-                placeholder={authMethod === 'email' ? t('emailAddress') : t('phoneNumber')}
-                value={identifier}
-                onChange={e => setIdentifier(e.target.value)}
-              />
-              <input
-                type="password"
-                placeholder={t('password')}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-              />
-            </form>
-            {error && <div className="auth-error">{error}</div>}
-          </div>
-          
-          {/* Role Buttons — depends on mode */}
-          <div className="role-buttons-container">
-            {mode === 'register' ? (
-              <>
-                {/* Register: only Student and Parent can self-register */}
-                <button className="btn-role btn-student" onClick={() => { setLoginRole('student'); handleRegister('student'); }} disabled={loading}>
-                  <Icons.Video />
-                  {t('imStudent')}
-                </button>
-                <button className="btn-role btn-parent" onClick={() => { setLoginRole('parent'); handleRegister('parent'); }} disabled={loading}>
-                  <Icons.Users />
-                  {t('imParent')}
-                </button>
-              </>
-            ) : (
-              <>
-                {/* Login: Student, Parent, Teacher, Admin */}
-                <button className="btn-role btn-student" onClick={() => { setLoginRole('student'); handleRegister('student'); }} disabled={loading}>
-                  <Icons.Video />
-                  {'Sign In as Student'}
-                </button>
-                <button className="btn-role btn-parent" onClick={() => { setLoginRole('parent'); handleRegister('parent'); }} disabled={loading}>
-                  <Icons.Users />
-                  {'Sign In as Parent'}
-                </button>
-                <button className="btn-role btn-teacher" onClick={() => {
-                  setLoginRole('teacher');
-                  // Show name field for teacher login
-                  if (!name) setName('');
-                  handleRegister('teacher');
-                }} disabled={loading}>
-                  <Icons.User />
-                  {'Sign In as Teacher'}
-                </button>
-                <button className="btn-role btn-admin" onClick={() => { setLoginRole('admin'); handleRegister('admin'); }} disabled={loading}>
-                  <Icons.Shield />
-                  {'Sign In as Administrator'}
-                </button>
-              </>
+            {authStep !== 'choose' && (
+              <button className="auth-back-main" onClick={() => setAuthStep('choose')}>
+                ← {t('back') || 'Back'}
+              </button>
             )}
+            {renderAuthStep()}
           </div>
         </div>
         

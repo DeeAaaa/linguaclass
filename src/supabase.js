@@ -307,4 +307,145 @@ export async function removeVideoRoomContact(id) {
   if (error) throw error;
 }
 
+// ============================================
+// FAMILY ACCOUNT SYSTEM
+// ============================================
+
+/**
+ * Generate a unique 6-character family code.
+ */
+export function generateFamilyCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no confusing 0/O/1/I
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `FAM-${code}`;
+}
+
+/**
+ * Create a new family with a unique code.
+ */
+export async function createFamily(name, createdBy) {
+  let code = generateFamilyCode();
+  // Ensure uniqueness
+  let attempts = 0;
+  while (attempts < 5) {
+    const { data: existing } = await supabase
+      .from('families')
+      .select('id')
+      .eq('code', code)
+      .maybeSingle();
+    if (!existing) break;
+    code = generateFamilyCode();
+    attempts++;
+  }
+
+  const { data, error } = await supabase
+    .from('families')
+    .insert({
+      code,
+      name: name || `Family ${code}`,
+      created_by: createdBy,
+    })
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Find a family by its code.
+ */
+export async function findFamilyByCode(code) {
+  const normalized = code.trim().toUpperCase();
+  const { data, error } = await supabase
+    .from('families')
+    .select('*')
+    .eq('code', normalized)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+/**
+ * Get all members of a family.
+ */
+export async function getFamilyMembers(familyId) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('family_id', familyId)
+    .order('role', { ascending: true })
+    .order('name');
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Sign up a new user and link them to a family.
+ */
+export async function signUpWithFamily({ name, email, phone, password, role, familyId, usedPhone }) {
+  const finalEmail = usedPhone ? phoneToVirtualEmail(phone) : email;
+  const { data, error } = await supabase.auth.signUp({
+    email: finalEmail,
+    password,
+    options: {
+      data: { name, phone, role, family_id: familyId },
+    },
+  });
+  if (error) throw error;
+
+  if (data.user) {
+    await supabase.from('profiles').upsert({
+      id: data.user.id,
+      name,
+      email: finalEmail,
+      phone: usedPhone ? phone : (phone || ''),
+      role,
+      family_id: familyId,
+      avatar: role === 'parent' ? '👨‍👩‍👧' : '🎓',
+    }, { onConflict: 'id' });
+  }
+  return data;
+}
+
+/**
+ * Sign in and return profile with family data.
+ */
+export async function signInWithFamily(email, password) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+
+  if (data.user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+
+    let family = null;
+    let familyMembers = [];
+    if (profile?.family_id) {
+      const { data: fam } = await supabase
+        .from('families')
+        .select('*')
+        .eq('id', profile.family_id)
+        .maybeSingle();
+      family = fam;
+      familyMembers = await getFamilyMembers(profile.family_id);
+    }
+
+    return { user: data.user, profile, family, familyMembers };
+  }
+  return data;
+}
+
+/**
+ * Updated signIn to also load family data.
+ */
+const originalSignIn = signIn;
+export { originalSignIn };
+
 export default supabase;
