@@ -402,6 +402,53 @@ function getStudentsByParentEmail(parentEmail) {
 const ADMIN_EMAIL = 'admin@linguaclass.com';
 const ADMIN_PASSWORD = 'LinguaAdmin2026';
 
+function LanguageSwitcher() {
+  const { lang, setLanguage } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const languages = [
+    { code: 'en', flag: '🇬🇧', label: 'English' },
+    { code: 'zh', flag: '🇨🇳', label: '中文' },
+    { code: 'ru', flag: '🇷🇺', label: 'Русский' },
+  ];
+
+  const current = languages.find(l => l.code === lang) || languages[0];
+
+  return (
+    <div className="lang-switcher-wrapper" ref={ref}>
+      <button className="lang-switcher-btn" onClick={() => setOpen(!open)}>
+        <span className="lang-flag">{current.flag}</span>
+        <span className="lang-current">{current.label}</span>
+        <span className="lang-caret">{open ? '▴' : '▾'}</span>
+      </button>
+      {open && (
+        <div className="lang-dropdown">
+          {languages.map(l => (
+            <button
+              key={l.code}
+              className={`lang-option ${l.code === lang ? 'active' : ''}`}
+              onClick={() => { setLanguage(l.code); setOpen(false); }}
+            >
+              <span className="lang-flag">{l.flag}</span>
+              <span className="lang-label">{l.label}</span>
+              {l.code === lang && <span className="lang-check">✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LandingPage({ onLogin }) {
   const { t, lang, toggleLanguage } = useTranslation();
   const [mode, setMode] = useState('login'); // 'login' | 'register' — Sign In active by default
@@ -559,12 +606,7 @@ function LandingPage({ onLogin }) {
           </div>
         </div>
         <div className="nav-right">
-          <button className="lang-switcher-btn" onClick={toggleLanguage} title={lang === 'en' ? 'Switch to Chinese' : lang === 'zh' ? 'Switch to Russian' : 'Switch to English'}>
-            <span className="lang-flag">{lang === 'en' ? '🇬🇧' : lang === 'zh' ? '🇨🇳' : '🇷🇺'}</span>
-            <span className="lang-current">{lang === 'en' ? 'English' : lang === 'zh' ? '中文' : 'Русский'}</span>
-            <span className="lang-arrow">→</span>
-            <span className="lang-target">{lang === 'en' ? '中文' : lang === 'zh' ? 'Русский' : 'English'}</span>
-          </button>
+          <LanguageSwitcher />
         </div>
       </nav>
 
@@ -954,12 +996,7 @@ function AppLayout({ children, user, onLogout, currentPage, setCurrentPage }) {
             {navItems.find(item => item.id === currentPage)?.label || t('navDashboard')}
           </h1>
           <div className="header-actions">
-            <button className="lang-switcher-btn" onClick={toggleLanguage} title={lang === 'en' ? 'Switch to Chinese' : lang === 'zh' ? 'Switch to Russian' : 'Switch to English'}>
-              <span className="lang-flag">{lang === 'en' ? '🇬🇧' : lang === 'zh' ? '🇨🇳' : '🇷🇺'}</span>
-              <span className="lang-current">{lang === 'en' ? 'English' : lang === 'zh' ? '中文' : 'Русский'}</span>
-              <span className="lang-arrow">→</span>
-              <span className="lang-target">{lang === 'en' ? '中文' : lang === 'zh' ? 'Русский' : 'English'}</span>
-            </button>
+            <LanguageSwitcher />
           </div>
         </header>
 
