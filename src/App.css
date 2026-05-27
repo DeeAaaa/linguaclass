@@ -885,6 +885,36 @@ input::placeholder {
   margin-bottom: 1.5rem;
 }
 
+/* Hero Login Button (standalone, no form container) */
+.hero-login-btn {
+  background: linear-gradient(135deg, #2563eb, #4f46e5) !important;
+  color: white !important;
+  border: none !important;
+  padding: 1rem 2rem !important;
+  border-radius: 12px !important;
+  font-size: 1.05rem !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  transition: all 0.2s !important;
+  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4) !important;
+  max-width: 400px;
+  width: 100%;
+  justify-content: center;
+}
+.hero-login-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.55) !important;
+}
+.hero-login-btn .choice-icon {
+  font-size: 1.3rem;
+}
+.hero-login-btn .choice-desc {
+  color: rgba(255,255,255,0.75) !important;
+}
+
 .hero-register-form h3 {
   color: white;
   font-size: 1.5rem;

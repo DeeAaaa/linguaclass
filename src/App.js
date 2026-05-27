@@ -3,7 +3,7 @@ import './App.css';
 import { LanguageProvider, useTranslation } from './i18n/LanguageContext';
 import { createPeerConnection, addTracksToPeer, replaceVideoTrack, createOffer, handleOffer, handleAnswer, handleIceCandidate, closePeer } from './webrtc';
 import { supabase, signIn, signOut, getSession, signInLocal, fetchTeachers, updateTeacher, fetchStudents, fetchContacts, saveContacts, fetchVideoRoomContacts, addVideoRoomContact, removeVideoRoomContact } from './supabase';
-import { FamilyCodeStep, RegisterForm, LoginForm } from './auth/AuthForms';
+import { LoginForm } from './auth/AuthForms';
 import { joinSignalingRoom } from './signaling';
 
 // ============================================
@@ -452,8 +452,7 @@ function LanguageSwitcher() {
 
 function LandingPage({ onLogin }) {
   const { t } = useTranslation();
-  const [authStep, setAuthStep] = useState('choose'); // 'choose' | 'family-setup' | 'register' | 'login'
-  const [family, setFamily] = useState(null);
+  const [showLogin, setShowLogin] = useState(false);
   const [activeAnnouncement, setActiveAnnouncement] = useState(0);
 
   useEffect(() => {
@@ -463,12 +462,7 @@ function LandingPage({ onLogin }) {
     return () => clearInterval(interval);
   }, []);
 
-  // Called after successful registration (family + account created)
-  const handleRegisterSuccess = (userData) => {
-    onLogin(userData);
-  };
-
-  // Called after successful login for students/parents
+  // Called after successful login for family
   const handleLoginSuccess = (userData) => {
     onLogin(userData);
   };
@@ -515,58 +509,104 @@ function LandingPage({ onLogin }) {
     });
   };
 
-  // Which login role the user chose
-  const [loginRole, setLoginRole] = useState(null); // 'admin' | 'teacher' | 'family'
+  // Login role: null = not chosen, 'administrator' | 'family'
+  const [loginRole, setLoginRole] = useState(null);
+  // Sub-role for administrator: null = choose, 'admin' | 'teacher'
+  const [adminSubRole, setAdminSubRole] = useState(null);
+
+  // Reset login state when going back
+  const goBack = () => {
+    if (adminSubRole) {
+      setAdminSubRole(null);
+    } else if (loginRole) {
+      setLoginRole(null);
+    } else {
+      setShowLogin(false);
+    }
+  };
 
   // Render the current auth step
   const renderAuthStep = () => {
-    // --- Login role selection (step after pressing "Sign In") ---
-    if (authStep === 'login' && !loginRole) {
+    if (!showLogin) {
+      return (
+        <button className="btn-auth-choice btn-auth-login hero-login-btn" onClick={() => setShowLogin(true)}>
+          <span className="choice-icon">🔑</span>
+          <span className="choice-title">{t('signIn') || 'Login'}</span>
+          <span className="choice-desc">{t('signInDesc') || 'Sign in to your account'}</span>
+        </button>
+      );
+    }
+
+    // --- Choose: Administrator or Family ---
+    if (!loginRole) {
       return (
         <div className="auth-choice-buttons auth-login-roles">
-          <h3 className="login-role-title">{t('chooseLoginMethod') || 'Choose your login method'}</h3>
+          <h3 className="login-role-title">{'Choose your login method'}</h3>
 
-          <button className="btn-auth-choice btn-admin-login" onClick={() => setLoginRole('admin')}>
+          <button className="btn-auth-choice btn-admin-login" onClick={() => setLoginRole('administrator')}>
             <span className="choice-icon">🛡️</span>
-            <span className="choice-title">{t('administrator') || 'Administrator'}</span>
-            <span className="choice-desc">{t('adminDesc') || 'Full access to all classes, teachers, and families'}</span>
-          </button>
-
-          <button className="btn-auth-choice btn-teacher-login" onClick={() => setLoginRole('teacher')}>
-            <span className="choice-icon">👩‍🏫</span>
-            <span className="choice-title">{t('teacher') || 'Teacher'}</span>
-            <span className="choice-desc">{t('teacherDesc') || 'Access to students, calendar, and class materials'}</span>
+            <span className="choice-title">Administrator</span>
+            <span className="choice-desc">Admin & Teacher access</span>
           </button>
 
           <button className="btn-auth-choice btn-family-login" onClick={() => setLoginRole('family')}>
             <span className="choice-icon">🏠</span>
-            <span className="choice-title">{t('family') || 'Family'}</span>
-            <span className="choice-desc">{t('familyDesc') || 'Access your family calendar, files, and dashboard'}</span>
+            <span className="choice-title">Family</span>
+            <span className="choice-desc">View your family calendar, files, and children's progress</span>
+          </button>
+
+          <button className="auth-back-main" onClick={() => setShowLogin(false)}>
+            ← Back
+          </button>
+        </div>
+      );
+    }
+
+    // --- Administrator: choose Admin or Teacher ---
+    if (loginRole === 'administrator' && !adminSubRole) {
+      return (
+        <div className="auth-choice-buttons auth-login-roles">
+          <h3 className="login-role-title">Administrator Access</h3>
+
+          <button className="btn-auth-choice btn-admin-login" onClick={() => setAdminSubRole('admin')}>
+            <span className="choice-icon">🛡️</span>
+            <span className="choice-title">Admin</span>
+            <span className="choice-desc">Full system access — manage everything</span>
+          </button>
+
+          <button className="btn-auth-choice btn-teacher-login" onClick={() => setAdminSubRole('teacher')}>
+            <span className="choice-icon">👩‍🏫</span>
+            <span className="choice-title">Teacher</span>
+            <span className="choice-desc">Access students, calendar, video room, contacts</span>
+          </button>
+
+          <button className="auth-back-main" onClick={goBack}>
+            ← Back
           </button>
         </div>
       );
     }
 
     // --- Admin login form ---
-    if (loginRole === 'admin') {
+    if (loginRole === 'administrator' && adminSubRole === 'admin') {
       return (
         <LoginForm
           t={t}
           role="admin"
           onSuccess={handleAdminLogin}
-          onBack={() => setLoginRole(null)}
+          onBack={goBack}
         />
       );
     }
 
     // --- Teacher login form ---
-    if (loginRole === 'teacher') {
+    if (loginRole === 'administrator' && adminSubRole === 'teacher') {
       return (
         <LoginForm
           t={t}
           role="teacher"
           onSuccess={handleTeacherLogin}
-          onBack={() => setLoginRole(null)}
+          onBack={goBack}
         />
       );
     }
@@ -578,45 +618,12 @@ function LandingPage({ onLogin }) {
           t={t}
           role="family"
           onSuccess={handleLoginSuccess}
-          onBack={() => setLoginRole(null)}
+          onBack={goBack}
         />
       );
     }
 
-    switch (authStep) {
-      case 'family-setup':
-        return (
-          <FamilyCodeStep
-            t={t}
-            onJoinFamily={(fam) => { setFamily(fam); setAuthStep('register'); }}
-            onCreateFamily={(fam) => { setFamily(fam); setAuthStep('register'); }}
-          />
-        );
-      case 'register':
-        return (
-          <RegisterForm
-            family={family}
-            t={t}
-            onBack={() => { setAuthStep('choose'); setFamily(null); }}
-            onSuccess={handleRegisterSuccess}
-          />
-        );
-      default:
-        return (
-          <div className="auth-choice-buttons">
-            <button className="btn-auth-choice btn-auth-register" onClick={() => setAuthStep('family-setup')}>
-              <span className="choice-icon">🏠</span>
-              <span className="choice-title">{t('createAccount') || 'Create Account'}</span>
-              <span className="choice-desc">{t('familyRegisterDesc') || 'Join your family with a family code'}</span>
-            </button>
-            <button className="btn-auth-choice btn-auth-login" onClick={() => setAuthStep('login')}>
-              <span className="choice-icon">🔑</span>
-              <span className="choice-title">{t('signIn') || 'Sign In'}</span>
-              <span className="choice-desc">{t('signInDesc') || 'Already have an account? Sign in here'}</span>
-            </button>
-          </div>
-        );
-    }
+    return null;
   };
 
   return (
@@ -642,11 +649,6 @@ function LandingPage({ onLogin }) {
 
           {/* Auth Step Container */}
           <div className="hero-register-form">
-            {authStep !== 'choose' && !loginRole && (
-              <button className="auth-back-main" onClick={() => setAuthStep('choose')}>
-                ← {t('back') || 'Back'}
-              </button>
-            )}
             {renderAuthStep()}
           </div>
         </div>
@@ -3226,6 +3228,20 @@ function AdministrationPage({ user }) {
   const [showCredentialId, setShowCredentialId] = useState(null);
   const [credentialCopied, setCredentialCopied] = useState('');
 
+  // ---- Family Accounts (admin-managed) ----
+  const [familyAccounts, setFamilyAccounts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('classroom_family_accounts') || '[]'); } catch { return []; }
+  });
+  const [showAddFamilyForm, setShowAddFamilyForm] = useState(false);
+  const [newFamily, setNewFamily] = useState({
+    parentName: '', parentEmail: '', password: '', phone: '',
+    children: [] // { name: '', grade: '', subject: 'English' }
+  });
+  const [newChild, setNewChild] = useState({ name: '', grade: '', subject: 'English' });
+  const [familySearch, setFamilySearch] = useState('');
+  const [showFamilyCredId, setShowFamilyCredId] = useState(null);
+  const [familyCredCopied, setFamilyCredCopied] = useState('');
+
   const resetTeacherForm = () => {
     setNewTeacher({ name: '', email: '', password: '', subject: 'English', phone: '' });
     setEditingManagedId(null);
@@ -3289,6 +3305,95 @@ function AdministrationPage({ user }) {
     setEditingManagedId(teacher.id);
     setShowAddTeacherForm(true);
   };
+
+  // ===== Family Account CRUD =====
+  const resetFamilyForm = () => {
+    setNewFamily({ parentName: '', parentEmail: '', password: '', phone: '', children: [] });
+    setNewChild({ name: '', grade: '', subject: 'English' });
+    setShowAddFamilyForm(false);
+  };
+
+  const addChildToNewFamily = () => {
+    if (!newChild.name || !newChild.grade) return;
+    setNewFamily(prev => ({
+      ...prev,
+      children: [...prev.children, { ...newChild }]
+    }));
+    setNewChild({ name: '', grade: '', subject: 'English' });
+  };
+
+  const removeChildFromNewFamily = (idx) => {
+    setNewFamily(prev => ({
+      ...prev,
+      children: prev.children.filter((_, i) => i !== idx)
+    }));
+  };
+
+  const handleCreateFamily = () => {
+    if (!newFamily.parentName || !newFamily.parentEmail || !newFamily.password) {
+      alert('Please fill in Parent Name, Email, and Password.');
+      return;
+    }
+    const familyId = Date.now();
+    const family = {
+      id: familyId,
+      parentName: newFamily.parentName,
+      parentEmail: newFamily.parentEmail,
+      password: newFamily.password,
+      phone: newFamily.phone,
+      children: newFamily.children.map((c, i) => ({
+        ...c,
+        id: familyId + i + 1,
+        totalHours: 30,
+        usedHours: 0,
+        paymentStatus: 'pending',
+        enrolledDate: new Date().toISOString().split('T')[0]
+      })),
+      createdAt: new Date().toISOString()
+    };
+    const updated = [...familyAccounts, family];
+    setFamilyAccounts(updated);
+    localStorage.setItem('classroom_family_accounts', JSON.stringify(updated));
+    // Also add children as students in the system
+    const existingStudents = getAllStudents();
+    const newStudents = family.children.map((c, i) => ({
+      id: familyId + i + 1,
+      name: c.name,
+      grade: c.grade,
+      subject: c.subject,
+      teacher: '',
+      totalHours: 30,
+      usedHours: 0,
+      paymentStatus: 'pending',
+      parentName: family.parentName,
+      parentEmail: family.parentEmail,
+      parentId: familyId,
+      avatar: '👤',
+      enrolledDate: family.createdAt.split('T')[0]
+    }));
+    const allStudents = [...existingStudents, ...newStudents];
+    localStorage.setItem('linguaclass_students', JSON.stringify(allStudents));
+    setStudents(allStudents);
+    resetFamilyForm();
+    showToast('Family account created successfully!');
+  };
+
+  const handleDeleteFamily = (id) => {
+    if (!window.confirm('Delete this family account? All associated children will be removed.')) return;
+    const updated = familyAccounts.filter(f => f.id !== id);
+    setFamilyAccounts(updated);
+    localStorage.setItem('classroom_family_accounts', JSON.stringify(updated));
+    // Remove children from students list
+    const remainingStudents = getAllStudents().filter(s => s.parentId !== id);
+    localStorage.setItem('linguaclass_students', JSON.stringify(remainingStudents));
+    setStudents(remainingStudents);
+    showToast('Family account deleted.');
+  };
+
+  const filteredFamilies = familyAccounts.filter(f =>
+    f.parentName.toLowerCase().includes(familySearch.toLowerCase()) ||
+    f.parentEmail.toLowerCase().includes(familySearch.toLowerCase())
+  );
 
   // Load data from Supabase (fallback to sample data, merged with localStorage)
   useEffect(() => {
@@ -3699,6 +3804,251 @@ function AdministrationPage({ user }) {
           )}
         </div>
       )}
+
+      {/* ======== FAMILY ACCOUNTS SECTION ======== */}
+      <div className="admin-section" style={{marginTop:'32px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}}>
+          <div>
+            <h3 style={{margin:0}}>🏠 Family Accounts</h3>
+            <p style={{margin:'4px 0 0',color:'#64748b',fontSize:'0.85rem'}}>Create family accounts with credentials — families use these to log in and view their children</p>
+          </div>
+          <button
+            onClick={() => { resetFamilyForm(); setShowAddFamilyForm(true); }}
+            style={{
+              background:'linear-gradient(135deg, #059669, #10b981)', color:'#fff', border:'none',
+              padding:'10px 20px', borderRadius:'8px', fontWeight:600, cursor:'pointer', fontSize:'0.9rem',
+              display:'flex', alignItems:'center', gap:'6px', boxShadow:'0 2px 8px rgba(5,150,105,0.3)'
+            }}
+          >
+            <Icons.Plus /> Create Family Account
+          </button>
+        </div>
+
+        {/* Search */}
+        <div style={{marginBottom:'16px'}}>
+          <input
+            type="text"
+            value={familySearch}
+            onChange={e => setFamilySearch(e.target.value)}
+            placeholder="🔍 Search families by name or email..."
+            style={{
+              width:'100%',maxWidth:'400px',padding:'10px 16px',border:'1px solid #e2e8f0',
+              borderRadius:'8px',fontSize:'0.9rem',boxSizing:'border-box'
+            }}
+          />
+        </div>
+
+        {/* Add Family Form */}
+        {showAddFamilyForm && (
+          <div style={{
+            background:'#f0fdf4', borderRadius:'12px', padding:'20px', marginBottom:'16px',
+            border:'1px solid #bbf7d0'
+          }}>
+            <h4 style={{margin:'0 0 16px',fontSize:'0.95rem',color:'#065f46'}}>Create Family Account</h4>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
+              <div>
+                <label style={{fontSize:'0.8rem',fontWeight:600,color:'#475569',display:'block',marginBottom:'4px'}}>Parent Name *</label>
+                <input type="text" value={newFamily.parentName}
+                  onChange={e => setNewFamily({...newFamily, parentName: e.target.value})}
+                  placeholder="e.g. Michael Thompson"
+                  style={{width:'100%',padding:'8px 12px',border:'1px solid #cbd5e1',borderRadius:'6px',fontSize:'0.9rem',boxSizing:'border-box'}}
+                />
+              </div>
+              <div>
+                <label style={{fontSize:'0.8rem',fontWeight:600,color:'#475569',display:'block',marginBottom:'4px'}}>Parent Email *</label>
+                <input type="email" value={newFamily.parentEmail}
+                  onChange={e => setNewFamily({...newFamily, parentEmail: e.target.value})}
+                  placeholder="parent@email.com"
+                  style={{width:'100%',padding:'8px 12px',border:'1px solid #cbd5e1',borderRadius:'6px',fontSize:'0.9rem',boxSizing:'border-box'}}
+                />
+              </div>
+              <div>
+                <label style={{fontSize:'0.8rem',fontWeight:600,color:'#475569',display:'block',marginBottom:'4px'}}>Login Password *</label>
+                <input type="text" value={newFamily.password}
+                  onChange={e => setNewFamily({...newFamily, password: e.target.value})}
+                  placeholder="Min. 6 characters"
+                  style={{width:'100%',padding:'8px 12px',border:'1px solid #cbd5e1',borderRadius:'6px',fontSize:'0.9rem',boxSizing:'border-box'}}
+                />
+              </div>
+              <div>
+                <label style={{fontSize:'0.8rem',fontWeight:600,color:'#475569',display:'block',marginBottom:'4px'}}>Phone (optional)</label>
+                <input type="tel" value={newFamily.phone}
+                  onChange={e => setNewFamily({...newFamily, phone: e.target.value})}
+                  placeholder="+1 234 567 8900"
+                  style={{width:'100%',padding:'8px 12px',border:'1px solid #cbd5e1',borderRadius:'6px',fontSize:'0.9rem',boxSizing:'border-box'}}
+                />
+              </div>
+            </div>
+
+            {/* Children Section */}
+            <div style={{marginTop:'16px',padding:'12px',background:'#fff',borderRadius:'8px',border:'1px solid #d1fae5'}}>
+              <h5 style={{margin:'0 0 10px',fontSize:'0.85rem',color:'#065f46'}}>👧👦 Children</h5>
+              {/* Existing children in form */}
+              {newFamily.children.length > 0 && (
+                <div style={{display:'flex',flexWrap:'wrap',gap:'8px',marginBottom:'10px'}}>
+                  {newFamily.children.map((child, idx) => (
+                    <span key={idx} style={{
+                      background:'#ecfdf5',border:'1px solid #6ee7b7',borderRadius:'20px',
+                      padding:'4px 12px',fontSize:'0.82rem',display:'inline-flex',alignItems:'center',gap:'6px'
+                    }}>
+                      {child.name} ({child.grade} - {child.subject})
+                      <button onClick={() => removeChildFromNewFamily(idx)}
+                        style={{background:'none',border:'none',cursor:'pointer',fontSize:'0.8rem',padding:0,lineHeight:1}}>✕</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              {/* Add child form */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr auto',gap:'8px',alignItems:'end'}}>
+                <div>
+                  <label style={{fontSize:'0.75rem',fontWeight:600,color:'#475569',display:'block',marginBottom:'2px'}}>Child Name</label>
+                  <input type="text" value={newChild.name}
+                    onChange={e => setNewChild({...newChild, name: e.target.value})}
+                    placeholder="e.g. Emma"
+                    style={{width:'100%',padding:'6px 10px',border:'1px solid #cbd5e1',borderRadius:'4px',fontSize:'0.85rem',boxSizing:'border-box'}}
+                  />
+                </div>
+                <div>
+                  <label style={{fontSize:'0.75rem',fontWeight:600,color:'#475569',display:'block',marginBottom:'2px'}}>Grade</label>
+                  <input type="text" value={newChild.grade}
+                    onChange={e => setNewChild({...newChild, grade: e.target.value})}
+                    placeholder="e.g. Grade 5"
+                    style={{width:'100%',padding:'6px 10px',border:'1px solid #cbd5e1',borderRadius:'4px',fontSize:'0.85rem',boxSizing:'border-box'}}
+                  />
+                </div>
+                <div>
+                  <label style={{fontSize:'0.75rem',fontWeight:600,color:'#475569',display:'block',marginBottom:'2px'}}>Subject</label>
+                  <select value={newChild.subject}
+                    onChange={e => setNewChild({...newChild, subject: e.target.value})}
+                    style={{width:'100%',padding:'6px 10px',border:'1px solid #cbd5e1',borderRadius:'4px',fontSize:'0.85rem',boxSizing:'border-box'}}
+                  >
+                    <option>English</option><option>Mathematics</option><option>Science</option>
+                    <option>History</option><option>Art</option><option>Music</option>
+                  </select>
+                </div>
+                <button onClick={addChildToNewFamily}
+                  style={{
+                    background:'#10b981',color:'#fff',border:'none',padding:'7px 14px',
+                    borderRadius:'6px',cursor:'pointer',fontWeight:600,fontSize:'0.85rem',whiteSpace:'nowrap'
+                  }}
+                >
+                  + Add
+                </button>
+              </div>
+            </div>
+
+            <div style={{display:'flex',gap:'8px',marginTop:'16px'}}>
+              <button onClick={handleCreateFamily}
+                style={{background:'#059669',color:'#fff',border:'none',padding:'10px 24px',borderRadius:'8px',fontWeight:600,cursor:'pointer'}}
+              >
+                Create Family Account
+              </button>
+              <button onClick={resetFamilyForm}
+                style={{background:'#e2e8f0',color:'#475569',border:'none',padding:'10px 24px',borderRadius:'8px',fontWeight:600,cursor:'pointer'}}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Family Accounts List */}
+        {filteredFamilies.length === 0 ? (
+          <div style={{textAlign:'center',padding:'32px',color:'#94a3b8',fontSize:'0.9rem'}}>
+            <span style={{fontSize:'2rem',display:'block',marginBottom:'8px'}}>🏠</span>
+            {familySearch ? 'No families match your search' : 'No family accounts yet. Create one to get started.'}
+          </div>
+        ) : (
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(340px, 1fr))',gap:'12px'}}>
+            {filteredFamilies.map(family => (
+              <div key={family.id} style={{
+                background:'#fff', borderRadius:'10px', padding:'16px', border:'1px solid #e2e8f0',
+                boxShadow:'0 1px 3px rgba(0,0,0,0.05)', position:'relative'
+              }}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'10px'}}>
+                  <div>
+                    <div style={{fontWeight:700,fontSize:'0.95rem',color:'#1e293b'}}>
+                      <span style={{marginRight:'6px'}}>👨‍👩‍👧</span>
+                      {family.parentName}
+                    </div>
+                    <div style={{fontSize:'0.8rem',color:'#64748b',marginTop:'2px'}}>{family.parentEmail}</div>
+                    {family.phone && <div style={{fontSize:'0.78rem',color:'#94a3b8'}}>📱 {family.phone}</div>}
+                  </div>
+                  <button onClick={() => handleDeleteFamily(family.id)}
+                    style={{background:'#fee2e2',border:'none',color:'#dc2626',padding:'4px 8px',borderRadius:'6px',cursor:'pointer',fontSize:'0.78rem',fontWeight:600}}>
+                    🗑️ Delete
+                  </button>
+                </div>
+
+                {/* Credentials toggle */}
+                {showFamilyCredId === family.id && (
+                  <div style={{
+                    background:'#fffbeb',border:'1px solid #fde68a',borderRadius:'8px',padding:'10px 12px',marginBottom:'10px',
+                    fontSize:'0.82rem'
+                  }}>
+                    <div style={{fontWeight:700,marginBottom:'6px',color:'#92400e'}}>🔑 Family Login Credentials</div>
+                    <div style={{marginBottom:'4px'}}>
+                      <span style={{color:'#92400e',fontWeight:600}}>Email:</span> {family.parentEmail}
+                    </div>
+                    <div>
+                      <span style={{color:'#92400e',fontWeight:600}}>Password:</span> {family.password}
+                    </div>
+                    <button onClick={() => {
+                      navigator.clipboard.writeText(`Email: ${family.parentEmail}\nPassword: ${family.password}`).then(() => {
+                        setFamilyCredCopied(family.id.toString());
+                        setTimeout(() => setFamilyCredCopied(''), 2000);
+                      });
+                    }} style={{
+                      marginTop:'8px',background:'#fef3c7',border:'1px solid #fbbf24',color:'#92400e',
+                      padding:'4px 12px',borderRadius:'4px',cursor:'pointer',fontSize:'0.78rem',fontWeight:600
+                    }}>
+                      📋 {familyCredCopied === family.id.toString() ? 'Copied!' : 'Copy Credentials'}
+                    </button>
+                  </div>
+                )}
+
+                <button onClick={() => setShowFamilyCredId(showFamilyCredId === family.id ? null : family.id)}
+                  style={{
+                    background:'#fef3c7',border:'1px solid #fbbf24',color:'#92400e',
+                    padding:'5px 12px',borderRadius:'6px',cursor:'pointer',fontSize:'0.78rem',fontWeight:600,marginBottom:'10px'
+                  }}
+                >
+                  🔑 {showFamilyCredId === family.id ? 'Hide Credentials' : 'Show Credentials'}
+                </button>
+
+                {/* Children list */}
+                <div style={{marginTop:'8px'}}>
+                  <div style={{fontWeight:600,fontSize:'0.82rem',color:'#475569',marginBottom:'6px'}}>
+                    👧👦 Children ({family.children.length})
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',gap:'4px'}}>
+                    {family.children.map((child, idx) => (
+                      <div key={idx} style={{
+                        background:'#f8fafc',padding:'6px 10px',borderRadius:'6px',
+                        fontSize:'0.8rem',display:'flex',alignItems:'center',gap:'8px'
+                      }}>
+                        <span style={{fontWeight:600,color:'#1e293b'}}>{child.name}</span>
+                        <span style={{color:'#64748b'}}>{child.grade}</span>
+                        <span style={{background:'#e0e7ff',color:'#4338ca',padding:'1px 8px',borderRadius:'4px',fontSize:'0.72rem'}}>
+                          {child.subject}
+                        </span>
+                        <span style={{marginLeft:'auto',color:'#94a3b8',fontSize:'0.72rem'}}>
+                          {child.totalHours}h total | {child.usedHours}h used
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{marginTop:'8px',fontSize:'0.72rem',color:'#94a3b8'}}>
+                  Created: {new Date(family.createdAt).toLocaleDateString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {/* ======== END FAMILY ACCOUNTS ======== */}
     </div>
   );
 }
