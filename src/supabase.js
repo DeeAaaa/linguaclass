@@ -308,7 +308,44 @@ export async function removeVideoRoomContact(id) {
 }
 
 // ============================================
-// FAMILY ACCOUNT SYSTEM
+// LOCAL STORAGE HELPER (offline-first fallback)
+// ============================================
+
+function getLocalStore(key) {
+  try { const d = localStorage.getItem(key); return d ? JSON.parse(d) : null; } catch { return null; }
+}
+function setLocalStore(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch { /* quota exceeded */ }
+}
+
+function getLocalFamilies() {
+  return getLocalStore('lingua_families') || [];
+}
+function saveLocalFamilies(families) {
+  setLocalStore('lingua_families', families);
+}
+function addLocalFamily(family) {
+  const families = getLocalFamilies();
+  families.push(family);
+  saveLocalFamilies(families);
+  return family;
+}
+
+function getLocalUsers() {
+  return getLocalStore('lingua_users') || [];
+}
+function saveLocalUsers(users) {
+  setLocalStore('lingua_users', users);
+}
+function addLocalUser(user) {
+  const users = getLocalUsers();
+  users.push(user);
+  saveLocalUsers(users);
+  return user;
+}
+
+// ============================================
+// FAMILY ACCOUNT SYSTEM (localStorage-backed)
 // ============================================
 
 /**
@@ -325,126 +362,318 @@ export function generateFamilyCode() {
 
 /**
  * Create a new family with a unique code.
+ * Always saves to localStorage (offline-first).
+ * Tries Supabase first, falls back to localStorage only.
  */
 export async function createFamily(name, createdBy) {
   let code = generateFamilyCode();
-  // Ensure uniqueness
+
+  // Ensure uniqueness against localStorage
+  const localFamilies = getLocalFamilies();
   let attempts = 0;
-  while (attempts < 5) {
-    const { data: existing } = await supabase
-      .from('families')
-      .select('id')
-      .eq('code', code)
-      .maybeSingle();
-    if (!existing) break;
+  while (localFamilies.some(f => f.code === code) && attempts < 10) {
     code = generateFamilyCode();
     attempts++;
   }
 
-  const { data, error } = await supabase
-    .from('families')
-    .insert({
-      code,
-      name: name || `Family ${code}`,
-      created_by: createdBy,
-    })
-    .select('*')
-    .single();
+  const family = {
+    id: Date.now(),
+    code,
+    name: name || `Family ${code}`,
+    created_by: createdBy,
+    created_at: new Date().toISOString(),
+  };
 
-  if (error) throw error;
-  return data;
+  // Save locally (always works)
+  addLocalFamily(family);
+
+  // Try Supabase as secondary (don't block)
+  try {
+    await supabase.from('families').insert({
+      id: family.id,
+      code,
+      name: family.name,
+      created_by: createdBy,
+    });
+  } catch (e) {
+    // Supabase unavailable — localStorage is enough
+    console.log('[Family] Using localStorage (Supabase unavailable)');
+  }
+
+  return family;
 }
 
 /**
  * Find a family by its code.
+ * Searches localStorage first, then Supabase.
  */
 export async function findFamilyByCode(code) {
   const normalized = code.trim().toUpperCase();
-  const { data, error } = await supabase
-    .from('families')
-    .select('*')
-    .eq('code', normalized)
-    .maybeSingle();
-  if (error) throw error;
-  return data || null;
+
+  // Search localStorage first (offline-first)
+  const localFamilies = getLocalFamilies();
+  const localMatch = localFamilies.find(f => f.code === normalized);
+  if (localMatch) return localMatch;
+
+  // Try Supabase as fallback
+  try {
+    const { data, error } = await supabase
+      .from('families')
+      .select('*')
+      .eq('code', normalized)
+      .maybeSingle();
+    if (!error && data) {
+      // Sync to local for future lookups
+      addLocalFamily(data);
+      return data;
+    }
+  } catch (e) {
+    // Supabase unavailable — not found locally either
+  }
+
+  return null;
 }
 
 /**
- * Get all members of a family.
+ * Get all members of a family from localStorage.
  */
 export async function getFamilyMembers(familyId) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('family_id', familyId)
-    .order('role', { ascending: true })
-    .order('name');
-  if (error) throw error;
-  return data || [];
+  // Search localStorage
+  const users = getLocalUsers();
+  const localMembers = users.filter(u => u.family_id === familyId || u.familyId === familyId);
+
+  if (localMembers.length > 0) {
+    return localMembers.map(u => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      phone: u.phone || '',
+      role: u.role,
+      family_id: u.family_id || u.familyId,
+      avatar: u.role === 'parent' ? '👨‍👩‍👧' : '🎓',
+    }));
+  }
+
+  // Try Supabase
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('family_id', familyId)
+      .order('role', { ascending: true })
+      .order('name');
+    if (!error && data) return data;
+  } catch (e) { /* offline */ }
+
+  return [];
 }
 
 /**
  * Sign up a new user and link them to a family.
+ * Saves to localStorage (offline-first), tries Supabase as secondary.
  */
 export async function signUpWithFamily({ name, email, phone, password, role, familyId, usedPhone }) {
-  const finalEmail = usedPhone ? phoneToVirtualEmail(phone) : email;
-  const { data, error } = await supabase.auth.signUp({
-    email: finalEmail,
-    password,
-    options: {
-      data: { name, phone, role, family_id: familyId },
-    },
-  });
-  if (error) throw error;
+  const userId = Date.now();
+  const finalEmail = usedPhone ? (phoneToVirtualEmail(phone)) : email;
 
-  if (data.user) {
-    await supabase.from('profiles').upsert({
-      id: data.user.id,
-      name,
-      email: finalEmail,
-      phone: usedPhone ? phone : (phone || ''),
-      role,
-      family_id: familyId,
-      avatar: role === 'parent' ? '👨‍👩‍👧' : '🎓',
-    }, { onConflict: 'id' });
+  // Save user to localStorage (always works)
+  const userRecord = {
+    id: userId,
+    name: name.trim(),
+    email: finalEmail,
+    phone: usedPhone ? phone : (phone || ''),
+    password, // stored locally for offline login
+    role,
+    family_id: familyId,
+    familyId: familyId,
+    avatar: role === 'parent' ? '👨‍👩‍👧' : '🎓',
+    created_at: new Date().toISOString(),
+  };
+  addLocalUser(userRecord);
+
+  // Try Supabase as secondary
+  try {
+    const supabaseEmail = email || finalEmail;
+    const { data } = await supabase.auth.signUp({
+      email: supabaseEmail,
+      password,
+      options: { data: { name: name.trim(), phone, role, family_id: familyId } },
+    });
+    if (data?.user) {
+      await supabase.from('profiles').upsert({
+        id: data.user.id,
+        name: name.trim(),
+        email: supabaseEmail,
+        phone: usedPhone ? phone : (phone || ''),
+        role,
+        family_id: familyId,
+        avatar: role === 'parent' ? '👨‍👩‍👧' : '🎓',
+      }, { onConflict: 'id' });
+    }
+    return data || { user: { id: userId } };
+  } catch (e) {
+    console.log('[Auth] Using localStorage for user (Supabase unavailable)');
   }
-  return data;
+
+  return { user: { id: userId } };
 }
 
 /**
- * Sign in and return profile with family data.
+ * Sign in with email/phone + password.
+ * Checks localStorage first, then Supabase.
  */
 export async function signInWithFamily(email, password) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw error;
+  // Normalize input
+  const normalizedEmail = email.trim().toLowerCase();
 
-  if (data.user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', data.user.id)
-      .single();
+  // Check localStorage users first
+  const users = getLocalUsers();
+  const localUser = users.find(u => {
+    const userEmail = (u.email || '').toLowerCase();
+    const userPhone = (u.phone || '').replace(/[^\d]/g, '');
+    const inputClean = normalizedEmail.replace(/[^\d]/g, '');
+    return (
+      userEmail === normalizedEmail ||
+      userPhone === inputClean
+    );
+  });
 
+  if (localUser && localUser.password === password) {
+    // Local login success — get family info
     let family = null;
     let familyMembers = [];
-    if (profile?.family_id) {
-      const { data: fam } = await supabase
-        .from('families')
-        .select('*')
-        .eq('id', profile.family_id)
-        .maybeSingle();
-      family = fam;
-      familyMembers = await getFamilyMembers(profile.family_id);
+    if (localUser.family_id || localUser.familyId) {
+      const fid = localUser.family_id || localUser.familyId;
+      const families = getLocalFamilies();
+      family = families.find(f => f.id === fid) || null;
+      familyMembers = await getFamilyMembers(fid);
     }
 
-    return { user: data.user, profile, family, familyMembers };
+    const profile = {
+      id: localUser.id,
+      name: localUser.name,
+      email: localUser.email,
+      phone: localUser.phone || '',
+      role: localUser.role,
+      family_id: localUser.family_id || localUser.familyId,
+      avatar: localUser.avatar,
+    };
+
+    return { user: { id: localUser.id }, profile, family, familyMembers };
   }
-  return data;
+
+  // Try Supabase
+  try {
+    const supabaseEmail = email.includes('@') ? email : phoneToVirtualEmail(email);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: supabaseEmail,
+      password,
+    });
+    if (error) throw error;
+
+    if (data.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+
+      let family = null;
+      let familyMembers = [];
+      if (profile?.family_id) {
+        const { data: fam } = await supabase
+          .from('families')
+          .select('*')
+          .eq('id', profile.family_id)
+          .maybeSingle();
+        family = fam;
+        familyMembers = await getFamilyMembers(profile.family_id);
+      }
+
+      return { user: data.user, profile, family, familyMembers };
+    }
+  } catch (e) {
+    // Not found anywhere
+    throw new Error('Invalid credentials. Please check your email/phone and password.');
+  }
+
+  return { user: null, profile: null, family: null, familyMembers: [] };
 }
 
 /**
- * Updated signIn to also load family data.
+ * Sign in with email or phone (unified API used by LoginForm).
  */
+export async function signInLocal(identifier, password) {
+  const normalized = identifier.trim().toLowerCase();
+
+  // Check if it's a phone number
+  const isPhoneLogin = !isEmail(identifier);
+
+  // Find user in localStorage
+  const users = getLocalUsers();
+  const localUser = users.find(u => {
+    const userIdentifier = isPhoneLogin
+      ? (u.phone || '').replace(/[^\d]/g, '')
+      : (u.email || '').toLowerCase();
+    const inputClean = isPhoneLogin ? normalized.replace(/[^\d]/g, '') : normalized;
+    return userIdentifier === inputClean;
+  });
+
+  if (localUser && localUser.password === password) {
+    let family = null;
+    let familyMembers = [];
+    if (localUser.family_id || localUser.familyId) {
+      const fid = localUser.family_id || localUser.familyId;
+      const families = getLocalFamilies();
+      family = families.find(f => f.id === fid) || null;
+      familyMembers = await getFamilyMembers(fid);
+    }
+
+    return {
+      profile: {
+        id: localUser.id,
+        name: localUser.name,
+        email: localUser.email,
+        phone: localUser.phone || '',
+        role: localUser.role,
+        familyId: localUser.family_id || localUser.familyId,
+        familyCode: family?.code || '',
+        familyName: family?.name || '',
+        avatar: localUser.avatar,
+      },
+      family,
+      familyMembers,
+    };
+  }
+
+  // If not found locally, try signInWithFamily (which also tries Supabase)
+  try {
+    const result = await signInWithFamily(identifier, password);
+    if (result.profile) {
+      return {
+        profile: {
+          id: result.profile.id,
+          name: result.profile.name,
+          email: result.profile.email,
+          phone: result.profile.phone || '',
+          role: result.profile.role,
+          familyId: result.profile.family_id,
+          familyCode: result.family?.code || '',
+          familyName: result.family?.name || '',
+          avatar: result.profile.avatar,
+        },
+        family: result.family,
+        familyMembers: result.familyMembers,
+      };
+    }
+  } catch (e) {
+    throw new Error('Invalid credentials. Please check and try again.');
+  }
+
+  throw new Error('Invalid credentials. Please check and try again.');
+}
+
+// Keep for backwards compatibility
 const originalSignIn = signIn;
 export { originalSignIn };
 

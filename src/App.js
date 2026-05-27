@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 import { LanguageProvider, useTranslation } from './i18n/LanguageContext';
 import { createPeerConnection, addTracksToPeer, replaceVideoTrack, createOffer, handleOffer, handleAnswer, handleIceCandidate, closePeer } from './webrtc';
-import { supabase, signUp, signIn, signOut, getSession, signUpWithEmailOrPhone, signInWithEmailOrPhone, fetchTeachers, updateTeacher, fetchStudents, fetchContacts, saveContacts, fetchVideoRoomContacts, addVideoRoomContact, removeVideoRoomContact } from './supabase';
+import { supabase, signIn, signOut, getSession, signInLocal, fetchTeachers, updateTeacher, fetchStudents, fetchContacts, saveContacts, fetchVideoRoomContacts, addVideoRoomContact, removeVideoRoomContact } from './supabase';
 import { FamilyCodeStep, RegisterForm, LoginForm } from './auth/AuthForms';
 import { joinSignalingRoom } from './signaling';
 
@@ -492,9 +492,9 @@ function LandingPage({ onLogin }) {
       });
       return true;
     }
-    // Try Supabase
+    // Try Supabase/local
     try {
-      const result = await signInWithEmailOrPhone(identifier, password);
+      const result = await signInLocal(identifier, password);
       if (result.profile && result.profile.role === 'teacher') {
         result.profile.phone = result.profile.phone || '';
         onLogin(result.profile);
@@ -515,8 +515,74 @@ function LandingPage({ onLogin }) {
     });
   };
 
+  // Which login role the user chose
+  const [loginRole, setLoginRole] = useState(null); // 'admin' | 'teacher' | 'family'
+
   // Render the current auth step
   const renderAuthStep = () => {
+    // --- Login role selection (step after pressing "Sign In") ---
+    if (authStep === 'login' && !loginRole) {
+      return (
+        <div className="auth-choice-buttons auth-login-roles">
+          <h3 className="login-role-title">{t('chooseLoginMethod') || 'Choose your login method'}</h3>
+
+          <button className="btn-auth-choice btn-admin-login" onClick={() => setLoginRole('admin')}>
+            <span className="choice-icon">🛡️</span>
+            <span className="choice-title">{t('administrator') || 'Administrator'}</span>
+            <span className="choice-desc">{t('adminDesc') || 'Full access to all classes, teachers, and families'}</span>
+          </button>
+
+          <button className="btn-auth-choice btn-teacher-login" onClick={() => setLoginRole('teacher')}>
+            <span className="choice-icon">👩‍🏫</span>
+            <span className="choice-title">{t('teacher') || 'Teacher'}</span>
+            <span className="choice-desc">{t('teacherDesc') || 'Access to students, calendar, and class materials'}</span>
+          </button>
+
+          <button className="btn-auth-choice btn-family-login" onClick={() => setLoginRole('family')}>
+            <span className="choice-icon">🏠</span>
+            <span className="choice-title">{t('family') || 'Family'}</span>
+            <span className="choice-desc">{t('familyDesc') || 'Access your family calendar, files, and dashboard'}</span>
+          </button>
+        </div>
+      );
+    }
+
+    // --- Admin login form ---
+    if (loginRole === 'admin') {
+      return (
+        <LoginForm
+          t={t}
+          role="admin"
+          onSuccess={handleAdminLogin}
+          onBack={() => setLoginRole(null)}
+        />
+      );
+    }
+
+    // --- Teacher login form ---
+    if (loginRole === 'teacher') {
+      return (
+        <LoginForm
+          t={t}
+          role="teacher"
+          onSuccess={handleTeacherLogin}
+          onBack={() => setLoginRole(null)}
+        />
+      );
+    }
+
+    // --- Family login form ---
+    if (loginRole === 'family') {
+      return (
+        <LoginForm
+          t={t}
+          role="family"
+          onSuccess={handleLoginSuccess}
+          onBack={() => setLoginRole(null)}
+        />
+      );
+    }
+
     switch (authStep) {
       case 'family-setup':
         return (
@@ -533,15 +599,6 @@ function LandingPage({ onLogin }) {
             t={t}
             onBack={() => { setAuthStep('choose'); setFamily(null); }}
             onSuccess={handleRegisterSuccess}
-          />
-        );
-      case 'login':
-        return (
-          <LoginForm
-            t={t}
-            onSuccess={handleLoginSuccess}
-            onTeacherLogin={handleTeacherLogin}
-            onAdminLogin={handleAdminLogin}
           />
         );
       default:
@@ -585,7 +642,7 @@ function LandingPage({ onLogin }) {
 
           {/* Auth Step Container */}
           <div className="hero-register-form">
-            {authStep !== 'choose' && (
+            {authStep !== 'choose' && !loginRole && (
               <button className="auth-back-main" onClick={() => setAuthStep('choose')}>
                 ← {t('back') || 'Back'}
               </button>
@@ -808,17 +865,34 @@ function AppLayout({ children, user, onLogout, currentPage, setCurrentPage }) {
   }, []);
 
   const isAdminUser = user?.role === 'admin';
-  const isParentUser = user?.role === 'parent';
-  const navItems = [
-    { id: 'dashboard', icon: Icons.Dashboard, label: t('navDashboard') },
-    { id: 'calendar', icon: Icons.Calendar, label: t('navCalendar') },
-    ...(isParentUser ? [{ id: 'studentrecords', icon: Icons.People, label: t('navMyChildren') || 'My Children', role: 'parent' }] : []),
-    { id: 'files', icon: Icons.Files, label: t('navFiles') },
-    ...(!isParentUser ? [{ id: 'studentrecords', icon: Icons.StudentRecords, label: t('navStudentRecords') }] : []),
-    { id: 'contacts', icon: Icons.Contacts, label: t('navContacts') },
-    { id: 'video', icon: Icons.Video, label: t('navVideoRoom') },
-    ...(isAdminUser ? [{ id: 'admin', icon: Icons.Admin, label: t('navAdmin'), role: 'admin' }] : []),
-  ];
+  const isTeacherUser = user?.role === 'teacher';
+  const isFamilyUser = user?.role === 'parent' || user?.role === 'student';
+
+  // Admin: everything | Teacher: no admin tab | Family: only dashboard, calendar, files
+  const navItems = isFamilyUser
+    ? [
+        { id: 'dashboard', icon: Icons.Dashboard, label: t('navDashboard') },
+        { id: 'calendar', icon: Icons.Calendar, label: t('navCalendar') },
+        { id: 'files', icon: Icons.Files, label: t('navFiles') },
+      ]
+    : isTeacherUser
+    ? [
+        { id: 'dashboard', icon: Icons.Dashboard, label: t('navDashboard') },
+        { id: 'calendar', icon: Icons.Calendar, label: t('navCalendar') },
+        { id: 'studentrecords', icon: Icons.StudentRecords, label: t('navStudentRecords') },
+        { id: 'files', icon: Icons.Files, label: t('navFiles') },
+        { id: 'contacts', icon: Icons.Contacts, label: t('navContacts') },
+        { id: 'video', icon: Icons.Video, label: t('navVideoRoom') },
+      ]
+    : [
+        { id: 'dashboard', icon: Icons.Dashboard, label: t('navDashboard') },
+        { id: 'calendar', icon: Icons.Calendar, label: t('navCalendar') },
+        { id: 'studentrecords', icon: Icons.StudentRecords, label: t('navStudentRecords') },
+        { id: 'files', icon: Icons.Files, label: t('navFiles') },
+        { id: 'contacts', icon: Icons.Contacts, label: t('navContacts') },
+        { id: 'video', icon: Icons.Video, label: t('navVideoRoom') },
+        { id: 'admin', icon: Icons.Admin, label: t('navAdmin') },
+      ];
 
   // Bottom tab items (fewer, primary actions for mobile)
   const bottomTabs = [
@@ -5881,12 +5955,22 @@ function App() {
 
   // ========== ENFORCE ROLE-BASED PAGE ACCESS ==========
   const renderPage = () => {
-    // STRICT GUARD: Only admin can access administration page
-    if (currentPage === 'admin' && user?.role !== 'admin') {
-      // Non-admin tried to access admin page — redirect to dashboard
+    const isFamily = user?.role === 'parent' || user?.role === 'student';
+    const isTeacher = user?.role === 'teacher';
+    const isAdmin = user?.role === 'admin';
+
+    // Family users ONLY: dashboard, calendar, files
+    if (isFamily && !['dashboard', 'calendar', 'files'].includes(currentPage)) {
       if (setCurrentPage) setCurrentPage('dashboard');
       return <DashboardPage user={user} setCurrentPage={setCurrentPage} />;
     }
+
+    // Only admin can access administration page
+    if (currentPage === 'admin' && !isAdmin) {
+      if (setCurrentPage) setCurrentPage('dashboard');
+      return <DashboardPage user={user} setCurrentPage={setCurrentPage} />;
+    }
+
     switch (currentPage) {
       case 'dashboard': return <DashboardPage user={user} setCurrentPage={setCurrentPage} />;
       case 'calendar': return <CalendarPage user={user} />;

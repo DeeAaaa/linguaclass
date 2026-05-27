@@ -279,6 +279,36 @@ a:hover { color: var(--primary-dark); }
 }
 .btn-auth-register .choice-icon { background: #ecfdf5; }
 .btn-auth-login .choice-icon { background: #eff6ff; }
+
+/* Login role selection buttons */
+.auth-login-roles {
+  text-align: center;
+}
+.login-role-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--gray-700);
+  margin: 0 0 12px;
+}
+.btn-admin-login .choice-icon { background: #fef3c7; }
+.btn-teacher-login .choice-icon { background: #dbeafe; }
+.btn-family-login .choice-icon { background: #ecfdf5; }
+.login-role-badge {
+  display: inline-block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--gray-700);
+  background: var(--gray-100);
+  padding: 4px 14px;
+  border-radius: 20px;
+  margin-bottom: 8px;
+}
+.login-hint {
+  font-size: 0.72rem;
+  color: var(--gray-400);
+  text-align: center;
+  margin-top: 8px;
+}
 .btn-auth-choice .choice-title {
   font-size: 1rem;
   font-weight: 700;
@@ -450,6 +480,73 @@ a:hover { color: var(--primary-dark); }
   text-align: center;
   margin-top: 4px;
 }
+/* Family code display after creation */
+.family-code-display {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border-radius: 14px;
+  border: 2px dashed #6ee7b7;
+  margin-bottom: 1rem;
+}
+.family-code-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #065f46;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.family-code-big {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 4px;
+  color: #047857;
+  font-family: 'Courier New', monospace;
+  padding: 6px 0;
+}
+.family-code-share-hint {
+  font-size: 0.75rem;
+  color: #065f46;
+  margin-top: 10px;
+  line-height: 1.4;
+}
+.family-code-actions {
+  display: flex;
+  gap: 10px;
+}
+.btn-family-copy {
+  flex: 1;
+  padding: 0.7rem 1rem;
+  background: white;
+  color: var(--primary);
+  border: 2px solid var(--primary);
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-family-copy:hover {
+  background: var(--primary);
+  color: white;
+}
+.btn-family-continue {
+  flex: 1;
+  padding: 0.7rem 1rem;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-family-continue:hover {
+  opacity: 0.9;
+}
+
 .family-badge {
   display: inline-block;
   background: #ecfdf5;
