@@ -390,17 +390,41 @@ export function LoginForm({ role, onSuccess, onBack, t }) {
 
       // First, check family accounts from admin-created list (classroom_family_accounts)
       const familyAccounts = (() => {
-        try { return JSON.parse(localStorage.getItem('classroom_family_accounts') || '[]'); } catch { return []; }
+        try {
+          const raw = localStorage.getItem('classroom_family_accounts');
+          console.log('[FamilyLogin] Raw localStorage classroom_family_accounts:', raw);
+          const parsed = JSON.parse(raw || '[]');
+          console.log('[FamilyLogin] Parsed familyAccounts count:', parsed.length);
+          return parsed;
+        } catch (e) {
+          console.error('[FamilyLogin] Failed to parse family accounts:', e);
+          return [];
+        }
       })();
+
+      console.log('[FamilyLogin] Login attempt - isPhone:', isPhone, 'phoneDigits:', phoneDigits, 'emailLower:', emailLower);
+      if (isPhone && familyAccounts.length > 0) {
+        familyAccounts.forEach((f, i) => {
+          const famPhoneDigits = (f.phone || '').replace(/[^\d]/g, '');
+          console.log('[FamilyLogin] Family #' + i + ' stored phone:', f.phone, '→ digits:', famPhoneDigits, 'pwd:', f.password ? '***' : '<empty>');
+        });
+      }
+
       const matchedFamily = familyAccounts.find(f => {
         if (isPhone) {
           const famPhone = (f.phone || '').replace(/[^\d]/g, '');
-          return famPhone === phoneDigits && f.password === password;
+          const match = famPhone === phoneDigits && f.password === password;
+          if (famPhone || phoneDigits) {
+            console.log('[FamilyLogin] Phone compare: input="' + phoneDigits + '" vs stored="' + famPhone + '" pwdMatch=' + (f.password === password) + ' => ' + match);
+          }
+          return match;
         } else {
           return f.parentEmail.toLowerCase() === emailLower && f.password === password;
         }
       });
+
       if (matchedFamily) {
+        console.log('[FamilyLogin] ✅ Matched family:', matchedFamily.parentName);
         onSuccess({
           id: matchedFamily.id,
           name: matchedFamily.parentName,
@@ -412,6 +436,20 @@ export function LoginForm({ role, onSuccess, onBack, t }) {
         return;
       }
 
+      // Debug: if families exist but none matched, show what's wrong
+      if (familyAccounts.length > 0) {
+        console.warn('[FamilyLogin] ⚠️ Found ' + familyAccounts.length + ' family account(s) but none matched.');
+        if (isPhone) {
+          const phonesFound = familyAccounts.map(f => (f.phone || '(empty)').replace(/[^\d]/g, '')).join(', ');
+          setError('No family found with phone ' + identifierClean + '. Stored phones (digits): [' + phonesFound + ']. Please check your phone number and password.');
+        } else {
+          setError('No family found with this email. Please check your email and password, or try logging in with phone number.');
+        }
+        setLoading(false);
+        return;
+      }
+
+      console.log('[FamilyLogin] No family accounts in localStorage, falling back to signInLocal');
       // Then try signInLocal (which checks lingua_users + Supabase)
       const result = await signInLocal(identifierClean, password);
       if (result.profile) {
@@ -426,6 +464,7 @@ export function LoginForm({ role, onSuccess, onBack, t }) {
       }
       setError('Invalid credentials. Please check your phone/email and password.');
     } catch (err) {
+      console.error('[FamilyLogin] Error during family login:', err);
       setError(err.message || 'Invalid credentials. Please try again.');
     } finally {
       setLoading(false);
