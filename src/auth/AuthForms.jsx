@@ -301,7 +301,8 @@ export function RegisterForm({ family, onBack, onSuccess, t }) {
 // LOGIN FORM (support admin / teacher / family roles)
 // ============================================
 export function LoginForm({ role, onSuccess, onBack, t }) {
-  const [authMethod, setAuthMethod] = useState('email');
+  const isFamilyRole = role === 'family';
+  const [authMethod, setAuthMethod] = useState(isFamilyRole ? 'phone' : 'email');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -316,13 +317,13 @@ export function LoginForm({ role, onSuccess, onBack, t }) {
     return { icon: '🏠', label: t('family') || 'Family' };
   };
   const roleInfo = getRoleLabel();
-  const showPhoneOption = (role === 'family'); // Only family can login with phone
+  const showPhoneOption = isFamilyRole; // Only family can login with phone
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
 
-    if (!identifier.trim()) { setError('Email is required.'); return; }
+    if (!identifier.trim()) { setError(isFamilyRole && authMethod === 'phone' ? 'Phone number is required.' : 'Email is required.'); return; }
     if (!password) { setError('Password is required.'); return; }
 
     // ============================================================
@@ -381,7 +382,38 @@ export function LoginForm({ role, onSuccess, onBack, t }) {
     // ============================================================
     setLoading(true);
     try {
-      const result = await signInLocal(identifier.trim(), password);
+      const identifierClean = identifier.trim();
+      const isPhone = authMethod === 'phone';
+      // For phone login, strip non-digits for matching
+      const phoneDigits = isPhone ? identifierClean.replace(/[^\d]/g, '') : '';
+      const emailLower = !isPhone ? identifierClean.toLowerCase() : '';
+
+      // First, check family accounts from admin-created list (classroom_family_accounts)
+      const familyAccounts = (() => {
+        try { return JSON.parse(localStorage.getItem('classroom_family_accounts') || '[]'); } catch { return []; }
+      })();
+      const matchedFamily = familyAccounts.find(f => {
+        if (isPhone) {
+          const famPhone = (f.phone || '').replace(/[^\d]/g, '');
+          return famPhone === phoneDigits && f.password === password;
+        } else {
+          return f.parentEmail.toLowerCase() === emailLower && f.password === password;
+        }
+      });
+      if (matchedFamily) {
+        onSuccess({
+          id: matchedFamily.id,
+          name: matchedFamily.parentName,
+          email: matchedFamily.parentEmail,
+          phone: matchedFamily.phone || '',
+          role: 'parent',
+          parentId: matchedFamily.id,
+        });
+        return;
+      }
+
+      // Then try signInLocal (which checks lingua_users + Supabase)
+      const result = await signInLocal(identifierClean, password);
       if (result.profile) {
         // Only allow family roles (student/parent) through family login
         if (result.profile.role === 'admin' || result.profile.role === 'teacher') {
@@ -392,7 +424,7 @@ export function LoginForm({ role, onSuccess, onBack, t }) {
         onSuccess(result.profile);
         return;
       }
-      setError('Invalid credentials. Please check your email/phone and password.');
+      setError('Invalid credentials. Please check your phone/email and password.');
     } catch (err) {
       setError(err.message || 'Invalid credentials. Please try again.');
     } finally {
@@ -423,13 +455,13 @@ export function LoginForm({ role, onSuccess, onBack, t }) {
       <form onSubmit={handleLogin}>
         {showPhoneOption && (
           <div className="auth-method-toggle">
+            <button type="button" className={authMethod === 'phone' ? 'active phone-active' : ''} onClick={() => { setAuthMethod('phone'); setIdentifier(''); }}>📱 {t('phoneLabel') || 'Phone'}</button>
             <button type="button" className={authMethod === 'email' ? 'active' : ''} onClick={() => { setAuthMethod('email'); setIdentifier(''); }}>📧 {t('emailLabel') || 'Email'}</button>
-            <button type="button" className={authMethod === 'phone' ? 'active' : ''} onClick={() => { setAuthMethod('phone'); setIdentifier(''); }}>📱 {t('phoneLabel') || 'Phone'}</button>
           </div>
         )}
 
         <input
-          type={showPhoneOption && authMethod === 'phone' ? 'tel' : 'email'}
+          type={showPhoneOption && authMethod === 'phone' ? 'tel' : 'text'}
           placeholder={
             showPhoneOption && authMethod === 'phone'
               ? (t('phoneNumber') || 'Phone number')
@@ -438,6 +470,7 @@ export function LoginForm({ role, onSuccess, onBack, t }) {
           value={identifier}
           onChange={e => setIdentifier(e.target.value)}
           required
+          autoFocus
         />
 
         <input

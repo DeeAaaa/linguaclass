@@ -885,6 +885,7 @@ function AppLayout({ children, user, onLogout, currentPage, setCurrentPage }) {
         { id: 'files', icon: Icons.Files, label: t('navFiles') },
         { id: 'contacts', icon: Icons.Contacts, label: t('navContacts') },
         { id: 'video', icon: Icons.Video, label: t('navVideoRoom') },
+        { id: 'admin', icon: Icons.Admin, label: t('navAdmin') },
       ]
     : [
         { id: 'dashboard', icon: Icons.Dashboard, label: t('navDashboard') },
@@ -3220,6 +3221,9 @@ function AdministrationPage({ user }) {
   const [showUnassigned, setShowUnassigned] = useState(false);
   const [searchStudent, setSearchStudent] = useState('');
 
+  // Hide teacher management from teacher role — they only manage families
+  const isAdminUser = user?.role === 'admin';
+
   // ---- Manage Teachers (admin-created) ----
   const [managedTeachers, setManagedTeachers] = useState(() => getStoredTeachers());
   const [showAddTeacherForm, setShowAddTeacherForm] = useState(false);
@@ -3228,11 +3232,74 @@ function AdministrationPage({ user }) {
   const [showCredentialId, setShowCredentialId] = useState(null);
   const [credentialCopied, setCredentialCopied] = useState('');
 
-  // ---- Family Accounts (admin-managed) ----
+  // ---- Teacher Files / Activity Logs (admin view) ----
+  const [expandedTeacherFiles, setExpandedTeacherFiles] = useState(null);
+  const [teacherActivityLogs, setTeacherActivityLogs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('classroom_teacher_activity_logs') || '{}'); } catch { return {}; }
+  });
+
+  const saveTeacherLogs = (logs) => {
+    setTeacherActivityLogs(logs);
+    localStorage.setItem('classroom_teacher_activity_logs', JSON.stringify(logs));
+  };
+
+  const logTeacherActivity = (teacherEmail, action, description, details) => {
+    const logs = { ...teacherActivityLogs };
+    if (!logs[teacherEmail]) logs[teacherEmail] = [];
+    const entry = {
+      action,
+      description,
+      details: details || '',
+      timestamp: new Date().toISOString()
+    };
+    if (action === 'login' || action === 'logout') {
+      // Record session start/end
+      entry.sessionTime = new Date().toLocaleString();
+    }
+    logs[teacherEmail].unshift(entry);
+    // Keep only last 200 entries per teacher
+    if (logs[teacherEmail].length > 200) {
+      logs[teacherEmail] = logs[teacherEmail].slice(0, 200);
+    }
+    saveTeacherLogs(logs);
+  };
+
+  const getTeacherWorkSummary = (teacherEmail) => {
+    const logs = teacherActivityLogs[teacherEmail] || [];
+    const logins = logs.filter(l => l.action === 'login');
+    const sessionCount = logins.length;
+    // Calculate approximate work hours (each session ~2 hours)
+    const totalWorkHours = sessionCount * 2;
+    // Get unique dates
+    const uniqueDates = new Set();
+    logs.forEach(l => {
+      if (l.timestamp) uniqueDates.add(l.timestamp.split('T')[0]);
+    });
+    const activityBreakdown = {};
+    logs.forEach(l => {
+      activityBreakdown[l.action] = (activityBreakdown[l.action] || 0) + 1;
+    });
+    return {
+      totalSessions: sessionCount,
+      totalWorkHours,
+      activeDays: uniqueDates.size,
+      firstActivity: logs.length > 0 ? logs[logs.length - 1].timestamp : null,
+      lastActivity: logs.length > 0 ? logs[0].timestamp : null,
+      totalActivities: logs.length,
+      activityBreakdown
+    };
+  };
+
+  const getTeacherActivityLogs = (teacherEmail) => {
+    return teacherActivityLogs[teacherEmail] || [];
+  };
+
+  // ---- Family Accounts (admin & teacher managed) ----
   const [familyAccounts, setFamilyAccounts] = useState(() => {
     try { return JSON.parse(localStorage.getItem('classroom_family_accounts') || '[]'); } catch { return []; }
   });
   const [showAddFamilyForm, setShowAddFamilyForm] = useState(false);
+  const [editingFamilyId, setEditingFamilyId] = useState(null);
   const [newFamily, setNewFamily] = useState({
     parentName: '', parentEmail: '', password: '', phone: '',
     children: [] // { name: '', grade: '', subject: 'English' }
@@ -3264,6 +3331,9 @@ function AdministrationPage({ user }) {
       subject: newTeacher.subject, phone: newTeacher.phone,
       avatar: '👩‍🏫', status: 'active', assignedStudentIds: []
     }]);
+    // Initialize teacher activity log with first entries
+    logTeacherActivity(newTeacher.email, 'account_created', 'Account created by administrator', 'Initial setup');
+    logTeacherActivity(newTeacher.email, 'profile_set', 'Profile configured — ' + newTeacher.subject, 'Subject: ' + newTeacher.subject);
     resetTeacherForm();
   };
 
@@ -3310,7 +3380,23 @@ function AdministrationPage({ user }) {
   const resetFamilyForm = () => {
     setNewFamily({ parentName: '', parentEmail: '', password: '', phone: '', children: [] });
     setNewChild({ name: '', grade: '', subject: 'English' });
+    setEditingFamilyId(null);
     setShowAddFamilyForm(false);
+  };
+
+  const handleEditFamily = (family) => {
+    setNewFamily({
+      parentName: family.parentName || '',
+      parentEmail: family.parentEmail || '',
+      password: family.password || '',
+      phone: family.phone || '',
+      children: (family.children || []).map(c => ({
+        name: c.name, grade: c.grade, subject: c.subject || 'English'
+      }))
+    });
+    setEditingFamilyId(family.id);
+    setShowAddFamilyForm(true);
+    window.scrollTo({ top: document.querySelector('.admin-section')?.offsetTop - 100, behavior: 'smooth' });
   };
 
   const addChildToNewFamily = () => {
@@ -3334,48 +3420,113 @@ function AdministrationPage({ user }) {
       alert('Please fill in Parent Name, Email, and Password.');
       return;
     }
-    const familyId = Date.now();
-    const family = {
-      id: familyId,
-      parentName: newFamily.parentName,
-      parentEmail: newFamily.parentEmail,
-      password: newFamily.password,
-      phone: newFamily.phone,
-      children: newFamily.children.map((c, i) => ({
-        ...c,
+
+    if (editingFamilyId) {
+      // ----- UPDATE existing family -----
+      const updated = familyAccounts.map(f => {
+        if (f.id === editingFamilyId) {
+          // Map existing children, preserve old child IDs where names match
+          const oldChildren = f.children || [];
+          const updatedChildren = newFamily.children.map((c, i) => {
+            const matchedOld = oldChildren.find(oc => oc.name === c.name);
+            return {
+              ...c,
+              id: matchedOld ? matchedOld.id : f.id + i + 1000, // new children get fresh IDs
+              totalHours: matchedOld ? (matchedOld.totalHours || 30) : 30,
+              usedHours: matchedOld ? (matchedOld.usedHours || 0) : 0,
+              paymentStatus: matchedOld ? (matchedOld.paymentStatus || 'pending') : 'pending',
+              enrolledDate: matchedOld ? (matchedOld.enrolledDate || f.createdAt?.split('T')[0]) : new Date().toISOString().split('T')[0]
+            };
+          });
+          return {
+            ...f,
+            parentName: newFamily.parentName,
+            parentEmail: newFamily.parentEmail,
+            password: newFamily.password,
+            phone: newFamily.phone,
+            children: updatedChildren,
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return f;
+      });
+      setFamilyAccounts(updated);
+      localStorage.setItem('classroom_family_accounts', JSON.stringify(updated));
+
+      // Update students for the edited family
+      const targetFamily = updated.find(f => f.id === editingFamilyId);
+      if (targetFamily) {
+        const allStudents = getAllStudents();
+        // Remove old children of this family
+        const filtered = allStudents.filter(s => s.parentId !== editingFamilyId);
+        // Add updated children
+        const newStudents = targetFamily.children.map(c => ({
+          id: c.id,
+          name: c.name,
+          grade: c.grade,
+          subject: c.subject || 'English',
+          teacher: allStudents.find(s => s.id === c.id)?.teacher || '',
+          totalHours: c.totalHours || 30,
+          usedHours: c.usedHours || 0,
+          paymentStatus: c.paymentStatus || 'pending',
+          parentName: targetFamily.parentName,
+          parentEmail: targetFamily.parentEmail,
+          parentId: targetFamily.id,
+          avatar: '👤',
+          enrolledDate: c.enrolledDate || new Date().toISOString().split('T')[0]
+        }));
+        const mergedStudents = [...filtered, ...newStudents];
+        localStorage.setItem('linguaclass_students', JSON.stringify(mergedStudents));
+        setStudents(mergedStudents);
+      }
+      resetFamilyForm();
+      showToast('Family account updated successfully!');
+    } else {
+      // ----- CREATE new family -----
+      const familyId = Date.now();
+      const family = {
+        id: familyId,
+        parentName: newFamily.parentName,
+        parentEmail: newFamily.parentEmail,
+        password: newFamily.password,
+        phone: newFamily.phone,
+        children: newFamily.children.map((c, i) => ({
+          ...c,
+          id: familyId + i + 1,
+          totalHours: 30,
+          usedHours: 0,
+          paymentStatus: 'pending',
+          enrolledDate: new Date().toISOString().split('T')[0]
+        })),
+        createdAt: new Date().toISOString()
+      };
+      const updated = [...familyAccounts, family];
+      setFamilyAccounts(updated);
+      localStorage.setItem('classroom_family_accounts', JSON.stringify(updated));
+
+      // Also add children as students in the system
+      const existingStudents = getAllStudents();
+      const newStudents = family.children.map((c, i) => ({
         id: familyId + i + 1,
+        name: c.name,
+        grade: c.grade,
+        subject: c.subject,
+        teacher: '',
         totalHours: 30,
         usedHours: 0,
         paymentStatus: 'pending',
-        enrolledDate: new Date().toISOString().split('T')[0]
-      })),
-      createdAt: new Date().toISOString()
-    };
-    const updated = [...familyAccounts, family];
-    setFamilyAccounts(updated);
-    localStorage.setItem('classroom_family_accounts', JSON.stringify(updated));
-    // Also add children as students in the system
-    const existingStudents = getAllStudents();
-    const newStudents = family.children.map((c, i) => ({
-      id: familyId + i + 1,
-      name: c.name,
-      grade: c.grade,
-      subject: c.subject,
-      teacher: '',
-      totalHours: 30,
-      usedHours: 0,
-      paymentStatus: 'pending',
-      parentName: family.parentName,
-      parentEmail: family.parentEmail,
-      parentId: familyId,
-      avatar: '👤',
-      enrolledDate: family.createdAt.split('T')[0]
-    }));
-    const allStudents = [...existingStudents, ...newStudents];
-    localStorage.setItem('linguaclass_students', JSON.stringify(allStudents));
-    setStudents(allStudents);
-    resetFamilyForm();
-    showToast('Family account created successfully!');
+        parentName: family.parentName,
+        parentEmail: family.parentEmail,
+        parentId: familyId,
+        avatar: '👤',
+        enrolledDate: family.createdAt.split('T')[0]
+      }));
+      const allStudents = [...existingStudents, ...newStudents];
+      localStorage.setItem('linguaclass_students', JSON.stringify(allStudents));
+      setStudents(allStudents);
+      resetFamilyForm();
+      showToast('Family account created successfully!');
+    }
   };
 
   const handleDeleteFamily = (id) => {
@@ -3462,29 +3613,45 @@ function AdministrationPage({ user }) {
       <div className="admin-header">
         <div className="admin-title">
           <h2><Icons.Admin /> Administration</h2>
-          <p>Manage teachers and their assigned students</p>
+          <p>{isAdminUser ? 'Manage teachers and their assigned students' : 'Manage family accounts and students'}</p>
         </div>
-        <div className="admin-stats-row">
-          <div className="admin-stat">
-            <span className="admin-stat-val">{teachers.length}</span>
-            <span className="admin-stat-lbl">Teachers</span>
+        {isAdminUser && (
+          <div className="admin-stats-row">
+            <div className="admin-stat">
+              <span className="admin-stat-val">{teachers.length}</span>
+              <span className="admin-stat-lbl">Teachers</span>
+            </div>
+            <div className="admin-stat">
+              <span className="admin-stat-val">{students.length}</span>
+              <span className="admin-stat-lbl">Students</span>
+            </div>
+            <div className="admin-stat">
+              <span className="admin-stat-val">{allAssignedIds.length}</span>
+              <span className="admin-stat-lbl">Assigned</span>
+            </div>
+            <div className="admin-stat warning">
+              <span className="admin-stat-val">{unassignedStudents.length}</span>
+              <span className="admin-stat-lbl">Unassigned</span>
+            </div>
           </div>
-          <div className="admin-stat">
-            <span className="admin-stat-val">{students.length}</span>
-            <span className="admin-stat-lbl">Students</span>
+        )}
+        {/* Teacher stats: show family account count */}
+        {!isAdminUser && (
+          <div className="admin-stats-row">
+            <div className="admin-stat">
+              <span className="admin-stat-val">{familyAccounts.length}</span>
+              <span className="admin-stat-lbl">Families</span>
+            </div>
+            <div className="admin-stat">
+              <span className="admin-stat-val">{students.length}</span>
+              <span className="admin-stat-lbl">Students</span>
+            </div>
           </div>
-          <div className="admin-stat">
-            <span className="admin-stat-val">{allAssignedIds.length}</span>
-            <span className="admin-stat-lbl">Assigned</span>
-          </div>
-          <div className="admin-stat warning">
-            <span className="admin-stat-val">{unassignedStudents.length}</span>
-            <span className="admin-stat-lbl">Unassigned</span>
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* ======== MANAGE TEACHERS SECTION ======== */}
+      {/* ======== MANAGE TEACHERS SECTION (admin only) ======== */}
+      {isAdminUser && (<>
       <div className="admin-section" style={{marginBottom:'24px'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}}>
           <div>
@@ -3644,8 +3811,141 @@ function AdministrationPage({ user }) {
                   </div>
                 )}
 
+                {/* --- Teacher Files (Activity & Work Log) --- */}
+                {(() => {
+                  const logs = getTeacherActivityLogs(teacher.email);
+                  const summary = getTeacherWorkSummary(teacher.email);
+                  const isExpanded = expandedTeacherFiles === teacher.id;
+                  return (
+                    <>
+                      <button
+                        onClick={() => setExpandedTeacherFiles(isExpanded ? null : teacher.id)}
+                        style={{
+                          background: isExpanded ? '#ede9fe' : '#f5f3ff',
+                          border: '1px solid #c4b5fd', color: '#6d28d9',
+                          padding: '5px 12px', borderRadius: '6px', cursor: 'pointer',
+                          fontSize: '0.78rem', fontWeight: 600, display: 'block', marginTop: '8px',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        📁 {isExpanded ? 'Hide Teacher Files' : 'View Teacher Files'}
+                      </button>
+
+                      {isExpanded && (
+                        <div style={{
+                          background: '#faf5ff', border: '2px solid #c4b5fd', borderRadius: '12px',
+                          padding: '20px', marginTop: '10px', animation: 'fadeIn 0.2s'
+                        }}>
+                          {/* Summary Stats */}
+                          <div style={{ marginBottom: '16px' }}>
+                            <h4 style={{ margin: '0 0 12px', color: '#5b21b6', fontSize: '0.95rem' }}>
+                              📊 Teacher Work Summary
+                            </h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px' }}>
+                              {[
+                                { label: 'Total Sessions', value: summary.totalSessions, icon: '🔄', color: '#7c3aed' },
+                                { label: 'Est. Work Hours', value: summary.totalWorkHours + 'h', icon: '⏱️', color: '#059669' },
+                                { label: 'Active Days', value: summary.activeDays, icon: '📅', color: '#d97706' },
+                                { label: 'Total Activities', value: summary.totalActivities, icon: '📝', color: '#dc2626' },
+                              ].map((stat, i) => (
+                                <div key={i} style={{
+                                  background: '#fff', padding: '10px', borderRadius: '8px',
+                                  border: '1px solid #e9d5ff', textAlign: 'center'
+                                }}>
+                                  <div style={{ fontSize: '1.2rem' }}>{stat.icon}</div>
+                                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: stat.color }}>{stat.value}</div>
+                                  <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{stat.label}</div>
+                                </div>
+                              ))}
+                            </div>
+                            {summary.lastActivity && (
+                              <div style={{ marginTop: '10px', fontSize: '0.75rem', color: '#64748b', display: 'flex', gap: '16px' }}>
+                                <span>📥 First: {new Date(summary.firstActivity).toLocaleString()}</span>
+                                <span>📤 Last: {new Date(summary.lastActivity).toLocaleString()}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Activity Breakdown */}
+                          {Object.keys(summary.activityBreakdown).length > 0 && (
+                            <div style={{ marginBottom: '16px' }}>
+                              <h4 style={{ margin: '0 0 8px', color: '#5b21b6', fontSize: '0.9rem' }}>📈 Activity Breakdown</h4>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                {Object.entries(summary.activityBreakdown).map(([action, count]) => (
+                                  <span key={action} style={{
+                                    background: '#ede9fe', color: '#6d28d9', padding: '3px 10px',
+                                    borderRadius: '12px', fontSize: '0.72rem', fontWeight: 600
+                                  }}>
+                                    {action.replace(/_/g, ' ')}: {count}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Activity Log */}
+                          <div>
+                            <h4 style={{ margin: '0 0 8px', color: '#5b21b6', fontSize: '0.9rem' }}>
+                              📋 Activity Log {logs.length > 0 && <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>({logs.length} entries)</span>}
+                            </h4>
+                            {logs.length === 0 ? (
+                              <div style={{ textAlign: 'center', padding: '16px', color: '#94a3b8', fontSize: '0.82rem' }}>
+                                No activity recorded yet for this teacher.
+                              </div>
+                            ) : (
+                              <div style={{ maxHeight: '250px', overflowY: 'auto', border: '1px solid #e9d5ff', borderRadius: '8px' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                                  <thead>
+                                    <tr style={{ background: '#f3e8ff', position: 'sticky', top: 0 }}>
+                                      <th style={{ padding: '6px 8px', textAlign: 'left', color: '#5b21b6' }}>Time</th>
+                                      <th style={{ padding: '6px 8px', textAlign: 'left', color: '#5b21b6' }}>Action</th>
+                                      <th style={{ padding: '6px 8px', textAlign: 'left', color: '#5b21b6' }}>Description</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {logs.slice(0, 50).map((log, i) => (
+                                      <tr key={i} style={{ borderBottom: '1px solid #f3e8ff', background: i % 2 === 0 ? '#fff' : '#faf5ff' }}>
+                                        <td style={{ padding: '5px 8px', color: '#64748b', whiteSpace: 'nowrap', fontSize: '0.7rem' }}>
+                                          {new Date(log.timestamp).toLocaleString()}
+                                        </td>
+                                        <td style={{ padding: '5px 8px' }}>
+                                          <span style={{
+                                            background:
+                                              log.action === 'login' ? '#dcfce7' :
+                                              log.action === 'logout' ? '#fee2e2' :
+                                              log.action === 'account_created' ? '#dbeafe' :
+                                              log.action === 'student_view' ? '#fef3c7' :
+                                              log.action === 'calendar_event' ? '#e0e7ff' :
+                                              log.action === 'video_session' ? '#fce7f3' :
+                                              log.action === 'file_activity' ? '#d1fae5' :
+                                              log.action === 'contact_action' ? '#f3e8ff' :
+                                              '#f1f5f9',
+                                            color:
+                                              log.action === 'login' ? '#16a34a' :
+                                              log.action === 'logout' ? '#dc2626' :
+                                              log.action === 'account_created' ? '#2563eb' :
+                                              '#475569',
+                                            padding: '2px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '0.68rem'
+                                          }}>
+                                            {log.action.replace(/_/g, ' ')}
+                                          </span>
+                                        </td>
+                                        <td style={{ padding: '5px 8px', color: '#334155' }}>{log.description}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+
                 {/* Action buttons */}
-                <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
+                <div style={{display:'flex',gap:'6px',flexWrap:'wrap',marginTop:'8px'}}>
                   <button onClick={() => setShowCredentialId(showCredentialId === teacher.id ? null : teacher.id)}
                     style={{
                       background:'#fef3c7',border:'1px solid #fbbf24',color:'#92400e',
@@ -3804,6 +4104,7 @@ function AdministrationPage({ user }) {
           )}
         </div>
       )}
+      </>)}
 
       {/* ======== FAMILY ACCOUNTS SECTION ======== */}
       <div className="admin-section" style={{marginTop:'32px'}}>
@@ -3844,7 +4145,7 @@ function AdministrationPage({ user }) {
             background:'#f0fdf4', borderRadius:'12px', padding:'20px', marginBottom:'16px',
             border:'1px solid #bbf7d0'
           }}>
-            <h4 style={{margin:'0 0 16px',fontSize:'0.95rem',color:'#065f46'}}>Create Family Account</h4>
+            <h4 style={{margin:'0 0 16px',fontSize:'0.95rem',color:'#065f46'}}>{editingFamilyId ? 'Edit Family Account' : 'Create Family Account'}</h4>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
               <div>
                 <label style={{fontSize:'0.8rem',fontWeight:600,color:'#475569',display:'block',marginBottom:'4px'}}>Parent Name *</label>
@@ -3941,7 +4242,7 @@ function AdministrationPage({ user }) {
               <button onClick={handleCreateFamily}
                 style={{background:'#059669',color:'#fff',border:'none',padding:'10px 24px',borderRadius:'8px',fontWeight:600,cursor:'pointer'}}
               >
-                Create Family Account
+                {editingFamilyId ? 'Update Family Account' : 'Create Family Account'}
               </button>
               <button onClick={resetFamilyForm}
                 style={{background:'#e2e8f0',color:'#475569',border:'none',padding:'10px 24px',borderRadius:'8px',fontWeight:600,cursor:'pointer'}}
@@ -3974,10 +4275,16 @@ function AdministrationPage({ user }) {
                     <div style={{fontSize:'0.8rem',color:'#64748b',marginTop:'2px'}}>{family.parentEmail}</div>
                     {family.phone && <div style={{fontSize:'0.78rem',color:'#94a3b8'}}>📱 {family.phone}</div>}
                   </div>
-                  <button onClick={() => handleDeleteFamily(family.id)}
-                    style={{background:'#fee2e2',border:'none',color:'#dc2626',padding:'4px 8px',borderRadius:'6px',cursor:'pointer',fontSize:'0.78rem',fontWeight:600}}>
-                    🗑️ Delete
-                  </button>
+                  <div style={{display:'flex',gap:'6px',flexShrink:0}}>
+                    <button onClick={() => handleEditFamily(family)}
+                      style={{background:'#e0e7ff',border:'none',color:'#4338ca',padding:'4px 8px',borderRadius:'6px',cursor:'pointer',fontSize:'0.78rem',fontWeight:600}}>
+                      ✏️ Edit
+                    </button>
+                    <button onClick={() => handleDeleteFamily(family.id)}
+                      style={{background:'#fee2e2',border:'none',color:'#dc2626',padding:'4px 8px',borderRadius:'6px',cursor:'pointer',fontSize:'0.78rem',fontWeight:600}}>
+                      🗑️ Delete
+                    </button>
+                  </div>
                 </div>
 
                 {/* Credentials toggle */}
@@ -6315,8 +6622,8 @@ function App() {
       return <DashboardPage user={user} setCurrentPage={setCurrentPage} />;
     }
 
-    // Only admin can access administration page
-    if (currentPage === 'admin' && !isAdmin) {
+    // Only admin and teacher can access administration page
+    if (currentPage === 'admin' && !isAdmin && !isTeacher) {
       if (setCurrentPage) setCurrentPage('dashboard');
       return <DashboardPage user={user} setCurrentPage={setCurrentPage} />;
     }
