@@ -577,7 +577,7 @@ function LandingPage({ onLogin }) {
           <button className="btn-auth-choice btn-teacher-login" onClick={() => setAdminSubRole('teacher')}>
             <span className="choice-icon">👩‍🏫</span>
             <span className="choice-title">Teacher</span>
-            <span className="choice-desc">Access students, calendar, video room, contacts</span>
+            <span className="choice-desc">Access students, calendar, video room & calls</span>
           </button>
 
           <button className="auth-back-main" onClick={goBack}>
@@ -883,7 +883,6 @@ function AppLayout({ children, user, onLogout, currentPage, setCurrentPage }) {
         { id: 'calendar', icon: Icons.Calendar, label: t('navCalendar') },
         { id: 'studentrecords', icon: Icons.StudentRecords, label: t('navStudentRecords') },
         { id: 'files', icon: Icons.Files, label: t('navFiles') },
-        { id: 'contacts', icon: Icons.Contacts, label: t('navContacts') },
         { id: 'video', icon: Icons.Video, label: t('navVideoRoom') },
         { id: 'admin', icon: Icons.Admin, label: t('navAdmin') },
       ]
@@ -892,7 +891,6 @@ function AppLayout({ children, user, onLogout, currentPage, setCurrentPage }) {
         { id: 'calendar', icon: Icons.Calendar, label: t('navCalendar') },
         { id: 'studentrecords', icon: Icons.StudentRecords, label: t('navStudentRecords') },
         { id: 'files', icon: Icons.Files, label: t('navFiles') },
-        { id: 'contacts', icon: Icons.Contacts, label: t('navContacts') },
         { id: 'video', icon: Icons.Video, label: t('navVideoRoom') },
         { id: 'admin', icon: Icons.Admin, label: t('navAdmin') },
       ];
@@ -902,7 +900,6 @@ function AppLayout({ children, user, onLogout, currentPage, setCurrentPage }) {
     { id: 'dashboard', icon: Icons.Dashboard, label: t('navDashboard') },
     { id: 'calendar', icon: Icons.Calendar, label: t('navCalendar') },
     { id: 'video', icon: Icons.Video, label: t('navVideoRoom') },
-    { id: 'contacts', icon: Icons.Contacts, label: t('navContacts') },
   ];
 
   return (
@@ -6633,7 +6630,7 @@ function App() {
       case 'calendar': return <CalendarPage user={user} />;
       case 'files': return <FilesPage user={user} />;
       case 'studentrecords': return <StudentRecordsPage user={user} />;
-      case 'contacts': return <ContactsPage user={user} setCurrentPage={setCurrentPage} />;
+      case 'contacts': setCurrentPage('video'); return <VideoRoomPage user={user} />; // Contacts now live inside Video Room
       case 'admin': return <AdministrationPage user={user} />;
       case 'video': return <VideoRoomPage user={user} />;
       default: return <DashboardPage user={user} setCurrentPage={setCurrentPage} />;
