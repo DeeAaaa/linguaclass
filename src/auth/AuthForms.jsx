@@ -302,6 +302,7 @@ export function RegisterForm({ family, onBack, onSuccess, t }) {
 // ============================================
 export function LoginForm({ role, onSuccess, onBack, t }) {
   const isFamilyRole = role === 'family';
+  // Family: phone ONLY (no email toggle). Admin/Teacher: email only.
   const [authMethod, setAuthMethod] = useState(isFamilyRole ? 'phone' : 'email');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -317,13 +318,17 @@ export function LoginForm({ role, onSuccess, onBack, t }) {
     return { icon: '🏠', label: t('family') || 'Family' };
   };
   const roleInfo = getRoleLabel();
-  const showPhoneOption = isFamilyRole; // Only family can login with phone
+  // Family login uses phone ONLY — no email option
+  const inputType = isFamilyRole ? 'tel' : 'text';
+  const inputPlaceholder = isFamilyRole
+    ? (t('phoneNumber') || 'Phone number')
+    : (t('emailAddress') || 'Email address');
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
 
-    if (!identifier.trim()) { setError(isFamilyRole && authMethod === 'phone' ? 'Phone number is required.' : 'Email is required.'); return; }
+    if (!identifier.trim()) { setError(isFamilyRole ? 'Phone number is required.' : 'Email is required.'); return; }
     if (!password) { setError('Password is required.'); return; }
 
     // ============================================================
@@ -492,20 +497,9 @@ export function LoginForm({ role, onSuccess, onBack, t }) {
       </div>
 
       <form onSubmit={handleLogin}>
-        {showPhoneOption && (
-          <div className="auth-method-toggle">
-            <button type="button" className={authMethod === 'phone' ? 'active phone-active' : ''} onClick={() => { setAuthMethod('phone'); setIdentifier(''); }}>📱 {t('phoneLabel') || 'Phone'}</button>
-            <button type="button" className={authMethod === 'email' ? 'active' : ''} onClick={() => { setAuthMethod('email'); setIdentifier(''); }}>📧 {t('emailLabel') || 'Email'}</button>
-          </div>
-        )}
-
         <input
-          type={showPhoneOption && authMethod === 'phone' ? 'tel' : 'text'}
-          placeholder={
-            showPhoneOption && authMethod === 'phone'
-              ? (t('phoneNumber') || 'Phone number')
-              : (t('emailAddress') || 'Email address')
-          }
+          type={inputType}
+          placeholder={inputPlaceholder}
           value={identifier}
           onChange={e => setIdentifier(e.target.value)}
           required

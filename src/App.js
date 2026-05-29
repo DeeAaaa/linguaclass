@@ -849,11 +849,12 @@ function LandingPage({ onLogin }) {
 // ============================================
 // APP LAYOUT
 // ============================================
-function AppLayout({ children, user, onLogout, currentPage, setCurrentPage }) {
+function AppLayout({ children, user, onLogout, onLogin, currentPage, setCurrentPage }) {
   const { t, lang, toggleLanguage } = useTranslation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [familyLoginOpen, setFamilyLoginOpen] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -871,7 +872,12 @@ function AppLayout({ children, user, onLogout, currentPage, setCurrentPage }) {
   const isFamilyUser = user?.role === 'parent' || user?.role === 'student';
 
   // Admin: everything | Teacher: no admin tab | Family: only dashboard, calendar, files
-  const navItems = isFamilyUser
+  // No user: show Dashboard so sidebar isn't completely empty
+  const navItems = !user
+    ? [
+        { id: 'dashboard', icon: Icons.Dashboard, label: t('navDashboard') },
+      ]
+    : isFamilyUser
     ? [
         { id: 'dashboard', icon: Icons.Dashboard, label: t('navDashboard') },
         { id: 'calendar', icon: Icons.Calendar, label: t('navCalendar') },
@@ -928,25 +934,82 @@ function AppLayout({ children, user, onLogout, currentPage, setCurrentPage }) {
           ))}
         </nav>
 
-        <div className="sidebar-footer">
-          <div className="user-info">
-            <div className="user-avatar">
-              <Icons.User />
-            </div>
-            <div className="user-details">
-              <p className="user-name">{user?.name || t('student')}</p>
-              <p className="user-role">{t(user?.role) || t('student')}</p>
-            </div>
+        {/* Guest login buttons — Administrator & Family */}
+        {!user && (
+          <div className="sidebar-login-actions">
+            <button
+              className="sidebar-login-btn admin-login-btn"
+              onClick={() => {
+                onLogin?.({ name: 'Administrator', email: 'admin@linguaclass.com', role: 'admin', id: 0, phone: '' });
+                setMobileMenuOpen(false);
+              }}
+            >
+              <span className="slb-icon">🛡️</span>
+              <span>Administrator</span>
+            </button>
+            <button
+              className="sidebar-login-btn family-login-btn"
+              onClick={() => {
+                setFamilyLoginOpen(true);
+                setMobileMenuOpen(false);
+              }}
+            >
+              <span className="slb-icon">🏠</span>
+              <span>Family</span>
+            </button>
           </div>
-          <button className="logout-btn" onClick={onLogout}>
-            <Icons.Logout />
-          </button>
+        )}
+
+        {/* Sidebar Footer — Login when guest, Logout when logged in */}
+        <div className="sidebar-footer">
+          {user ? (
+            <>
+              <div className="user-info">
+                <div className="user-avatar">
+                  <Icons.User />
+                </div>
+                <div className="user-details">
+                  <p className="user-name">{user.name || t('student')}</p>
+                  <p className="user-role">{t(user.role) || t('student')}</p>
+                </div>
+              </div>
+              <button className="logout-btn" onClick={onLogout} title="Logout">
+                <Icons.Logout />
+                <span className="logout-label">Logout</span>
+              </button>
+            </>
+          ) : (
+            <div className="sidebar-guest-footer">
+              <Icons.User />
+              <span>Login</span>
+            </div>
+          )}
         </div>
 
         <button className="mobile-close" onClick={() => setMobileMenuOpen(false)}>
           <Icons.X />
         </button>
       </aside>
+
+      {/* Family Login Overlay */}
+      {familyLoginOpen && (
+        <div className="family-login-overlay" onClick={(e) => { if (e.target === e.currentTarget) setFamilyLoginOpen(false); }}>
+          <div className="family-login-modal">
+            <button className="flm-close" onClick={() => setFamilyLoginOpen(false)}>✕</button>
+            <h3>Family Login</h3>
+            <p className="flm-sub">Sign in to view calendar & progress</p>
+            <LoginForm
+              t={t}
+              role="family"
+              onSuccess={(data) => {
+                onLogin?.(data);
+                setFamilyLoginOpen(false);
+              }}
+              onBack={() => setFamilyLoginOpen(false)}
+            />
+          </div>
+        </div>
+      )}
 
       <main className="main-content">
         <header className="top-bar">
@@ -1174,6 +1237,7 @@ function DashboardPage({ user, setCurrentPage }) {
   const [activeTab, setActiveTab] = useState('all');
   const [hoveredCard, setHoveredCard] = useState(null);
   const [installGuide, setInstallGuide] = useState(null); // 'android' | 'ios' | 'desktop' | null
+  const [videoTab, setVideoTab] = useState('teaching'); // 'teaching' | 'songs'
 
   // Listen for install guide event from pwa-install fallback
   useEffect(() => {
@@ -1254,49 +1318,194 @@ function DashboardPage({ user, setCurrentPage }) {
         )}
       </div>
 
-      {/* Hero Section */}
-      <div className="dashboard-hero">
-        <div className="hero-bg-pattern"></div>
-        <img src="/dashboard-hero.png" alt="Welcome" className="hero-image" />
-        <div className="hero-content-wrapper">
-          <div className="hero-text">
-            <div className="greeting-badge">{t('welcomeBack')}</div>
-            <h1>{t('helloUser')} {user?.name || t('student')}!</h1>
-            <p className="hero-subtitle">{t('dashboardSubtitle')} You have <strong>{todaySchedules.length} classes</strong> scheduled and <strong>3 new articles</strong> to explore.</p>
-            <div className="hero-actions">
-              <button className="btn-hero-primary" onClick={() => setCurrentPage('video')}>
-                <Icons.Video /> {t('joinLiveClass')}
-              </button>
-              <button className="btn-hero-secondary">
-                <Icons.Play /> {t('watchTutorial')}
-              </button>
+      {/* Hero Section — Welcome for guests, Dashboard for logged-in users */}
+      {!user ? (
+        <div className="dashboard-hero dashboard-hero-login">
+          <div className="hero-bg-pattern"></div>
+          <img src="/dashboard-hero.png" alt="Welcome" className="hero-image" />
+          <div className="hero-content-wrapper">
+            <div className="hero-text">
+              <div className="greeting-badge">{t('welcomeBack') || 'Welcome'}</div>
+              <h1>Welcome to Linguaclass</h1>
+              <p className="hero-subtitle">Explore teaching videos, English songs, and learning materials — <strong>sign in from the sidebar</strong> to unlock your personalized classroom.</p>
             </div>
-          </div>
-          <div className="hero-stats">
-            <div className="stat-card">
-              <div className="stat-icon">📚</div>
-              <div className="stat-info">
-                <span className="stat-number">12</span>
-                <span className="stat-label">{t('classesCompleted')}</span>
+            <div className="hero-stats">
+              <div className="stat-card">
+                <div className="stat-icon">📚</div>
+                <div className="stat-info">
+                  <span className="stat-number">50+</span>
+                  <span className="stat-label">Courses</span>
+                </div>
               </div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon">⏱️</div>
-              <div className="stat-info">
-                <span className="stat-number">24{t('hoursAbbr')}</span>
-                <span className="stat-label">{t('learningTime')}</span>
+              <div className="stat-card">
+                <div className="stat-icon">👩‍🏫</div>
+                <div className="stat-info">
+                  <span className="stat-number">20+</span>
+                  <span className="stat-label">Teachers</span>
+                </div>
               </div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon">🏆</div>
-              <div className="stat-info">
-                <span className="stat-number">3</span>
-                <span className="stat-label">{t('achievements')}</span>
+              <div className="stat-card">
+                <div className="stat-icon">🌍</div>
+                <div className="stat-info">
+                  <span className="stat-number">1000+</span>
+                  <span className="stat-label">Students</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="dashboard-hero">
+          <div className="hero-bg-pattern"></div>
+          <img src="/dashboard-hero.png" alt="Welcome" className="hero-image" />
+          <div className="hero-content-wrapper">
+            <div className="hero-text">
+              <div className="greeting-badge">{t('welcomeBack')}</div>
+              <h1>{t('helloUser')} {user?.name || t('student')}!</h1>
+              <p className="hero-subtitle">{t('dashboardSubtitle')} You have <strong>{todaySchedules.length} classes</strong> scheduled and <strong>3 new articles</strong> to explore.</p>
+              <div className="hero-actions">
+                <button className="btn-hero-primary" onClick={() => setCurrentPage?.('video')}>
+                  <Icons.Video /> {t('joinLiveClass')}
+                </button>
+                <button className="btn-hero-secondary">
+                  <Icons.Play /> {t('watchTutorial')}
+                </button>
+              </div>
+            </div>
+            <div className="hero-stats">
+              <div className="stat-card">
+                <div className="stat-icon">📚</div>
+                <div className="stat-info">
+                  <span className="stat-number">12</span>
+                  <span className="stat-label">{t('classesCompleted')}</span>
+                </div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-icon">⏱️</div>
+                <div className="stat-info">
+                  <span className="stat-number">24{t('hoursAbbr')}</span>
+                  <span className="stat-label">{t('learningTime')}</span>
+                </div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-icon">🏆</div>
+                <div className="stat-info">
+                  <span className="stat-number">3</span>
+                  <span className="stat-label">{t('achievements')}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Learning Videos — Bilibili links for all visitors */}
+      <section className="learning-videos-section">
+        <div className="section-header-row">
+          <h2><span>🎬</span> Learn English with Videos</h2>
+          <div className="video-tab-btns">
+            <button
+              className={`video-tab-btn ${videoTab === 'teaching' ? 'active' : ''}`}
+              onClick={() => setVideoTab('teaching')}
+            >📚 Teaching</button>
+            <button
+              className={`video-tab-btn ${videoTab === 'songs' ? 'active' : ''}`}
+              onClick={() => setVideoTab('songs')}
+            >🎵 Songs</button>
+          </div>
+        </div>
+        {videoTab === 'teaching' ? (
+          <div className="video-grid">
+            <a className="bili-video-card" href="https://www.bilibili.com/video/BV1Eh4y1m7XV?p=25" target="_blank" rel="noopener noreferrer">
+              <div className="bili-thumb">
+                <img src="https://i1.hdslb.com/bfs/archive/9970f1e257627f019c81dfeee380f9a79386e5d9.png" alt="Power Up 1-3 自学素材" loading="lazy" />
+                <span className="bili-play-icon">▶</span>
+              </div>
+              <div className="bili-card-info">
+                <span className="bili-card-title">Power Up 1–3 · 自学素材</span>
+                <span className="bili-card-meta">A妈有资源 · Lesson 25 | bilibili</span>
+              </div>
+            </a>
+            <a className="bili-video-card" href="https://www.bilibili.com/video/BV1tsRRY2E6u" target="_blank" rel="noopener noreferrer">
+              <div className="bili-thumb">
+                <img src="https://i0.hdslb.com/bfs/archive/8a47eac3e1af2b0c7b512ad962a182118c6f4f2d.jpg" alt="Power Up 0 Unit 0 Hello" loading="lazy" />
+                <span className="bili-play-icon">▶</span>
+              </div>
+              <div className="bili-card-info">
+                <span className="bili-card-title">Power Up Starter · Unit 0: Hello!</span>
+                <span className="bili-card-meta">LingoVerse · 跟Beck老师学英语 | bilibili</span>
+              </div>
+            </a>
+            <a className="bili-video-card" href="https://www.bilibili.com/video/BV19sdaBDE1w?p=26" target="_blank" rel="noopener noreferrer">
+              <div className="bili-thumb">
+                <img src="https://i1.hdslb.com/bfs/archive/b428447ab93a50ce0974ae8265a2ea04a040b9de.jpg" alt="Power Up 1 PU1 AJ P4" loading="lazy" />
+                <span className="bili-play-icon">▶</span>
+              </div>
+              <div className="bili-card-info">
+                <span className="bili-card-title">Power Up 1 · Unit AJ Part 4</span>
+                <span className="bili-card-meta">Cambridge English · Lesson 26 | bilibili</span>
+              </div>
+            </a>
+          </div>
+        ) : (
+          <div className="video-grid">
+            <a className="bili-video-card" href="https://www.bilibili.com/video/BV1RY411N7bj" target="_blank" rel="noopener noreferrer">
+              <div className="bili-thumb bili-thumb-pink">
+                <span className="bili-play-icon">▶</span>
+              </div>
+              <div className="bili-card-info">
+                <span className="bili-card-title">Rain, Rain, Go Away</span>
+                <span className="bili-card-meta">Easy 3-step sing-along | bilibili</span>
+              </div>
+            </a>
+            <a className="bili-video-card" href="https://www.bilibili.com/video/BV1nK4y177b5" target="_blank" rel="noopener noreferrer">
+              <div className="bili-thumb bili-thumb-green">
+                <span className="bili-play-icon">▶</span>
+              </div>
+              <div className="bili-card-info">
+                <span className="bili-card-title">Jingle Bells</span>
+                <span className="bili-card-meta">Christmas classic · bilingual subtitles | bilibili</span>
+              </div>
+            </a>
+            <a className="bili-video-card" href="https://www.bilibili.com/video/BV1uU4y1s7X7" target="_blank" rel="noopener noreferrer">
+              <div className="bili-thumb bili-thumb-orange">
+                <span className="bili-play-icon">▶</span>
+              </div>
+              <div className="bili-card-info">
+                <span className="bili-card-title">The Colors Song</span>
+                <span className="bili-card-meta">Learn colors in English | bilibili</span>
+              </div>
+            </a>
+            <a className="bili-video-card" href="https://www.bilibili.com/video/BV1Hx4y1C7Sy" target="_blank" rel="noopener noreferrer">
+              <div className="bili-thumb bili-thumb-cyan">
+                <span className="bili-play-icon">▶</span>
+              </div>
+              <div className="bili-card-info">
+                <span className="bili-card-title">This is the Way</span>
+                <span className="bili-card-meta">Good habits · classic nursery rhyme | bilibili</span>
+              </div>
+            </a>
+            <a className="bili-video-card" href="https://www.bilibili.com/video/BV1HK411X7Q3" target="_blank" rel="noopener noreferrer">
+              <div className="bili-thumb bili-thumb-red">
+                <span className="bili-play-icon">▶</span>
+              </div>
+              <div className="bili-card-info">
+                <span className="bili-card-title">Fun Songs for Ages 3–9</span>
+                <span className="bili-card-meta">Super simple · easy to follow | bilibili</span>
+              </div>
+            </a>
+            <a className="bili-video-card" href="https://www.bilibili.com/video/BV1hq4y1R7JF" target="_blank" rel="noopener noreferrer">
+              <div className="bili-thumb bili-thumb-blue">
+                <span className="bili-play-icon">▶</span>
+              </div>
+              <div className="bili-card-info">
+                <span className="bili-card-title">36-Min Nursery Rhyme Collection</span>
+                <span className="bili-card-meta">HD classic English songs | bilibili</span>
+              </div>
+            </a>
+          </div>
+        )}
+      </section>
 
       {/* Subjects */}
       <section className="subjects-section">
@@ -6467,6 +6676,145 @@ function VideoRoomPage({ user }) {
 }
 
 // ============================================
+// INTEGRATED LOGIN SCREEN (shares dashboard layout)
+// ============================================
+function LoginContent({ onLogin }) {
+  const { t } = useTranslation();
+  const [loginRole, setLoginRole] = useState(null);
+  const [adminSubRole, setAdminSubRole] = useState(null);
+
+  const goBack = () => {
+    if (adminSubRole) setAdminSubRole(null);
+    else setLoginRole(null);
+  };
+
+  // Teacher login
+  const handleTeacherLogin = async (identifier, password) => {
+    const teachers = getStoredTeachers();
+    const matched = teachers.find(t =>
+      t.email.toLowerCase() === identifier.toLowerCase() &&
+      t.password === password &&
+      t.status !== 'inactive'
+    );
+    if (matched) {
+      onLogin({ name: matched.name, email: matched.email, role: 'teacher', id: matched.id, phone: matched.phone || '', subject: matched.subject });
+      return true;
+    }
+    try {
+      const result = await signInLocal(identifier, password);
+      if (result.profile && result.profile.role === 'teacher') {
+        result.profile.phone = result.profile.phone || '';
+        onLogin(result.profile);
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  };
+
+  const handleAdminLogin = () => {
+    onLogin({ name: 'Administrator', email: ADMIN_EMAIL, role: 'admin', id: 0, phone: '' });
+  };
+
+  const handleFamilyLogin = (userData) => {
+    onLogin(userData);
+  };
+
+  if (!loginRole) {
+    return (
+      <div className="login-content">
+        <div className="login-card">
+          <div className="login-card-header">
+            <h2>{t('welcomeBack') || 'Welcome Back'}</h2>
+            <p>{t('signInDesc') || 'Sign in to your account'}</p>
+          </div>
+          <div className="login-role-choices">
+            <button className="login-role-btn admin-btn" onClick={() => setLoginRole('administrator')}>
+              <span className="lr-icon">🛡️</span>
+              <div className="lr-text">
+                <span className="lr-title">Administrator</span>
+                <span className="lr-desc">Admin & Teacher access</span>
+              </div>
+            </button>
+            <button className="login-role-btn family-btn" onClick={() => setLoginRole('family')}>
+              <span className="lr-icon">🏠</span>
+              <div className="lr-text">
+                <span className="lr-title">Family</span>
+                <span className="lr-desc">View your family calendar & progress</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Admin sub-role choice
+  if (loginRole === 'administrator' && !adminSubRole) {
+    return (
+      <div className="login-content">
+        <div className="login-card">
+          <div className="login-card-header">
+            <h2>Administrator Access</h2>
+          </div>
+          <div className="login-role-choices">
+            <button className="login-role-btn admin-btn" onClick={() => setAdminSubRole('admin')}>
+              <span className="lr-icon">🛡️</span>
+              <div className="lr-text">
+                <span className="lr-title">Admin</span>
+                <span className="lr-desc">Full system access</span>
+              </div>
+            </button>
+            <button className="login-role-btn teacher-btn" onClick={() => setAdminSubRole('teacher')}>
+              <span className="lr-icon">👩‍🏫</span>
+              <div className="lr-text">
+                <span className="lr-title">Teacher</span>
+                <span className="lr-desc">Students, calendar, video calls</span>
+              </div>
+            </button>
+          </div>
+          <button className="login-back-btn" onClick={goBack}>← Back</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Admin login form
+  if (loginRole === 'administrator' && adminSubRole === 'admin') {
+    return (
+      <div className="login-content">
+        <div className="login-card">
+          <LoginForm t={t} role="admin" onSuccess={handleAdminLogin} onBack={goBack} />
+        </div>
+      </div>
+    );
+  }
+
+  // Teacher login form
+  if (loginRole === 'administrator' && adminSubRole === 'teacher') {
+    return (
+      <div className="login-content">
+        <div className="login-card">
+          <LoginForm t={t} role="teacher" onSuccess={handleTeacherLogin} onBack={goBack} />
+        </div>
+      </div>
+    );
+  }
+
+  // Family login form
+  if (loginRole === 'family') {
+    return (
+      <div className="login-content">
+        <div className="login-card">
+          <LoginForm t={t} role="family" onSuccess={handleFamilyLogin} onBack={goBack} />
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+// ============================================
 // MAIN APP
 // ============================================
 function App() {
@@ -6599,16 +6947,13 @@ function App() {
     return <div className="auth-loading"><div className="loading-spinner" /><p>Loading...</p></div>;
   }
 
-  if (!user) {
-    return (
-      <LanguageProvider>
-        <LandingPage onLogin={handleLogin} />
-      </LanguageProvider>
-    );
-  }
-
   // ========== ENFORCE ROLE-BASED PAGE ACCESS ==========
   const renderPage = () => {
+    // Guests see the dashboard with login embedded
+    if (!user) {
+      return <DashboardPage user={null} setCurrentPage={setCurrentPage} />;
+    }
+
     const isFamily = user?.role === 'parent' || user?.role === 'student';
     const isTeacher = user?.role === 'teacher';
     const isAdmin = user?.role === 'admin';
@@ -6630,7 +6975,7 @@ function App() {
       case 'calendar': return <CalendarPage user={user} />;
       case 'files': return <FilesPage user={user} />;
       case 'studentrecords': return <StudentRecordsPage user={user} />;
-      case 'contacts': setCurrentPage('video'); return <VideoRoomPage user={user} />; // Contacts now live inside Video Room
+      case 'contacts': setCurrentPage('video'); return <VideoRoomPage user={user} />;
       case 'admin': return <AdministrationPage user={user} />;
       case 'video': return <VideoRoomPage user={user} />;
       default: return <DashboardPage user={user} setCurrentPage={setCurrentPage} />;
@@ -6639,7 +6984,7 @@ function App() {
 
   return (
     <LanguageProvider>
-      <AppLayout user={user} onLogout={handleLogout} currentPage={currentPage} setCurrentPage={setCurrentPage}>
+      <AppLayout user={user} onLogout={handleLogout} onLogin={handleLogin} currentPage={currentPage} setCurrentPage={setCurrentPage}>
         {renderPage()}
       </AppLayout>
     </LanguageProvider>
