@@ -12,9 +12,13 @@ import { joinSignalingRoom } from './signaling';
 const AuthContext = React.createContext();
 
 function AuthProvider({ children }) {
+  const DEFAULT_USER = { id: 1, name: 'Guest', email: 'guest@classroom.app', role: 'admin', avatar: '👤' };
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('classroom_user');
-    return saved ? JSON.parse(saved) : null;
+    if (saved) return JSON.parse(saved);
+    // Auto-login: no code needed
+    localStorage.setItem('classroom_user', JSON.stringify(DEFAULT_USER));
+    return DEFAULT_USER;
   });
 
   const login = (userData) => {
@@ -6851,6 +6855,7 @@ function App() {
   const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
+    const DEFAULT_USER = { id: 1, name: 'Guest', email: 'guest@classroom.app', role: 'admin', avatar: '👤' };
     // Try Supabase session first, then fallback to localStorage
     getSession().then(async ({ profile }) => {
       if (profile) {
@@ -6890,6 +6895,10 @@ function App() {
             }
           }
           setUser(parsed);
+        } else {
+          // Auto-login: no code needed
+          localStorage.setItem('classroom_user', JSON.stringify(DEFAULT_USER));
+          setUser(DEFAULT_USER);
         }
       }
       setAuthReady(true);
@@ -6909,6 +6918,10 @@ function App() {
           }
         }
         setUser(parsed);
+      } else {
+        // Auto-login: no code needed
+        localStorage.setItem('classroom_user', JSON.stringify(DEFAULT_USER));
+        setUser(DEFAULT_USER);
       }
       setAuthReady(true);
     });
