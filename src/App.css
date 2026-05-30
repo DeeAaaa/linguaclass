@@ -12306,8 +12306,9 @@ input::placeholder {
 
 /* Teaching / Power Up covers */
 .bili-cover-pu1  { background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #3b82f6 100%); }
-.bili-cover-pus  { background: linear-gradient(135deg, #064e3b 0%, #059669 50%, #10b981 100%); }
 .bili-cover-puaj { background: linear-gradient(135deg, #3b0764 0%, #7c3aed 50%, #8b5cf6 100%); }
+.bili-cover-yakka   { background: linear-gradient(135deg, #f59e0b 0%, #eab308 50%, #fde047 100%); }
+.bili-cover-phonics { background: linear-gradient(135deg, #1e3a5f 0%, #6366f1 50%, #a5b4fc 100%); }
 
 /* New Songs covers (4 songs) — smaller icon, bigger label */
 .bili-cover-head  { background: linear-gradient(135deg, #f97316 0%, #ec4899 50%, #8b5cf6 100%); }

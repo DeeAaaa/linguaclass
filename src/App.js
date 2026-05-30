@@ -1439,17 +1439,30 @@ function DashboardPage({ user, setCurrentPage }) {
                 <span className="bili-card-meta">A妈有资源 · Lesson 25 | bilibili</span>
               </div>
             </a>
-            <a className="bili-video-card" href="https://www.bilibili.com/video/BV1tsRRY2E6u" target="_blank" rel="noopener noreferrer">
-              <div className="bili-thumb bili-cover-pus">
+            <a className="bili-video-card" href="https://b23.tv/ep2034926" target="_blank" rel="noopener noreferrer">
+              <div className="bili-thumb bili-cover-yakka">
                 <div className="bili-thumb-cover">
-                  <span className="cover-emoji">🌟</span>
-                  <span className="cover-label">Power Up Starter</span>
+                  <span className="cover-emoji">🍌</span>
+                  <span className="cover-label">Yakka Dee · Banana</span>
                 </div>
                 <span className="bili-play-icon">▶</span>
               </div>
               <div className="bili-card-info">
-                <span className="bili-card-title">Power Up Starter · Unit 0: Hello!</span>
-                <span className="bili-card-meta">LingoVerse · 跟Beck老师学英语 | bilibili</span>
+                <span className="bili-card-title">Yakka Dee 开口说英语 · EP1 Banana</span>
+                <span className="bili-card-meta">儿童英语启蒙 · 第一季 | bilibili</span>
+              </div>
+            </a>
+            <a className="bili-video-card" href="https://b23.tv/XOJoAnM" target="_blank" rel="noopener noreferrer">
+              <div className="bili-thumb bili-cover-phonics">
+                <div className="bili-thumb-cover">
+                  <span className="cover-emoji">🔤</span>
+                  <span className="cover-label">Oxford Phonics L1</span>
+                </div>
+                <span className="bili-play-icon">▶</span>
+              </div>
+              <div className="bili-card-info">
+                <span className="bili-card-title">牛津自然拼读 Level 1 · 字母表</span>
+                <span className="bili-card-meta">幼儿英语自然拼读 · 全40集 | bilibili</span>
               </div>
             </a>
             <a className="bili-video-card" href="https://www.bilibili.com/video/BV19sdaBDE1w?p=26" target="_blank" rel="noopener noreferrer">
