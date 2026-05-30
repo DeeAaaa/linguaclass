@@ -1327,7 +1327,6 @@ function DashboardPage({ user, setCurrentPage }) {
             <div className="hero-slide-img"></div>
             <div className="hero-slide-img"></div>
           </div>
-          <img src="/dashboard-hero.png" alt="Welcome" className="hero-image" />
           <div className="hero-content-wrapper">
             <div className="hero-text">
               <div className="greeting-badge">{t('welcomeBack') || 'Welcome'}</div>
@@ -1367,7 +1366,6 @@ function DashboardPage({ user, setCurrentPage }) {
             <div className="hero-slide-img"></div>
             <div className="hero-slide-img"></div>
           </div>
-          <img src="/dashboard-hero.png" alt="Welcome" className="hero-image" />
           <div className="hero-content-wrapper">
             <div className="hero-text">
               <div className="greeting-badge">{t('welcomeBack')}</div>
