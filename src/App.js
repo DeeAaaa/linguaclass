@@ -1427,8 +1427,11 @@ function DashboardPage({ user, setCurrentPage }) {
         {videoTab === 'teaching' ? (
           <div className="video-grid">
             <a className="bili-video-card" href="https://www.bilibili.com/video/BV1Eh4y1m7XV?p=25" target="_blank" rel="noopener noreferrer">
-              <div className="bili-thumb">
-                <img src="https://i1.hdslb.com/bfs/archive/9970f1e257627f019c81dfeee380f9a79386e5d9.png" alt="Power Up 1-3 自学素材" loading="lazy" />
+              <div className="bili-thumb bili-cover-pu1">
+                <div className="bili-thumb-cover">
+                  <span className="cover-emoji">📚</span>
+                  <span className="cover-label">Power Up 1–3</span>
+                </div>
                 <span className="bili-play-icon">▶</span>
               </div>
               <div className="bili-card-info">
@@ -1437,8 +1440,11 @@ function DashboardPage({ user, setCurrentPage }) {
               </div>
             </a>
             <a className="bili-video-card" href="https://www.bilibili.com/video/BV1tsRRY2E6u" target="_blank" rel="noopener noreferrer">
-              <div className="bili-thumb">
-                <img src="https://i0.hdslb.com/bfs/archive/8a47eac3e1af2b0c7b512ad962a182118c6f4f2d.jpg" alt="Power Up 0 Unit 0 Hello" loading="lazy" />
+              <div className="bili-thumb bili-cover-pus">
+                <div className="bili-thumb-cover">
+                  <span className="cover-emoji">🌟</span>
+                  <span className="cover-label">Power Up Starter</span>
+                </div>
                 <span className="bili-play-icon">▶</span>
               </div>
               <div className="bili-card-info">
@@ -1447,8 +1453,11 @@ function DashboardPage({ user, setCurrentPage }) {
               </div>
             </a>
             <a className="bili-video-card" href="https://www.bilibili.com/video/BV19sdaBDE1w?p=26" target="_blank" rel="noopener noreferrer">
-              <div className="bili-thumb">
-                <img src="https://i1.hdslb.com/bfs/archive/b428447ab93a50ce0974ae8265a2ea04a040b9de.jpg" alt="Power Up 1 PU1 AJ P4" loading="lazy" />
+              <div className="bili-thumb bili-cover-puaj">
+                <div className="bili-thumb-cover">
+                  <span className="cover-emoji">📖</span>
+                  <span className="cover-label">Power Up 1 · Unit AJ</span>
+                </div>
                 <span className="bili-play-icon">▶</span>
               </div>
               <div className="bili-card-info">
@@ -1459,58 +1468,56 @@ function DashboardPage({ user, setCurrentPage }) {
           </div>
         ) : (
           <div className="video-grid">
-            <a className="bili-video-card" href="https://www.bilibili.com/video/BV1RY411N7bj" target="_blank" rel="noopener noreferrer">
-              <div className="bili-thumb bili-thumb-pink">
+            <a className="bili-video-card" href="https://b23.tv/t5yA3Td" target="_blank" rel="noopener noreferrer">
+              <div className="bili-thumb bili-cover-head">
+                <div className="bili-thumb-cover">
+                  <span className="cover-emoji">🧒</span>
+                  <span className="cover-label">Head, Shoulders, Knees &amp; Toes</span>
+                </div>
+                <span className="bili-play-icon">▶</span>
+              </div>
+              <div className="bili-card-info">
+                <span className="bili-card-title">Head, Shoulders, Knees &amp; Toes</span>
+                <span className="bili-card-meta">Body parts song · 幼儿园英语 | bilibili</span>
+              </div>
+            </a>
+            <a className="bili-video-card" href="https://b23.tv/JkCNJVv" target="_blank" rel="noopener noreferrer">
+              <div className="bili-thumb bili-cover-hello">
+                <div className="bili-thumb-cover">
+                  <span className="cover-emoji">👋</span>
+                  <span className="cover-label">Hello, Hello, How Are You?</span>
+                </div>
+                <span className="bili-play-icon">▶</span>
+              </div>
+              <div className="bili-card-info">
+                <span className="bili-card-title">Hello, Hello, How Are You?</span>
+                <span className="bili-card-meta">SSS greeting song · English启蒙 | bilibili</span>
+              </div>
+            </a>
+            <a className="bili-video-card" href="https://b23.tv/hVNPOjs" target="_blank" rel="noopener noreferrer">
+              <div className="bili-thumb bili-cover-rain2">
+                <div className="bili-thumb-cover">
+                  <span className="cover-emoji">☔</span>
+                  <span className="cover-label">Rain, Rain, Go Away</span>
+                </div>
                 <span className="bili-play-icon">▶</span>
               </div>
               <div className="bili-card-info">
                 <span className="bili-card-title">Rain, Rain, Go Away</span>
-                <span className="bili-card-meta">Easy 3-step sing-along | bilibili</span>
+                <span className="bili-card-meta">一枚桃子老师 · SSS儿歌 | bilibili</span>
               </div>
             </a>
-            <a className="bili-video-card" href="https://www.bilibili.com/video/BV1nK4y177b5" target="_blank" rel="noopener noreferrer">
-              <div className="bili-thumb bili-thumb-green">
+            <a className="bili-video-card" href="https://b23.tv/ImvmhZA" target="_blank" rel="noopener noreferrer">
+              <div className="bili-thumb bili-cover-bus">
+                <div className="bili-thumb-cover">
+                  <span className="cover-emoji">🚌</span>
+                  <span className="cover-label">The Wheels on the Bus</span>
+                </div>
                 <span className="bili-play-icon">▶</span>
               </div>
               <div className="bili-card-info">
-                <span className="bili-card-title">Jingle Bells</span>
-                <span className="bili-card-meta">Christmas classic · bilingual subtitles | bilibili</span>
-              </div>
-            </a>
-            <a className="bili-video-card" href="https://www.bilibili.com/video/BV1uU4y1s7X7" target="_blank" rel="noopener noreferrer">
-              <div className="bili-thumb bili-thumb-orange">
-                <span className="bili-play-icon">▶</span>
-              </div>
-              <div className="bili-card-info">
-                <span className="bili-card-title">The Colors Song</span>
-                <span className="bili-card-meta">Learn colors in English | bilibili</span>
-              </div>
-            </a>
-            <a className="bili-video-card" href="https://www.bilibili.com/video/BV1Hx4y1C7Sy" target="_blank" rel="noopener noreferrer">
-              <div className="bili-thumb bili-thumb-cyan">
-                <span className="bili-play-icon">▶</span>
-              </div>
-              <div className="bili-card-info">
-                <span className="bili-card-title">This is the Way</span>
-                <span className="bili-card-meta">Good habits · classic nursery rhyme | bilibili</span>
-              </div>
-            </a>
-            <a className="bili-video-card" href="https://www.bilibili.com/video/BV1HK411X7Q3" target="_blank" rel="noopener noreferrer">
-              <div className="bili-thumb bili-thumb-red">
-                <span className="bili-play-icon">▶</span>
-              </div>
-              <div className="bili-card-info">
-                <span className="bili-card-title">Fun Songs for Ages 3–9</span>
-                <span className="bili-card-meta">Super simple · easy to follow | bilibili</span>
-              </div>
-            </a>
-            <a className="bili-video-card" href="https://www.bilibili.com/video/BV1hq4y1R7JF" target="_blank" rel="noopener noreferrer">
-              <div className="bili-thumb bili-thumb-blue">
-                <span className="bili-play-icon">▶</span>
-              </div>
-              <div className="bili-card-info">
-                <span className="bili-card-title">36-Min Nursery Rhyme Collection</span>
-                <span className="bili-card-meta">HD classic English songs | bilibili</span>
+                <span className="bili-card-title">The Wheels on the Bus</span>
+                <span className="bili-card-meta">SSS classic · 二胖问天 | bilibili</span>
               </div>
             </a>
           </div>
