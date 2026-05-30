@@ -1321,7 +1321,12 @@ function DashboardPage({ user, setCurrentPage }) {
       {/* Hero Section — Welcome for guests, Dashboard for logged-in users */}
       {!user ? (
         <div className="dashboard-hero dashboard-hero-login">
-          <div className="hero-slideshow"></div>
+          <div className="hero-slideshow">
+            <div className="hero-slide s1"></div>
+            <div className="hero-slide s2"></div>
+            <div className="hero-slide s3"></div>
+            <div className="hero-slide s4"></div>
+          </div>
           <img src="/dashboard-hero.png" alt="Welcome" className="hero-image" />
           <div className="hero-content-wrapper">
             <div className="hero-text">
@@ -1356,7 +1361,12 @@ function DashboardPage({ user, setCurrentPage }) {
         </div>
       ) : (
         <div className="dashboard-hero">
-          <div className="hero-slideshow"></div>
+          <div className="hero-slideshow">
+            <div className="hero-slide s1"></div>
+            <div className="hero-slide s2"></div>
+            <div className="hero-slide s3"></div>
+            <div className="hero-slide s4"></div>
+          </div>
           <img src="/dashboard-hero.png" alt="Welcome" className="hero-image" />
           <div className="hero-content-wrapper">
             <div className="hero-text">
