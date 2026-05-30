@@ -2014,6 +2014,28 @@ input::placeholder {
   pointer-events: none;
 }
 
+/* Slideshow Background — rotating scenery gradients */
+.hero-slideshow {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  animation: slideshowBg 20s ease-in-out infinite;
+  background-size: 400% 400%;
+  opacity: 0.55;
+}
+
+@keyframes slideshowBg {
+  0%   { background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 50%, #a18cd1 100%); }
+  12%  { background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 50%, #a18cd1 100%); }
+  25%  { background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 50%, #667eea 100%); }
+  37%  { background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 50%, #667eea 100%); }
+  50%  { background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 50%, #13547a 100%); }
+  62%  { background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 50%, #13547a 100%); }
+  75%  { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 50%, #2d3561 100%); }
+  87%  { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 50%, #2d3561 100%); }
+  100% { background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 50%, #a18cd1 100%); }
+}
+
 .hero-image {
   position: absolute;
   right: -40px;
@@ -2052,6 +2074,7 @@ input::placeholder {
   font-weight: 500;
   margin-bottom: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: heroSlideUp 0.6s ease-out both;
 }
 
 .hero-text h1 {
@@ -2062,6 +2085,18 @@ input::placeholder {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  animation: heroGlow 3s ease-in-out infinite alternate, heroSlideUp 0.8s ease-out;
+  text-shadow: none;
+}
+
+@keyframes heroGlow {
+  0%   { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3)); }
+  100% { filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.6)); }
+}
+
+@keyframes heroSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .hero-subtitle {
@@ -2069,10 +2104,13 @@ input::placeholder {
   font-size: 1.125rem;
   line-height: 1.7;
   margin-bottom: 1.5rem;
+  animation: heroSlideUp 0.8s ease-out 0.2s both;
 }
 
 .hero-subtitle strong {
-  color: #60a5fa;
+  color: #fbbf24;
+  font-weight: 600;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
 }
 
 
@@ -2141,7 +2179,11 @@ input::placeholder {
   border: 1px solid rgba(255, 255, 255, 0.1);
   min-width: 0;
   flex: 1;
+  animation: heroSlideUp 0.6s ease-out 0.4s both;
 }
+
+.stat-card:nth-child(2) { animation-delay: 0.5s; }
+.stat-card:nth-child(3) { animation-delay: 0.6s; }
 
 .stat-icon {
   font-size: 2rem;

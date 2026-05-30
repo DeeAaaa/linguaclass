@@ -1321,13 +1321,13 @@ function DashboardPage({ user, setCurrentPage }) {
       {/* Hero Section — Welcome for guests, Dashboard for logged-in users */}
       {!user ? (
         <div className="dashboard-hero dashboard-hero-login">
-          <div className="hero-bg-pattern"></div>
+          <div className="hero-slideshow"></div>
           <img src="/dashboard-hero.png" alt="Welcome" className="hero-image" />
           <div className="hero-content-wrapper">
             <div className="hero-text">
               <div className="greeting-badge">{t('welcomeBack') || 'Welcome'}</div>
-              <h1>Welcome to Linguaclass</h1>
-              <p className="hero-subtitle">Explore teaching videos, English songs, and learning materials — <strong>sign in from the sidebar</strong> to unlock your personalized classroom.</p>
+              <h1>Welcome to the Classroom</h1>
+              <p className="hero-subtitle">Study languages <strong>online</strong> or <strong>in person</strong> — your learning journey begins here.</p>
             </div>
             <div className="hero-stats">
               <div className="stat-card">
@@ -1356,7 +1356,7 @@ function DashboardPage({ user, setCurrentPage }) {
         </div>
       ) : (
         <div className="dashboard-hero">
-          <div className="hero-bg-pattern"></div>
+          <div className="hero-slideshow"></div>
           <img src="/dashboard-hero.png" alt="Welcome" className="hero-image" />
           <div className="hero-content-wrapper">
             <div className="hero-text">
