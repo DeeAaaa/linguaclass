@@ -1997,7 +1997,7 @@ input::placeholder {
 
 /* Hero Section */
 .dashboard-hero {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  background: #0f172a;
   border-radius: var(--radius-xl);
   padding: 2.5rem;
   margin-bottom: 1.5rem;
@@ -2027,7 +2027,7 @@ input::placeholder {
   );
   background-size: 600% 600%;
   animation: gradientShift 20s ease-in-out infinite;
-  opacity: 0.5;
+  opacity: 0.8;
 }
 
 @keyframes gradientShift {
