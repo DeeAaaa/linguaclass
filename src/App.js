@@ -856,6 +856,7 @@ function AppLayout({ children, user, onLogout, onLogin, currentPage, setCurrentP
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [familyLoginOpen, setFamilyLoginOpen] = useState(false);
+  const [adminLoginOpen, setAdminLoginOpen] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -941,7 +942,7 @@ function AppLayout({ children, user, onLogout, onLogin, currentPage, setCurrentP
             <button
               className="sidebar-login-btn admin-login-btn"
               onClick={() => {
-                onLogin?.({ name: 'Administrator', email: 'admin@linguaclass.com', role: 'admin', id: 0, phone: '' });
+                setAdminLoginOpen(true);
                 setMobileMenuOpen(false);
               }}
             >
@@ -991,6 +992,26 @@ function AppLayout({ children, user, onLogout, onLogin, currentPage, setCurrentP
           <Icons.X />
         </button>
       </aside>
+
+      {/* Admin Login Overlay */}
+      {adminLoginOpen && (
+        <div className="family-login-overlay" onClick={(e) => { if (e.target === e.currentTarget) setAdminLoginOpen(false); }}>
+          <div className="family-login-modal">
+            <button className="flm-close" onClick={() => setAdminLoginOpen(false)}>✕</button>
+            <h3>Administrator Login</h3>
+            <p className="flm-sub">Enter admin credentials to continue</p>
+            <LoginForm
+              t={t}
+              role="admin"
+              onSuccess={(data) => {
+                onLogin?.(data);
+                setAdminLoginOpen(false);
+              }}
+              onBack={() => setAdminLoginOpen(false)}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Family Login Overlay */}
       {familyLoginOpen && (
