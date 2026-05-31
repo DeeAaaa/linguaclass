@@ -1330,15 +1330,17 @@ function DashboardPage({ user, setCurrentPage }) {
       {/* Toast notification */}
       <div id="admin-toast" className="admin-toast"></div>
 
-      {/* Role indicator (visible for all users) */}
-      <div className="role-indicator">
-        <span className="role-badge">{t('role' + (user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1)))}</span>
-        {isAdmin && (
-          <button className="btn-dash-reset" onClick={() => { if (window.confirm(t('resetConfirm'))) resetToDefaults(); }}>
-            <Icons.Clear /> {t('resetDefaults')}
-          </button>
-        )}
-      </div>
+      {/* Role indicator (visible for logged-in users only) */}
+      {user && (
+        <div className="role-indicator">
+          <span className="role-badge">{t('role' + (user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1)))}</span>
+          {isAdmin && (
+            <button className="btn-dash-reset" onClick={() => { if (window.confirm(t('resetConfirm'))) resetToDefaults(); }}>
+              <Icons.Clear /> {t('resetDefaults')}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Hero Section — Welcome for guests, Dashboard for logged-in users */}
       {!user ? (

@@ -1999,7 +1999,7 @@ input::placeholder {
 .dashboard-hero {
   background: #0f172a;
   border-radius: var(--radius-xl);
-  padding: 2.5rem;
+  padding: 2rem;
   margin-bottom: 1.5rem;
   position: relative;
   overflow: hidden;
@@ -2065,7 +2065,7 @@ input::placeholder {
   position: absolute;
   right: -30px;
   bottom: -40px;
-  width: 340px;
+  width: 272px;
   height: auto;
   object-fit: contain;
   opacity: 0.9;
@@ -2092,10 +2092,10 @@ input::placeholder {
   display: inline-block;
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(15px);
-  padding: 0.6rem 1.25rem;
+  padding: 0.5rem 1rem;
   border-radius: 9999px;
   color: #fbbf24;
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   font-weight: 600;
   margin-bottom: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -2103,7 +2103,7 @@ input::placeholder {
 }
 
 .hero-text h1 {
-  font-size: 7rem;
+  font-size: 5.6rem;
   line-height: 1.05;
   color: white;
   margin-bottom: 0.75rem;
@@ -2121,7 +2121,7 @@ input::placeholder {
 
 .hero-subtitle {
   color: rgba(255, 255, 255, 0.9);
-  font-size: 2.8rem;
+  font-size: 2.25rem;
   line-height: 1.3;
   margin-bottom: 1.5rem;
   animation: heroSlideUp 0.8s ease-out 0.2s both;
@@ -2186,16 +2186,16 @@ input::placeholder {
 .hero-stats {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.8rem;
 }
 
 .stat-card {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.8rem;
   background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(10px);
-  padding: 1rem 1.5rem;
+  padding: 0.8rem 1.2rem;
   border-radius: var(--radius-md);
   border: 1px solid rgba(255, 255, 255, 0.1);
   min-width: 0;
@@ -2207,7 +2207,7 @@ input::placeholder {
 .stat-card:nth-child(3) { animation-delay: 0.6s; }
 
 .stat-icon {
-  font-size: 2rem;
+  font-size: 1.6rem;
 }
 
 .stat-info {
@@ -2216,13 +2216,13 @@ input::placeholder {
 }
 
 .stat-number {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: 700;
   color: white;
 }
 
 .stat-label {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: rgba(255, 255, 255, 0.7);
 }
 
@@ -8937,14 +8937,24 @@ input::placeholder {
   }
   .hero-stats {
     flex-direction: row !important;
-    flex-wrap: wrap !important;
+    flex-wrap: nowrap !important;
     width: 100% !important;
     justify-content: center !important;
+    gap: 0.4rem !important;
   }
   .stat-card {
     min-width: 0 !important;
-    flex: 1 1 auto !important;
-    padding: 0.75rem !important;
+    flex: 0 0 auto !important;
+    padding: 0.4rem 0.6rem !important;
+  }
+  .hero-stats .stat-icon {
+    font-size: 1.2rem !important;
+  }
+  .hero-stats .stat-number {
+    font-size: 0.9rem !important;
+  }
+  .hero-stats .stat-label {
+    font-size: 0.6rem !important;
   }
   .hero-actions {
     width: 100% !important;
@@ -10887,10 +10897,25 @@ input::placeholder {
   .hero-text h1 { font-size: 1.5rem !important; }
   .hero-subtitle { font-size: 0.8rem !important; margin-bottom: 0.75rem !important; }
   .hero-stats {
-    flex-direction: column !important;
-    gap: 0.5rem !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 0.35rem !important;
   }
-  .hero-stats .stat-card { width: 100% !important; }
+  .hero-stats .stat-card {
+    width: auto !important;
+    flex: 1 1 0 !important;
+    padding: 0.35rem 0.3rem !important;
+    gap: 0.3rem !important;
+  }
+  .hero-stats .stat-icon {
+    font-size: 1rem !important;
+  }
+  .hero-stats .stat-number {
+    font-size: 0.8rem !important;
+  }
+  .hero-stats .stat-label {
+    font-size: 0.55rem !important;
+  }
 
   /* --- CALENDAR EXTRA SMALL --- */
   .calendar-grid { grid-template-columns: repeat(7, minmax(30px, 1fr)); font-size: 0.7rem; }
