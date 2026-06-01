@@ -95,7 +95,7 @@ export default function VideoRoom({ user, onLeave, classData }) {
   const [screenSharing, setScreenSharing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
-  const [layoutMode, setLayoutMode] = useState('grid');
+  const [layoutMode, setLayoutMode] = useState('spotlight');
   const [pinnedMember, setPinnedMember] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [fullscreenTile, setFullscreenTile] = useState(false);
@@ -262,11 +262,20 @@ export default function VideoRoom({ user, onLeave, classData }) {
       const others = members.filter(m => m !== speaker);
       return { speaker, others };
     }
+    if (layoutMode === 'spotlight') {
+      const mainPerson = pinnedMember || members.find(m => m.speaking) || members[0];
+      const sideParticipants = members.filter(m => m !== mainPerson);
+      return { speaker: mainPerson, others: sideParticipants, mainPerson, sideParticipants };
+    }
     return { speaker: null, others: members };
   };
 
-  const { speaker, others } = getMemberTiles();
+  const { speaker, others, mainPerson = members[0], sideParticipants = members.slice(1) } = getMemberTiles();
   const visibleMembers = screenSharing ? members.slice(0, 4) : (layoutMode === 'speaker' ? [speaker, ...others] : members);
+
+  const handleSpotlightClick = (m) => {
+    if (!m.isMe) setPinnedMember(m);
+  };
 
   // Emoji reactions
   const EMOJIS = ['👍', '❤️', '😂', '🎉', '👏', '🔥', '😮', '🤔'];
@@ -291,9 +300,9 @@ export default function VideoRoom({ user, onLeave, classData }) {
           </button>
         </div>
         <div className="vr-top-r">
-          <button className="vr-top-layout-btn" onClick={() => setLayoutMode(l => l === 'grid' ? 'speaker' : 'grid')}>
+          <button className="vr-top-layout-btn" onClick={() => setLayoutMode(l => l === 'spotlight' ? 'speaker' : l === 'speaker' ? 'grid' : 'spotlight')}>
             <I.Layout size={14} />
-            <span>Grid Layout</span>
+            <span>{layoutMode === 'spotlight' ? 'Spotlight' : layoutMode === 'speaker' ? 'Speaker View' : 'Grid Layout'}</span>
             <I.ChevronDown size={12} />
           </button>
           <button className="vr-top-icon-btn" title="Host Tools">
@@ -363,8 +372,49 @@ export default function VideoRoom({ user, onLeave, classData }) {
             </div>
           )}
 
+          {/* Layout: Spotlight (Theater) View */}
+          {layoutMode === 'spotlight' && !screenSharing && (
+            <div className="vr-spotlight-view">
+              {/* Main speaker tile */}
+              <div className={`vr-tile vr-tile-spotlight ${(mainPerson.speaking) ? 'vr-speaking' : ''}`}>
+                {mainPerson.isMe ? (
+                  videoEnabled ? <video ref={localVideoRef} autoPlay playsInline muted className="vr-tile-vid" /> : <div className="vr-tile-off"><span className="vr-avatar-big">{av}</span></div>
+                ) : (
+                  <div className="vr-tile-off"><span className="vr-avatar-big">{mainPerson.avatar}</span></div>
+                )}
+                <div className="vr-tile-label">
+                  <span className="vr-tile-name">{mainPerson.isMe ? name : mainPerson.name}</span>
+                  <span className="vr-tile-role">{mainPerson.isMe ? 'Host' : mainPerson.role}</span>
+                  {mainPerson.verified && <span className="vr-verified">✓</span>}
+                  {!mainPerson.micOn && <span className="vr-mute-badge"><I.MicOff size={10} /></span>}
+                  {mainPerson.speaking && <span className="vr-speaking-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg></span>}
+                </div>
+              </div>
+              {/* Side participant strip */}
+              <div className="vr-spotlight-strip">
+                {sideParticipants.map(m => (
+                  <div key={m.id}
+                    className={`vr-tile vr-tile-spot ${m.speaking ? 'vr-speaking' : ''}`}
+                    onClick={() => handleSpotlightClick(m)}
+                  >
+                    {m.isMe ? (
+                      videoEnabled ? <video ref={localVideoRef} autoPlay playsInline muted className="vr-tile-vid" /> : <span className="vr-avatar-sm">{av}</span>
+                    ) : (
+                      <span className="vr-avatar-sm">{m.avatar}</span>
+                    )}
+                    <div className="vr-tile-label-min">
+                      <span>{m.isMe ? 'You' : m.name}</span>
+                      {!m.micOn && <I.MicOff size={8} style={{ color: '#ff3b30' }} />}
+                      {m.speaking && <span style={{width:6,height:6,background:'#34c759',borderRadius:'50%',display:'inline-block'}} />}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Layout: Grid View */}
-          {(layoutMode === 'grid' || screenSharing) && (
+          {(layoutMode === 'grid' || (screenSharing && layoutMode !== 'speaker')) && (
             <div className={`vr-grid ${screenSharing ? 'vr-grid-pip' : ''}`}>
               {screenSharing ? (
                 members.slice(0, 4).map(m => (
@@ -719,6 +769,17 @@ export default function VideoRoom({ user, onLeave, classData }) {
 .vr-speaker-strip{display:flex;gap:8px;padding:0;overflow-x:auto;justify-content:center;flex-shrink:0;}
 .vr-unpin{position:absolute;top:12px;right:12px;z-index:6;background:rgba(0,0,0,0.5);border:none;color:#fff;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;display:flex;align-items:center;gap:4px;backdrop-filter:blur(4px);}
 
+/* ========== SPOTLIGHT (THEATER) VIEW ========== */
+.vr-spotlight-view{display:flex;gap:0;width:100%;height:100%;max-width:1200px;max-height:680px;}
+.vr-tile-spotlight{flex:1;min-width:0;border-radius:12px;position:relative;background:#e8eaed;margin:0 8px 0 0;overflow:hidden;}
+.vr-spotlight-strip{display:flex;flex-direction:column;gap:6px;width:200px;flex-shrink:0;overflow-y:auto;padding:0;}
+.vr-tile-spot{aspect-ratio:16/10;width:100%;flex-shrink:0;border-radius:10px;position:relative;background:#e8eaed;overflow:hidden;cursor:pointer;transition:all 0.2s;}
+.vr-tile-spot:hover{outline:2px solid #007aff;outline-offset:-2px;}
+.vr-tile-spot .vr-tile-vid{width:100%;height:100%;object-fit:cover;}
+.vr-tile-spot .vr-avatar-sm{font-size:18px;opacity:0.45;}
+.vr-tile-label-min{position:absolute;bottom:4px;left:4px;right:4px;padding:3px 6px;background:rgba(0,0,0,0.55);border-radius:4px;font-size:10px;color:#fff;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(6px);gap:4px;}
+.vr-tile-label-min span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
 /* ========== TILES ========== */
 .vr-tile{border-radius:12px;overflow:hidden;position:relative;background:#e8eaed;transition:all 0.2s;}
 .vr-tile-grid{aspect-ratio:16/10;}
@@ -727,8 +788,8 @@ export default function VideoRoom({ user, onLeave, classData }) {
 .vr-speaking{outline:2px solid #34c759!important;outline-offset:-2px;}
 .vr-tile-vid{width:100%;height:100%;object-fit:cover;}
 .vr-tile-off{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#e8eaed;}
-.vr-avatar-big{font-size:64px;opacity:0.5;}
-.vr-avatar-sm{font-size:40px;opacity:0.5;}
+.vr-avatar-big{font-size:28px;opacity:0.5;}
+.vr-avatar-sm{font-size:20px;opacity:0.5;}
 
 /* Tile label - matching Tencent Meeting style */
 .vr-tile-label{position:absolute;bottom:10px;left:10px;right:10px;padding:6px 10px;background:rgba(0,0,0,0.55);border-radius:8px;font-size:12px;color:#fff;display:flex;align-items:center;gap:6px;flex-wrap:wrap;backdrop-filter:blur(6px);}
@@ -843,10 +904,10 @@ export default function VideoRoom({ user, onLeave, classData }) {
 .vr-bar-group::after{content:'';width:1px;height:24px;background:#e5e5e7;margin-left:6px;}
 .vr-bar-group:last-of-type::after{display:none;}
 
-.vr-bar-btn{position:relative;min-width:52px;height:52px;border:none;background:transparent;color:#6e6e73;border-radius:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:all 0.15s;padding:2px;}
+.vr-bar-btn{position:relative;min-width:42px;height:42px;border:none;background:transparent;color:#6e6e73;border-radius:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:all 0.15s;padding:2px;}
 .vr-bar-btn:hover{background:#f2f2f7;color:#1d1d1f;}
-.vr-bar-btn svg{width:20px;height:20px;}
-.vr-bar-lbl{font-size:9px;color:#8e8e93;line-height:1;font-weight:500;}
+.vr-bar-btn svg{width:18px;height:18px;}
+.vr-bar-lbl{font-size:8px;color:#8e8e93;line-height:1;font-weight:500;}
 .vr-bar-btn:hover .vr-bar-lbl{color:#1d1d1f;}
 
 /* Off state - red */
@@ -861,12 +922,12 @@ export default function VideoRoom({ user, onLeave, classData }) {
 
 /* Emoji picker */
 .vr-bar-emoji-wrap{position:relative;}
-.vr-emoji-picker{position:absolute;bottom:58px;left:50%;transform:translateX(-50%);display:flex;gap:4px;padding:8px;background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.12);border:1px solid #e5e5e7;z-index:30;}
+.vr-emoji-picker{position:absolute;bottom:48px;left:50%;transform:translateX(-50%);display:flex;gap:4px;padding:8px;background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.12);border:1px solid #e5e5e7;z-index:30;}
 .vr-emoji-btn{width:36px;height:36px;border:none;background:transparent;border-radius:8px;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
 .vr-emoji-btn:hover{background:#f2f2f7;transform:scale(1.15);}
 
 /* End button */
-.vr-bar-end{min-width:52px;height:36px;border:none;background:#ff3b30;color:#fff;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;font-size:12px;font-weight:600;margin-left:6px;padding:0 16px;}
+.vr-bar-end{min-width:44px;height:32px;border:none;background:#ff3b30;color:#fff;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;font-size:11px;font-weight:600;margin-left:6px;padding:0 12px;}
 .vr-bar-end:hover{background:#d70015;}
 
 /* ========== RINGING OVERLAY ========== */
@@ -888,17 +949,22 @@ export default function VideoRoom({ user, onLeave, classData }) {
 @media(max-width:768px){
   .vr-panel{position:fixed;inset:0;width:100%;z-index:50;}
   .vr-bar{gap:2px;padding:4px 6px;}
-  .vr-bar-btn{min-width:44px;height:44px;}
-  .vr-bar-btn svg{width:18px;height:18px;}
+  .vr-bar-btn{min-width:38px;height:38px;}
+  .vr-bar-btn svg{width:16px;height:16px;}
   .vr-bar-lbl{display:none;}
   .vr-bar-group::after{margin-left:2px;}
-  .vr-bar-end{min-width:44px;height:32px;padding:0 10px;}
+  .vr-bar-end{min-width:38px;height:28px;padding:0 8px;}
   .vr-grid{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;}
   .vr-grid-pip{grid-template-columns:repeat(2, 120px);grid-template-rows:repeat(2, 80px);}
   .vr-speaker-strip{gap:4px;}
   .vr-tile-thumb{width:110px;height:70px;}
   .vr-top-title{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .vr-hd-badge{display:none;}
+  .vr-spotlight-view{flex-direction:column;max-height:100%;}
+  .vr-tile-spotlight{flex:0 0 55%;margin:0 0 6px 0;}
+  .vr-spotlight-strip{flex-direction:row;width:100%;overflow-y:hidden;overflow-x:auto;gap:4px;padding:0 0 4px;flex:0 0 auto;max-height:120px;}
+  .vr-tile-spot{width:130px;flex-shrink:0;aspect-ratio:16/10;}
+  .vr-tile-label-min{padding:2px 4px;font-size:9px;}
 }
       `}</style>
     </div>
