@@ -1,1558 +1,906 @@
 import { useState, useEffect, useRef } from 'react';
 
-// Icons with explicit sizes to prevent giant rendering
-const IconSvg = ({ children, size = 20 }) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" width={size} height={size} style={{ flexShrink: 0 }}>{children}</svg>
+// ============== INLINE SVG ICONS ==============
+const Svg = ({ children, d, size = 20, style, ...rest }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" width={size} height={size} style={{ flexShrink: 0, ...style }} {...rest}>
+    {d ? (typeof d === 'string' ? <path d={d} /> : d) : children}
+  </svg>
 );
-
-const Icons = {
-  Video: () => <IconSvg><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></IconSvg>,
-  Screen: () => <IconSvg><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></IconSvg>,
-  Mic: () => <IconSvg><path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></IconSvg>,
-  MicOff: () => <IconSvg><path d="M19 11h-1.7c0 .74-.16 1.44-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></IconSvg>,
-  CameraOff: () => <IconSvg><path d="M21 6.5l-4 4V7c0-.55-.45-1-1-1H9.82L21 17.18V6.5zM3.27 2L2 3.27 4.73 6H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.21 0 .39-.08.55-.18L19.73 21 21 19.73 3.27 2z"/></IconSvg>,
-  Close: () => <IconSvg><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></IconSvg>,
-  Send: () => <IconSvg><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></IconSvg>,
-  File: () => <IconSvg><path d="M6 2c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13z"/></IconSvg>,
-  Download: () => <IconSvg><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></IconSvg>,
-  Users: () => <IconSvg size={18}><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></IconSvg>,
-  Leave: () => <IconSvg><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></IconSvg>,
-  Upload: () => <IconSvg size={32}><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></IconSvg>,
-  Whiteboard: () => <IconSvg><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/><path d="M7 7h10v2H7zm0 4h10v2H7zm0 4h7v2H7z"/></IconSvg>,
-  Brush: () => <IconSvg><path d="M7 14c-1.66 0-3 1.34-3 3 0 1.31-1.16 2-2 2 .92 1.22 2.49 2 4 2 2.21 0 4-1.79 4-4 0-1.66-1.34-3-3-3zm13.71-9.37l-1.34-1.34a.996.996 0 00-1.41 0L9 12.25 11.75 15l8.96-8.96a.996.996 0 000-1.41z"/></IconSvg>,
-  Eraser: () => <IconSvg><path d="M15.14 3c-.51 0-1.02.2-1.41.59L2.59 14.73c-.78.78-.78 2.04 0 2.82l3.86 3.86c.78.78 2.04.78 2.82 0l11.14-11.14c.78-.78.78-2.04 0-2.82l-3.86-3.86c-.38-.39-.89-.59-1.41-.59zm-2.83 16.52l-3.86-3.86-4.24 4.24 3.86 3.86 4.24-4.24z"/></IconSvg>,
-  Clear: () => <IconSvg><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></IconSvg>,
-  Save: () => <IconSvg><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></IconSvg>,
+const I = {
+  Mic: (p) => <Svg {...p} d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>,
+  MicOff: (p) => <Svg {...p} d="M19 11h-1.7c0 .74-.16 1.44-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/>,
+  Camera: (p) => <Svg {...p} d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>,
+  CameraOff: (p) => <Svg {...p} d="M21 6.5l-4 4V7c0-.55-.45-1-1-1H9.82L21 17.18V6.5zM3.27 2L2 3.27 4.73 6H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.21 0 .39-.08.55-.18L19.73 21 21 19.73 3.27 2z"/>,
+  Screen: (p) => <Svg {...p} d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/>,
+  Invite: (p) => <Svg {...p} d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>,
+  Members: (p) => <Svg {...p} d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>,
+  Chat: (p) => <Svg {...p} d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>,
+  Close: (p) => <Svg {...p} d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>,
+  ChevronDown: (p) => <Svg {...p} d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"/>,
+  ChevronUp: (p) => <Svg {...p} d="M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z"/>,
+  Speaker: (p) => <Svg {...p} d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>,
+  SpeakerOff: (p) => <Svg {...p} d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>,
+  Caption: (p) => <Svg {...p} d="M19 4H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-9 13H7v-2h3v2zm0-3H7v-1h3v1zm0-3H7V9h3v2zm4.68 6h-2.16l-.84-2h-1.68l-.84 2h-2.16L10.22 7h2.56l1.9 7zM14 11.73L13.06 9h-.12L12 11.73V13h2v-1.27z"/>,
+  Record: (p) => <Svg {...p}><circle cx="12" cy="12" r="6"/></Svg>,
+  Poll: (p) => <Svg {...p} d="M3 3v18h18V3H3zm6 14H7v-5h2v5zm4 0h-2V7h2v10zm4 0h-2v-5h2v5z"/>,
+  Crown: (p) => <Svg {...p} d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3v2H5v-2h14z"/>,
+  Translate: (p) => <Svg {...p} d="M12.87 15.07l-2.54-2.51.03-.03C12.88 10.14 14.67 7.76 15.5 5h-11V3h7V1h2v2h7v2h-2.07c-.88 2.77-2.47 5.5-4.63 7.58.79 1.05 1.68 1.99 2.67 2.8l-1.27 1.26c-1.04-.93-2.06-2.01-3-3.29zm-3.54-2.71L7 14.67V17H5v-3H2v-2h3.45l.87-1.3-.82-1.22H3.67l1.43-1.95h3.54l2.69 3.83z"/>,
+  Hand: (p) => <Svg {...p} d="M21 7c0-1.38-1.12-2.5-2.5-2.5-.17 0-.34.02-.5.05V4.5c0-1.38-1.12-2.5-2.5-2.5-.54 0-1.04.18-1.44.46C13.45 1.43 12.33 1 11 1c-1.74 0-3.26.83-4.23 2.12-.67-.45-1.47-.67-2.27-.55C2.9 2.86 2 4.03 2 5.5V17c0 3.31 2.69 6 6 6h6c4.97 0 9-4.03 9-9V7z"/>,
+  Layout: (p) => <Svg {...p} d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/>,
+  Search: (p) => <Svg {...p} d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>,
+  VideoCall: (p) => <Svg {...p} d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4zM14 13h-3v3H9v-3H6v-2h3V8h2v3h3v2z"/>,
+  Emoji: (p) => <Svg {...p} d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-3.5-9c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm7 0c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>,
+  Sparkle: (p) => <Svg {...p} d="M19.48 12.35c-1.57-4.08-7.11-4.66-10.44-.82-1.22 1.38-2.17 2.81-2.84 4.28-.3.65-.09 1.43.5 1.83.6.4 1.39.28 1.85-.28.62-.76 1.38-1.49 2.26-2.14 2.31-1.73 5.33-1.75 6.67-.05.33.42.84.63 1.35.55.51-.08.93-.44 1.09-.93.15-.49.02-1.03-.31-1.41-.43-.52-.93-1.03-1.13-1.03zM7 6c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm12 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM12 2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1z"/>,
+  AI: (p) => <Svg {...p} d="M12 2l2.4 7.2h7.6l-6 4.8 2.4 7.2-6-4.8-6 4.8 2.4-7.2-6-4.8h7.6z"/>,
+  Check: (p) => <Svg {...p} d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>,
+  WindowMin: (p) => <Svg {...p} d="M19 13H5v-2h14v2z"/>,
+  WindowMax: (p) => <Svg {...p} d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>,
+  Settings: (p) => <Svg {...p} d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.58 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>,
+  Send: (p) => <Svg {...p} d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>,
+  Warning: (p) => <Svg {...p} d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>,
+  Robot: (p) => <Svg {...p} d="M20 9V7c0-1.1-.9-2-2-2h-3c0-1.66-1.34-3-3-3S9 3.34 9 5H6c-1.1 0-2 .9-2 2v2c-1.66 0-3 1.34-3 3s1.34 3 3 3v4c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-4c1.66 0 3-1.34 3-3s-1.34-3-3-3zm-2 10H6V7h12v12zm-9-6c-.83 0-1.5-.67-1.5-1.5S8.17 10 9 10s1.5.67 1.5 1.5S9.83 13 9 13zm4.5-1.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5-.67-1.5-1.5-1.5-1.5.67-1.5 1.5zM9 17h6v-2H9v2z"/>,
+  Pin: (p) => <Svg {...p} d="M14 4v5c0 1.12.37 2.16 1 3H9c.63-.84 1-1.88 1-3V4H14zm3-2H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 .55-.45 1-1 1s-1 .45-1 1 .45 1 1 1h3.01L9 22h2l.99-10H15c.55 0 1-.45 1-1s-.45-1-1-1c-.55 0-1-.45-1-1V4h1c.55 0 1-.45 1-1s-.45-1-1-1z"/>,
+  More: (p) => <Svg {...p} d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>,
 };
 
-function VideoRoom({ classData, userName, userRole, avatar, onLeave, classes, setClasses }) {
+// ============== HELPERS ==============
+const fmtTime = s => {
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+  return h ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}` : `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+};
+const statusDot = { active: '#34c759', away: '#ff9f0a', offline: '#8e8e93' };
+
+// ============== DATA ==============
+const SIM = [
+  { id:1, name:'AI Huihui', avatar:'👩', role:'Account Manager', speaking:false, videoOn:true, micOn:true, verified:true, status:'active' },
+  { id:2, name:'Wang Dapeng', avatar:'👨', role:'Technology Group GM', speaking:false, videoOn:true, micOn:true, verified:true, status:'active' },
+  { id:3, name:'Zhang Xiaoyu', avatar:'👦', role:'Product Designer', speaking:false, videoOn:true, micOn:false, verified:false, status:'active' },
+  { id:4, name:'Wang Xiaohong', avatar:'👩', role:'Sales Consultant', speaking:true, videoOn:true, micOn:true, verified:true, status:'active' },
+];
+
+const TX = [
+  { en:"Good morning everyone, let's get started with today's agenda.", zh:'大家早上好，让我们开始今天的议程。', speaker:'AI Huihui' },
+  { en:'It is necessary to plan how to better link the procurement and sales sides.', zh:'有必要规划如何更好地连接采购和销售端。', speaker:'Wang Dapeng' },
+  { en:'I have a question about the timeline for Q3 deliverables.', zh:'我有关于第三季度交付时间线的问题。', speaker:'Zhang Xiaoyu' },
+  { en:'Pointed out the possibility of project delays, but also saw that efforts are being made to adhere to the original schedule.', zh:'指出了项目延迟的可能性，但也看到正在努力遵守原定时间表。', speaker:'Wang Xiaohong' },
+  { en:'Meanwhile, Wang Xiao tactfully brought up the current risk factors.', zh:'与此同时，王晓巧妙地向与会者提出了当前的风险因素。', speaker:'AI Huihui' },
+  { en:"Though she couldn't help but convey a hint of concern about the project's progress.", zh:'尽管她忍不住表达了对项目进展的担忧。', speaker:'Wang Dapeng' },
+  { en:"Let's review the action items from last week's meeting.", zh:'让我们回顾上周会议的行动项目。', speaker:'AI Huihui' },
+  { en:'The marketing campaign needs to launch by next Monday.', zh:'营销活动需要在下周一前启动。', speaker:'Wang Xiaohong' },
+  { en:"I'll coordinate with the design team on the assets.", zh:'我会与设计团队协调相关素材。', speaker:'Zhang Xiaoyu' },
+  { en:"Great, let's also discuss the budget allocation for this quarter.", zh:'好的，我们来讨论一下本季度的预算分配。', speaker:'Wang Dapeng' },
+  { en:'Forty percent for R&D, thirty for marketing, thirty for operations.', zh:'研发占40%，营销占30%，运营占30%。', speaker:'AI Huihui' },
+  { en:'That sounds reasonable. Any objections?', zh:'听起来很合理。有反对意见吗？', speaker:'Wang Xiaohong' },
+  { en:'No objections from my side.', zh:'我没有异议。', speaker:'Zhang Xiaoyu' },
+  { en:"Any more questions before we wrap up today's session?", zh:'结束前还有问题吗？', speaker:'AI Huihui' },
+];
+
+const CHAT_SEED = [
+  { id:1, from:'AI Huihui', av:'👩', txt:'Welcome everyone! The meeting minutes will be generated automatically.', t:'20:26', me:false },
+  { id:2, from:'Wang Dapeng', av:'👨', txt:'Thanks! I can see the real-time summary on the side panel.', t:'20:26', me:false },
+];
+
+// ============== MAIN COMPONENT ==============
+export default function VideoRoom({ user, onLeave, classData }) {
+  const name = user?.name || 'You';
+  const role = user?.role || 'student';
+  const av = user?.avatar || '🙂';
+
+  // Meeting state
+  const [meetingTitle] = useState('Weekly Product Sync — Q3 Planning');
+  const [meetingId] = useState(() => String(Math.floor(100000000 + Math.random() * 900000000)));
+  const [duration, setDuration] = useState(5469); // Start at ~1:31:09 like screenshot
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [screenSharing, setScreenSharing] = useState(false);
-  const [showChat, setShowChat] = useState(false);
-  const [showMaterials, setShowMaterials] = useState(false);
-  const [showWhiteboard, setShowWhiteboard] = useState(false);
-  const [chatMessage, setChatMessage] = useState('');
-  const [messages, setMessages] = useState([]);
-  const chatEndRef = useRef(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [handRaised, setHandRaised] = useState(false);
+  const [layoutMode, setLayoutMode] = useState('grid');
+  const [pinnedMember, setPinnedMember] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [fullscreenTile, setFullscreenTile] = useState(false);
+
+  // Side panels
+  const [activePanel, setActivePanel] = useState(null);
+  const [showTranslation, setShowTranslation] = useState(false);
+
+  // Members / Media
+  const [members, setMembers] = useState([{
+    id: 'me', name, avatar: av, role: 'Host', status: 'active', speaking: false, videoOn: videoEnabled, micOn: audioEnabled, isMe: true, verified: true
+  }, ...SIM]);
   const localVideoRef = useRef(null);
-  const screenVideoRef = useRef(null);
   const localStreamRef = useRef(null);
+  const screenVideoRef = useRef(null);
   const [screenStream, setScreenStream] = useState(null);
-  
-  // Whiteboard refs and state
-  const whiteboardRef = useRef(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [drawColor, setDrawColor] = useState('#ffffff');
-  const [brushSize, setBrushSize] = useState(3);
-  const [tool, setTool] = useState('brush'); // 'brush' or 'eraser'
-  const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
 
-  // Get current class data
-  const currentClass = classes.find(c => c.id === classData?.id) || classData;
+  // Chat
+  const [chatMsg, setChatMsg] = useState('');
+  const [chatMsgs, setChatMsgs] = useState([
+    { id: 1, sender: 'AI Huihui', avatar: '👩', text: 'Welcome everyone! The meeting minutes will be generated automatically.', time: '20:26', isMe: false },
+    { id: 2, sender: 'Wang Dapeng', avatar: '👨', text: 'Thanks! I can see the real-time summary on the side panel.', time: '20:26', isMe: false },
+    { id: 3, sender: 'You', avatar: av, text: 'Great feature! Ready to start.', time: '20:27', isMe: true },
+  ]);
+  const chatEndRef = useRef(null);
 
-  // Initialize camera on mount — keep separate from chat/whiteboard effects
+  // Transcript
+  const [transcriptLines, setTranscriptLines] = useState(TX.slice(0, 5).map((l, i) => ({ ...l, time: fmtTime(5469 + i * 300), id: i })));
+  const txIdx = useRef(5);
+  const [isTranscribing, setIsTranscribing] = useState(true);
+
+  // AI Summary
+  const [aiSummary, setAiSummary] = useState([
+    { title: 'Conference', content: 'It is necessary to plan how to better link the procurement and sales sides in the next stage to increase the company\'s overall profit scale.', expanded: true },
+    { title: 'Meeting to be done', content: 'Finalize Q3 budget allocation, coordinate design assets for marketing campaign.', expanded: false },
+  ]);
+
+  // Call state
+  const [callingMember, setCallingMember] = useState(null);
+  const [ringing, setRinging] = useState(false);
+
+  // ============== TIMER ==============
+  useEffect(() => {
+    const t = setInterval(() => setDuration(d => d + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // ============== CAMERA ==============
   useEffect(() => {
     const video = localVideoRef.current;
     if (!video) return;
-    
-    // Start camera
-    const startCamera = async () => {
+    (async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: true, 
-          audio: audioEnabled 
-        });
-        if (localStreamRef.current) {
-          localStreamRef.current.getTracks().forEach(t => t.stop());
-        }
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: true });
+        if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop());
         localStreamRef.current = stream;
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-        }
-      } catch (err) {
-        console.log('Camera not available:', err);
+        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      } catch (e) {
+        console.log('Camera error:', e);
         setVideoEnabled(false);
+        setMembers(prev => prev.map(m => m.id === 'me' ? { ...m, videoOn: false } : m));
       }
-    };
-    
-    startCamera();
-    
-    return () => {
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(t => t.stop());
-        localStreamRef.current = null;
-      }
-    };
-  }, []); // Run once on mount
+    })();
+    return () => { if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; } };
+  }, []);
 
-  // React to video enabled/disabled changes
   useEffect(() => {
-    if (!localStreamRef.current) return;
-    const videoTrack = localStreamRef.current.getVideoTracks()[0];
-    if (videoTrack) {
-      videoTrack.enabled = videoEnabled;
-    }
+    const vt = localStreamRef.current?.getVideoTracks()[0];
+    if (vt) vt.enabled = videoEnabled;
   }, [videoEnabled]);
-
-  // React to audio enabled/disabled changes
   useEffect(() => {
-    if (!localStreamRef.current) return;
-    const audioTrack = localStreamRef.current.getAudioTracks()[0];
-    if (audioTrack) {
-      audioTrack.enabled = audioEnabled;
-    }
+    const at = localStreamRef.current?.getAudioTracks()[0];
+    if (at) at.enabled = audioEnabled;
   }, [audioEnabled]);
 
-  // Scroll to bottom of chat + initialize whiteboard
+  // ============== TRANSCRIPT SIMULATION ==============
   useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-    
-    if (showWhiteboard && whiteboardRef.current) {
-      initWhiteboard();
-    }
-  }, [messages, showChat, showWhiteboard]);
+    if (!isTranscribing) return;
+    const interval = setInterval(() => {
+      if (txIdx.current < TX.length) {
+        const line = TX[txIdx.current];
+        setTranscriptLines(prev => [...prev, { ...line, time: fmtTime(duration), id: Date.now() }]);
+        setMembers(prev => prev.map(m => {
+          if (m.name === line.speaker) return { ...m, speaking: true };
+          return m;
+        }));
+        setTimeout(() => {
+          setMembers(prev => prev.map(m => ({ ...m, speaking: false })));
+        }, 2500);
+        txIdx.current++;
+      }
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [isTranscribing, duration]);
 
-  const initWhiteboard = () => {
-    const canvas = whiteboardRef.current;
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  };
+  // ============== SCROLL CHAT ==============
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMsgs]);
 
-  const getCanvasCoords = (e) => {
-    const canvas = whiteboardRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    
-    if (e.touches) {
-      return {
-        x: (e.touches[0].clientX - rect.left) * scaleX,
-        y: (e.touches[0].clientY - rect.top) * scaleY
-      };
-    }
-    return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY
-    };
-  };
-
-  const startDrawing = (e) => {
-    e.preventDefault();
-    const coords = getCanvasCoords(e);
-    setIsDrawing(true);
-    setLastPos(coords);
-    
-    // Draw a dot on start
-    const ctx = whiteboardRef.current?.getContext('2d');
-    if (ctx) {
-      ctx.beginPath();
-      ctx.arc(coords.x, coords.y, brushSize / 2, 0, Math.PI * 2);
-      ctx.fillStyle = tool === 'eraser' ? '#1a1a2e' : drawColor;
-      ctx.fill();
-    }
-  };
-
-  const draw = (e) => {
-    if (!isDrawing) return;
-    e.preventDefault();
-    
-    const coords = getCanvasCoords(e);
-    const ctx = whiteboardRef.current?.getContext('2d');
-    if (!ctx) return;
-    
-    ctx.beginPath();
-    ctx.moveTo(lastPos.x, lastPos.y);
-    ctx.lineTo(coords.x, coords.y);
-    ctx.strokeStyle = tool === 'eraser' ? '#1a1a2e' : drawColor;
-    ctx.lineWidth = tool === 'eraser' ? brushSize * 3 : brushSize;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.stroke();
-    
-    setLastPos(coords);
-  };
-
-  const stopDrawing = () => {
-    setIsDrawing(false);
-  };
-
-  const clearWhiteboard = () => {
-    if (whiteboardRef.current) {
-      const ctx = whiteboardRef.current.getContext('2d');
-      ctx.fillStyle = '#1a1a2e';
-      ctx.fillRect(0, 0, whiteboardRef.current.width, whiteboardRef.current.height);
-    }
-  };
-
+  // ============== ACTIONS ==============
   const toggleVideo = () => {
-    if (!localStreamRef.current) return;
-    const videoTrack = localStreamRef.current.getVideoTracks()[0];
-    if (!videoTrack) return;
-    videoTrack.enabled = !videoTrack.enabled;
-    setVideoEnabled(videoTrack.enabled);
+    const vt = localStreamRef.current?.getVideoTracks()[0];
+    if (!vt) return;
+    vt.enabled = !vt.enabled;
+    setVideoEnabled(vt.enabled);
+    setMembers(prev => prev.map(m => m.id === 'me' ? { ...m, videoOn: vt.enabled } : m));
   };
-
   const toggleAudio = () => {
     setAudioEnabled(!audioEnabled);
+    setMembers(prev => prev.map(m => m.id === 'me' ? { ...m, micOn: !audioEnabled } : m));
   };
 
   const toggleScreenShare = async () => {
     if (screenSharing) {
-      // Stop screen sharing
-      if (screenStream) {
-        screenStream.getTracks().forEach(track => track.stop());
-        setScreenStream(null);
-      }
+      screenStream?.getTracks().forEach(t => t.stop());
+      setScreenStream(null);
       setScreenSharing(false);
     } else {
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         setScreenStream(stream);
-        if (screenVideoRef.current) {
-          screenVideoRef.current.srcObject = stream;
-        }
+        if (screenVideoRef.current) screenVideoRef.current.srcObject = stream;
         setScreenSharing(true);
-        
-        // Handle when user stops sharing via browser UI
-        stream.getVideoTracks()[0].onended = () => {
-          setScreenSharing(false);
-          setScreenStream(null);
-        };
-      } catch (err) {
-        console.log('Screen sharing cancelled or failed:', err);
-      }
+        stream.getVideoTracks()[0].onended = () => { setScreenSharing(false); setScreenStream(null); };
+      } catch (e) { }
     }
   };
 
-  const handleSendMessage = () => {
-    if (!chatMessage.trim()) return;
-    
-    const msg = {
-      id: Date.now(),
-      sender: userName,
-      senderRole: userRole,
-      avatar: avatar,
-      text: chatMessage.trim(),
-      timestamp: new Date().toISOString()
-    };
-
-    setClasses(prev => prev.map(c => {
-      if (c.id === currentClass.id) {
-        return { ...c, chat: [...c.chat, msg] };
-      }
-      return c;
-    }));
-    setMessages(prev => [...prev, msg]);
-    setChatMessage('');
+  const sendChat = () => {
+    if (!chatMsg.trim()) return;
+    const msg = { id: Date.now(), sender: 'You', avatar: av, text: chatMsg.trim(), time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isMe: true };
+    setChatMsgs(prev => [...prev, msg]);
+    setChatMsg('');
   };
 
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  const sendEmoji = (emoji) => {
+    const msg = { id: Date.now(), sender: 'You', avatar: av, text: emoji, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isMe: true, isEmoji: true };
+    setChatMsgs(prev => [...prev, msg]);
+    setShowEmojiPicker(false);
   };
 
-  const getFileIcon = (type, filename) => {
-    if (type.startsWith('video/')) return <Icons.Video />;
-    if (type.startsWith('audio/')) return '🎵';
-    if (type.startsWith('image/')) return '🖼️';
-    if (filename?.endsWith('.pdf')) return '📄';
-    return <Icons.File />;
+  const togglePanel = (p) => setActivePanel(prev => prev === p ? null : p);
+
+  const handleLeave = () => {
+    localStreamRef.current?.getTracks().forEach(t => t.stop());
+    screenStream?.getTracks().forEach(t => t.stop());
+    onLeave?.();
   };
 
-  const classMessages = currentClass?.chat || [];
+  // ============== CALL A MEMBER ==============
+  const callMember = (member) => {
+    if (member.isMe) return;
+    setCallingMember(member);
+    setRinging(true);
+    setTimeout(() => {
+      setRinging(false);
+      setCallingMember(null);
+      setMembers(prev => prev.map(m => m.id === member.id ? { ...m, status: 'active', inCall: true } : m));
+    }, 2500);
+  };
+
+  const getMemberTiles = () => {
+    if (layoutMode === 'speaker') {
+      const speaker = pinnedMember || members.find(m => m.speaking && !m.isMe) || members[0];
+      const others = members.filter(m => m !== speaker);
+      return { speaker, others };
+    }
+    return { speaker: null, others: members };
+  };
+
+  const { speaker, others } = getMemberTiles();
+  const visibleMembers = screenSharing ? members.slice(0, 4) : (layoutMode === 'speaker' ? [speaker, ...others] : members);
+
+  // Emoji reactions
+  const EMOJIS = ['👍', '❤️', '😂', '🎉', '👏', '🔥', '😮', '🤔'];
 
   return (
-    <div className="video-room">
-      {/* Header */}
-      <header className="room-header">
-        <div className="room-info">
-          <span className="live-badge">🔴 LIVE</span>
-          <h2>{currentClass?.title || 'Classroom'}</h2>
-          <span className="participant-count">
-            <Icons.Users /> {currentClass?.students?.length || 0} students
-          </span>
+    <div className="vroom">
+      {/* ========== TOP BAR ========== */}
+      <header className="vr-top">
+        <div className="vr-top-l">
+          <div className="vr-top-meeting-icon">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+          </div>
+          <div className="vr-top-info">
+            <span className="vr-top-title">Meeting details</span>
+            <span className="vr-top-meta">{fmtTime(duration)}</span>
+          </div>
+          <div className="vr-top-signal">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+          </div>
+          <button className="vr-top-icon-btn" title="Copy meeting info">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+          </button>
         </div>
-        <button className="leave-btn" onClick={onLeave}>
-          <Icons.Leave /> Leave
-        </button>
+        <div className="vr-top-r">
+          <button className="vr-top-layout-btn" onClick={() => setLayoutMode(l => l === 'grid' ? 'speaker' : 'grid')}>
+            <I.Layout size={14} />
+            <span>Grid Layout</span>
+            <I.ChevronDown size={12} />
+          </button>
+          <button className="vr-top-icon-btn" title="Host Tools">
+            <I.Crown size={14} />
+            <span>Host Tools</span>
+            <I.ChevronDown size={10} />
+          </button>
+          <button className="vr-top-icon-btn" title="Settings">
+            <I.Settings size={14} />
+          </button>
+          <div className="vr-top-divider" />
+          <button className="vr-top-win-btn" title="Minimize"><I.WindowMin size={12} /></button>
+          <button className="vr-top-win-btn" title="Maximize"><I.WindowMax size={12} /></button>
+          <button className="vr-top-win-btn vr-top-close" title="Close" onClick={handleLeave}><I.Close size={12} /></button>
+        </div>
       </header>
 
-      {/* Main Content */}
-      <div className="room-content">
-        {/* Video Area */}
-        <div className="video-area">
-          {/* Screen Share Display */}
-          {screenSharing && !showWhiteboard && (
-            <div className="screen-share-container">
-              <video 
-                ref={screenVideoRef} 
-                autoPlay 
-                playsInline 
-                className="screen-video"
-              />
-              <div className="screen-share-indicator">
-                <Icons.Screen /> Sharing Screen
-              </div>
+      {/* ========== MAIN CONTENT ========== */}
+      <div className="vr-main">
+        {/* --- Video Area --- */}
+        <div className="vr-video-area" style={activePanel ? { marginRight: 360 } : {}}>
+          {/* Screen Share Overlay */}
+          {screenSharing && (
+            <div className="vr-screen-share">
+              <video ref={screenVideoRef} autoPlay playsInline className="vr-screen-vid" />
+              <div className="vr-screen-badge"><I.Screen size={12} /> You are sharing screen</div>
             </div>
           )}
 
-          {/* Whiteboard Display */}
-          {showWhiteboard && (
-            <div className="whiteboard-container">
-              <canvas
-                ref={whiteboardRef}
-                width={1280}
-                height={720}
-                className="whiteboard-canvas"
-                onMouseDown={startDrawing}
-                onMouseMove={draw}
-                onMouseUp={stopDrawing}
-                onMouseLeave={stopDrawing}
-                onTouchStart={startDrawing}
-                onTouchMove={draw}
-                onTouchEnd={stopDrawing}
-              />
-              <div className="whiteboard-toolbar">
-                <button 
-                  className={`wb-tool ${tool === 'brush' ? 'active' : ''}`}
-                  onClick={() => setTool('brush')}
-                  title="Brush"
-                >
-                  <Icons.Brush />
-                </button>
-                <button 
-                  className={`wb-tool ${tool === 'eraser' ? 'active' : ''}`}
-                  onClick={() => setTool('eraser')}
-                  title="Eraser"
-                >
-                  <Icons.Eraser />
-                </button>
-                <div className="wb-divider" />
-                <input
-                  type="color"
-                  value={drawColor}
-                  onChange={(e) => setDrawColor(e.target.value)}
-                  className="wb-color-picker"
-                  title="Color"
-                />
-                <div className="wb-divider" />
-                <div className="wb-brush-size">
-                  <span>Size:</span>
-                  <input
-                    type="range"
-                    min="1"
-                    max="20"
-                    value={brushSize}
-                    onChange={(e) => setBrushSize(Number(e.target.value))}
-                  />
-                  <span>{brushSize}px</span>
-                </div>
-                <div className="wb-divider" />
-                <button className="wb-tool wb-clear" onClick={clearWhiteboard} title="Clear">
-                  <Icons.Clear />
-                </button>
-              </div>
-              <div className="whiteboard-indicator">
-                <Icons.Whiteboard /> Whiteboard Active
-              </div>
-            </div>
-          )}
-
-          {/* Local Video (Picture-in-Picture) */}
-          <div className={`local-video-container ${screenSharing || showWhiteboard ? 'pip' : 'full'}`}>
-            <video 
-              ref={localVideoRef} 
-              autoPlay 
-              playsInline 
-              muted
-              className="local-video"
-            />
-            {!videoEnabled && (
-              <div className="video-off-overlay">
-                <span>{avatar}</span>
-                <p>Camera Off</p>
-              </div>
-            )}
-            <div className="local-video-label">
-              {userName} (You) {userRole === 'teacher' && '👨‍🏫'}
-            </div>
-          </div>
-        </div>
-
-        {/* Sidebar */}
-        <div className={`room-sidebar ${showChat || showMaterials ? 'open' : ''}`}>
-          {/* Sidebar Tabs */}
-          <div className="sidebar-tabs">
-            <button 
-              className={`sidebar-tab ${showChat ? 'active' : ''}`}
-              onClick={() => { setShowChat(!showChat); setShowMaterials(false); }}
-            >
-              💬 Chat
-            </button>
-            <button 
-              className={`sidebar-tab ${showMaterials ? 'active' : ''}`}
-              onClick={() => { setShowMaterials(!showMaterials); setShowChat(false); }}
-            >
-              📁 Materials
-            </button>
-            <button 
-              className="sidebar-close"
-              onClick={() => { setShowChat(false); setShowMaterials(false); }}
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Chat Panel */}
-          {showChat && (
-            <div className="chat-panel">
-              <div className="chat-messages">
-                {classMessages.length > 0 ? (
-                  classMessages.map(msg => (
-                    <div 
-                      key={msg.id} 
-                      className={`chat-message ${msg.sender === userName ? 'own' : ''}`}
-                    >
-                      <span className="msg-avatar">{msg.avatar}</span>
-                      <div className="msg-content">
-                        <div className="msg-header">
-                          <span className="msg-sender">{msg.sender}</span>
-                          <span className="msg-time">
-                            {new Date(msg.timestamp).toLocaleTimeString()}
-                          </span>
-                        </div>
-                        <p className="msg-text">{msg.text}</p>
-                      </div>
-                    </div>
-                  ))
+          {/* Layout: Speaker View */}
+          {layoutMode === 'speaker' && speaker && !screenSharing && (
+            <div className="vr-speaker-view">
+              <div className={`vr-tile vr-tile-speaker ${speaker.speaking ? 'vr-speaking' : ''}`}>
+                {speaker.isMe ? (
+                  videoEnabled ? <video ref={localVideoRef} autoPlay playsInline muted className="vr-tile-vid" /> : <div className="vr-tile-off"><span className="vr-avatar-big">{av}</span></div>
                 ) : (
-                  <div className="no-messages">No messages yet</div>
+                  <div className="vr-tile-off"><span className="vr-avatar-big">{speaker.avatar}</span></div>
                 )}
-                <div ref={chatEndRef} />
+                <div className="vr-tile-label">
+                  <span className="vr-tile-name">{speaker.isMe ? `${name}` : speaker.name}</span>
+                  <span className="vr-tile-role">{speaker.isMe ? 'Host' : speaker.role}</span>
+                  {speaker.verified && <span className="vr-verified">✓</span>}
+                  {!speaker.micOn && <span className="vr-mute-badge"><I.MicOff size={10} /></span>}
+                </div>
               </div>
-
-              <div className="chat-input">
-                <input
-                  type="text"
-                  placeholder="Type a message..."
-                  value={chatMessage}
-                  onChange={(e) => setChatMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                />
-                <button onClick={handleSendMessage}>
-                  <Icons.Send />
-                </button>
+              {pinnedMember && (
+                <button className="vr-unpin" onClick={() => setPinnedMember(null)}><I.Pin size={11} /></button>
+              )}
+              <div className="vr-speaker-strip">
+                {others.map(m => (
+                  <div key={m.id}
+                    className={`vr-tile vr-tile-thumb ${m.speaking ? 'vr-speaking' : ''}`}
+                    onClick={() => setPinnedMember(m)}
+                  >
+                    {m.isMe ? (
+                      videoEnabled ? <video ref={localVideoRef} autoPlay playsInline muted className="vr-tile-vid" /> : <span className="vr-avatar-sm">{av}</span>
+                    ) : (
+                      <span className="vr-avatar-sm">{m.avatar}</span>
+                    )}
+                    <div className="vr-tile-label-mini">
+                      <span>{m.isMe ? 'You' : m.name}</span>
+                      {m.micOn ? <I.Mic size={8} /> : <I.MicOff size={8} style={{ color: '#ff3b30' }} />}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {/* Materials Panel */}
-          {showMaterials && (
-            <div className="materials-panel">
-              {currentClass?.materials?.length > 0 ? (
-                <div className="materials-list">
-                  {currentClass.materials.map(m => (
-                    <div key={m.id} className="material-item">
-                      <div className="material-icon">
-                        {getFileIcon(m.type, m.name)}
-                      </div>
-                      <div className="material-info">
-                        <p className="material-name">{m.name}</p>
-                        <p className="material-meta">
-                          {formatFileSize(m.size)} • {m.uploadedBy}
-                        </p>
-                      </div>
-                      <a href={m.data} download={m.name} className="download-btn">
-                        <Icons.Download />
-                      </a>
+          {/* Layout: Grid View */}
+          {(layoutMode === 'grid' || screenSharing) && (
+            <div className={`vr-grid ${screenSharing ? 'vr-grid-pip' : ''}`}>
+              {screenSharing ? (
+                members.slice(0, 4).map(m => (
+                  <div key={m.id} className={`vr-tile vr-tile-grid ${m.speaking ? 'vr-speaking' : ''}`}>
+                    {m.isMe ? (
+                      videoEnabled ? <video ref={localVideoRef} autoPlay playsInline muted className="vr-tile-vid" /> : <span className="vr-avatar-big">{av}</span>
+                    ) : (
+                      <span className="vr-avatar-big">{m.avatar}</span>
+                    )}
+                    <div className="vr-tile-label">
+                      <span className="vr-tile-name">{m.isMe ? name : m.name}</span>
+                      {!m.micOn && <I.MicOff size={10} style={{ color: '#ff3b30' }} />}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))
               ) : (
-                <div className="no-materials">No materials shared yet</div>
+                visibleMembers.map(m => (
+                  <div key={m.id}
+                    className={`vr-tile vr-tile-grid ${m.speaking ? 'vr-speaking' : ''}`}
+                    onClick={() => layoutMode === 'speaker' && !m.isMe && setPinnedMember(m)}
+                  >
+                    {m.isMe ? (
+                      videoEnabled ? <video ref={localVideoRef} autoPlay playsInline muted className="vr-tile-vid" /> : <div className="vr-tile-off"><span className="vr-avatar-big">{av}</span></div>
+                    ) : (
+                      <div className="vr-tile-off"><span className="vr-avatar-big">{m.avatar}</span></div>
+                    )}
+                    <div className="vr-tile-label">
+                      <span className="vr-tile-name">{m.isMe ? name : m.name}</span>
+                      <span className="vr-tile-role">{m.isMe ? 'Host' : m.role}</span>
+                      {m.verified && <span className="vr-verified">✓</span>}
+                      {!m.micOn && <span className="vr-mute-badge"><I.MicOff size={10} /></span>}
+                      {m.speaking && <span className="vr-speaking-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg></span>}
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Controls */}
-      <div className="room-controls">
-        <div className="controls-group">
-          <button 
-            className={`control-btn ${!audioEnabled ? 'off' : ''}`}
-            onClick={toggleAudio}
-          >
-            {audioEnabled ? <Icons.Mic /> : <Icons.MicOff />}
-            <span className="btn-label">{audioEnabled ? 'Mute' : 'Unmute'}</span>
-          </button>
-
-          <button 
-            className={`control-btn ${!videoEnabled ? 'off' : ''}`}
-            onClick={toggleVideo}
-          >
-            {videoEnabled ? <Icons.Video /> : <Icons.CameraOff />}
-            <span className="btn-label">{videoEnabled ? 'Stop Video' : 'Start Video'}</span>
-          </button>
-
-          <button 
-            className={`control-btn ${screenSharing ? 'sharing' : ''}`}
-            onClick={toggleScreenShare}
-          >
-            <Icons.Screen />
-            <span className="btn-label">{screenSharing ? 'Stop Share' : 'Share Screen'}</span>
-          </button>
-
-          <button 
-            className={`control-btn ${showWhiteboard ? 'whiteboard-active' : ''}`}
-            onClick={() => setShowWhiteboard(!showWhiteboard)}
-          >
-            <Icons.Whiteboard />
-            <span className="btn-label">Whiteboard</span>
-          </button>
+          {/* HD Badge */}
+          <div className="vr-hd-badge">HD ULTRA</div>
         </div>
 
-        <div className="controls-divider" />
-
-        <div className="controls-group">
-          <button 
-            className={`control-btn ${showChat ? 'chat-active' : ''}`}
-            onClick={() => { setShowChat(!showChat); setShowMaterials(false); }}
-          >
-            💬
-            <span className="btn-label">Chat</span>
-            {classMessages.length > 0 && (
-              <span className="notification-badge">{classMessages.length}</span>
+        {/* --- Side Panel --- */}
+        {activePanel && (
+          <aside className="vr-panel">
+            {/* Members Panel */}
+            {activePanel === 'members' && (
+              <>
+                <div className="vr-panel-hd">
+                  <div className="vr-panel-title">
+                    <I.Members size={16} />
+                    <span>Participants ({members.length})</span>
+                  </div>
+                  <button className="vr-panel-x" onClick={() => setActivePanel(null)}><I.Close size={14} /></button>
+                </div>
+                <div className="vr-panel-search">
+                  <I.Search size={14} />
+                  <input placeholder="Search participants" />
+                </div>
+                <div className="vr-members-body">
+                  {members.map(m => (
+                    <div key={m.id} className={`vr-member-row ${m.isMe ? 'vr-member-me' : ''}`}>
+                      <div className="vr-member-av">
+                        <span>{m.avatar}</span>
+                        <span className="vr-status-dot" style={{ background: statusDot[m.status] || '#8e8e93' }} />
+                      </div>
+                      <div className="vr-member-info">
+                        <span className="vr-member-name">
+                          {m.isMe ? `${name}` : m.name}
+                          {m.role === 'teacher' && <I.Crown size={10} style={{ color: '#ff9f0a', marginLeft: 4 }} />}
+                        </span>
+                        <span className="vr-member-sub">{m.isMe ? 'Host' : m.role}</span>
+                      </div>
+                      <div className="vr-member-actions">
+                        {m.micOn ? <I.Mic size={14} style={{ color: '#8e8e93' }} /> : <I.MicOff size={14} style={{ color: '#ff3b30' }} />}
+                        {m.videoOn ? <I.Camera size={14} style={{ color: '#8e8e93' }} /> : <I.CameraOff size={14} style={{ color: '#8e8e93' }} />}
+                        {!m.isMe && (
+                          <button className="vr-call-btn" onClick={() => callMember(m)} title="Call">
+                            <I.VideoCall size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
-          </button>
 
-          <button 
-            className={`control-btn ${showMaterials ? 'materials-active' : ''}`}
-            onClick={() => { setShowMaterials(!showMaterials); setShowChat(false); }}
-          >
-            📁
-            <span className="btn-label">Files</span>
-          </button>
-        </div>
+            {/* Chat Panel */}
+            {activePanel === 'chat' && (
+              <>
+                <div className="vr-panel-hd">
+                  <div className="vr-panel-title">
+                    <I.Chat size={16} />
+                    <span>Chat</span>
+                  </div>
+                  <button className="vr-panel-x" onClick={() => setActivePanel(null)}><I.Close size={14} /></button>
+                </div>
+                <div className="vr-chat-body">
+                  <div className="vr-chat-msgs">
+                    {chatMsgs.map(m => (
+                      <div key={m.id} className={`vr-msg ${m.isMe ? 'vr-msg-me' : ''}`}>
+                        <span className="vr-msg-av">{m.avatar}</span>
+                        <div className="vr-msg-bub">
+                          <span className="vr-msg-sender">{m.sender}</span>
+                          <span className={`vr-msg-txt ${m.isEmoji ? 'vr-msg-emoji' : ''}`}>{m.text}</span>
+                          <span className="vr-msg-time">{m.time}</span>
+                        </div>
+                      </div>
+                    ))}
+                    <div ref={chatEndRef} />
+                  </div>
+                  <div className="vr-chat-input">
+                    <input placeholder="Send a message to everyone..." value={chatMsg} onChange={e => setChatMsg(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} />
+                    <button onClick={sendChat}><I.Send size={16} /></button>
+                  </div>
+                </div>
+              </>
+            )}
 
-        <div className="controls-divider" />
+            {/* Transcript Panel */}
+            {activePanel === 'transcript' && (
+              <>
+                <div className="vr-panel-hd">
+                  <div className="vr-panel-title">
+                    <I.Caption size={16} />
+                    <span>Yuanbao Minutes</span>
+                  </div>
+                  <div className="vr-panel-actions">
+                    <button className={`vr-translate-toggle ${showTranslation ? 'vr-translate-on' : ''}`} onClick={() => setShowTranslation(!showTranslation)}>
+                      <I.Translate size={12} /> {showTranslation ? '中文' : 'EN'}
+                    </button>
+                    <button className="vr-panel-x" onClick={() => setActivePanel(null)}><I.Close size={14} /></button>
+                  </div>
+                </div>
+                <div className="vr-transcript-body">
+                  {/* AI Summary Section */}
+                  <div className="vr-ai-summary">
+                    <div className="vr-ai-header">
+                      <I.Sparkle size={14} style={{ color: '#007aff' }} />
+                      <span>Real-time summary</span>
+                    </div>
+                    {aiSummary.map((item, idx) => (
+                      <div key={idx} className="vr-ai-item">
+                        <div className="vr-ai-title" onClick={() => setAiSummary(prev => prev.map((s, i) => i === idx ? { ...s, expanded: !s.expanded } : s))}>
+                          <span>{item.title}</span>
+                          {item.expanded ? <I.ChevronUp size={12} /> : <I.ChevronDown size={12} />}
+                        </div>
+                        {item.expanded && <div className="vr-ai-content">{item.content}</div>}
+                      </div>
+                    ))}
+                    <div className="vr-ai-divider" />
+                    <div className="vr-ai-feature">
+                      <I.Check size={12} style={{ color: '#34c759' }} />
+                      <span>Distinguish participating speakers</span>
+                    </div>
+                  </div>
 
-        <button 
-          className="control-btn leave-btn"
-          onClick={onLeave}
-        >
-          <Icons.Close />
-          <span className="btn-label">Leave</span>
-        </button>
+                  {/* Live Transcript */}
+                  <div className="vr-transcript-live">
+                    {isTranscribing && (
+                      <div className="vr-transcribing-indicator">
+                        <span className="vr-pulse-dot" /> Transcribing live
+                      </div>
+                    )}
+                    {transcriptLines.map(line => (
+                      <div key={line.id} className="vr-transcript-line">
+                        <div className="vr-transcript-header">
+                          <span className="vr-transcript-speaker">{line.speaker}</span>
+                          <span className="vr-transcript-time">{line.time}</span>
+                        </div>
+                        <p className="vr-transcript-text">{showTranslation ? line.zh : line.en}</p>
+                      </div>
+                    ))}
+                    <div ref={chatEndRef} />
+                  </div>
+
+                  {/* AI Secretary */}
+                  <div className="vr-ai-secretary">
+                    <div className="vr-ai-avatar">🤖</div>
+                    <div className="vr-ai-info">
+                      <span>WeMeet Secretary</span>
+                      <small>AI-powered meeting assistant</small>
+                    </div>
+                    <button className="vr-ai-action">Summary now</button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* More Panel */}
+            {activePanel === 'more' && (
+              <>
+                <div className="vr-panel-hd">
+                  <div className="vr-panel-title">
+                    <I.More size={16} />
+                    <span>More</span>
+                  </div>
+                  <button className="vr-panel-x" onClick={() => setActivePanel(null)}><I.Close size={14} /></button>
+                </div>
+                <div className="vr-more-body">
+                  <button className={`vr-more-item ${isRecording ? 'vr-more-active' : ''}`} onClick={() => setIsRecording(!isRecording)}>
+                    <span className="vr-more-icon" style={isRecording ? { color: '#ff3b30' } : {}}><I.Record size={20} /></span>
+                    <div className="vr-more-text"><strong>Record</strong><small>{isRecording ? 'Recording in progress...' : 'Start recording'}</small></div>
+                  </button>
+                  <button className={`vr-more-item ${isTranscribing ? 'vr-more-active' : ''}`} onClick={() => setIsTranscribing(!isTranscribing)}>
+                    <span className="vr-more-icon" style={isTranscribing ? { color: '#007aff' } : {}}><I.Caption size={20} /></span>
+                    <div className="vr-more-text"><strong>Transcription</strong><small>{isTranscribing ? 'On · AI captions active' : 'Turn on captions'}</small></div>
+                  </button>
+                  <button className="vr-more-item">
+                    <span className="vr-more-icon"><I.Poll size={20} /></span>
+                    <div className="vr-more-text"><strong>Poll / Vote</strong><small>Create a quick poll</small></div>
+                  </button>
+                  <button className="vr-more-item" onClick={() => setShowTranslation(!showTranslation)}>
+                    <span className="vr-more-icon"><I.Translate size={20} /></span>
+                    <div className="vr-more-text"><strong>Translation</strong><small>{showTranslation ? 'Chinese → English' : 'English → Chinese'}</small></div>
+                  </button>
+                  <button className="vr-more-item">
+                    <span className="vr-more-icon"><I.Invite size={20} /></span>
+                    <div className="vr-more-text"><strong>Invite</strong><small>Copy meeting link & ID</small></div>
+                  </button>
+                </div>
+              </>
+            )}
+          </aside>
+        )}
       </div>
 
+      {/* ========== BOTTOM CONTROL BAR ========== */}
+      <div className="vr-bar-wrap">
+        <div className="vr-bar">
+          {/* Left group - reactions */}
+          <div className="vr-bar-group">
+            <div className="vr-bar-emoji-wrap">
+              <button className="vr-bar-btn" onClick={() => setShowEmojiPicker(!showEmojiPicker)} title="Reactions">
+                <I.Emoji />
+              </button>
+              {showEmojiPicker && (
+                <div className="vr-emoji-picker">
+                  {EMOJIS.map(e => <button key={e} className="vr-emoji-btn" onClick={() => sendEmoji(e)}>{e}</button>)}
+                </div>
+              )}
+            </div>
+            <button className={`vr-bar-btn ${handRaised ? 'vr-bar-on' : ''}`} onClick={() => setHandRaised(!handRaised)} title="Raise Hand">
+              <I.Hand />
+            </button>
+          </div>
+
+          {/* Center group - main controls */}
+          <div className="vr-bar-group">
+            <button className={`vr-bar-btn ${!audioEnabled ? 'vr-bar-off' : ''}`} onClick={toggleAudio} title="Microphone">
+              {audioEnabled ? <I.Mic /> : <I.MicOff />}
+              <span className="vr-bar-lbl">Mute</span>
+            </button>
+            <button className={`vr-bar-btn ${!videoEnabled ? 'vr-bar-off' : ''}`} onClick={toggleVideo} title="Camera">
+              {videoEnabled ? <I.Camera /> : <I.CameraOff />}
+              <span className="vr-bar-lbl">Stop Video</span>
+            </button>
+            <button className={`vr-bar-btn ${screenSharing ? 'vr-bar-on' : ''}`} onClick={toggleScreenShare} title="Share Screen">
+              <I.Screen />
+              <span className="vr-bar-lbl">Share Screen</span>
+            </button>
+            <button className="vr-bar-btn" onClick={() => togglePanel('members')} title="Invite">
+              <I.Invite />
+              <span className="vr-bar-lbl">Invite</span>
+            </button>
+          </div>
+
+          {/* Right group - panels */}
+          <div className="vr-bar-group">
+            <button className={`vr-bar-btn ${activePanel === 'members' ? 'vr-bar-on' : ''}`} onClick={() => togglePanel('members')} title="Attendees">
+              <I.Members />
+              <span className="vr-bar-lbl">Attendees({members.length})</span>
+            </button>
+            <button className={`vr-bar-btn ${activePanel === 'chat' ? 'vr-bar-on' : ''}`} onClick={() => togglePanel('chat')} title="Chat">
+              <I.Chat />
+              <span className="vr-bar-lbl">Chat</span>
+              {chatMsgs.length > 0 && <span className="vr-bar-badge">{chatMsgs.length}</span>}
+            </button>
+            <button className={`vr-bar-btn ${activePanel === 'transcript' ? 'vr-bar-on' : ''}`} onClick={() => togglePanel('transcript')} title="Yuanbao Minutes">
+              <I.AI size={20} />
+              <span className="vr-bar-lbl">Yuanbao Minutes</span>
+            </button>
+            <button className="vr-bar-btn" title="Apps">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/></svg>
+              <span className="vr-bar-lbl">App</span>
+            </button>
+          </div>
+
+          {/* End call */}
+          <button className="vr-bar-end" onClick={handleLeave} title="End">
+            <span>End</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ========== RINGING OVERLAY ========== */}
+      {ringing && callingMember && (
+        <div className="vr-ring-overlay">
+          <div className="vr-ring-card">
+            <span className="vr-ring-av">{callingMember.avatar}</span>
+            <h2>{callingMember.name}</h2>
+            <p>Calling...</p>
+            <div className="vr-ring-dots"><span /><span /><span /></div>
+            <button className="vr-ring-cancel" onClick={() => { setRinging(false); setCallingMember(null); }}>
+              <I.Close size={20} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ========== STYLES ========== */}
       <style>{`
-        .video-room {
-          position: fixed;
-          inset: 0;
-          background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0f0f23 100%);
-          display: flex;
-          flex-direction: column;
-          z-index: 100;
-          overflow: hidden;
-        }
-
-        .video-room::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: 
-            radial-gradient(ellipse at 20% 20%, rgba(102, 126, 234, 0.15) 0%, transparent 50%),
-            radial-gradient(ellipse at 80% 80%, rgba(118, 75, 162, 0.15) 0%, transparent 50%);
-          pointer-events: none;
-        }
-
-        .room-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 16px 32px;
-          background: linear-gradient(180deg, rgba(15, 15, 35, 0.95) 0%, rgba(15, 15, 35, 0.7) 100%);
-          backdrop-filter: blur(20px);
-          border-bottom: 1px solid rgba(139, 92, 246, 0.15);
-          position: relative;
-          z-index: 10;
-        }
-
-        .room-header::after {
-          content: '';
-          position: absolute;
-          bottom: -1px;
-          left: 5%;
-          right: 5%;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.4), rgba(236, 72, 153, 0.4), transparent);
-        }
-
-        .room-info {
-          display: flex;
-          align-items: center;
-          gap: 20px;
-        }
-
-        .live-badge {
-          background: linear-gradient(135deg, #ef4444 0%, #f43f5e 50%, #ec4899 100%);
-          color: white;
-          padding: 7px 18px;
-          border-radius: 20px;
-          font-size: 12px;
-          font-weight: 800;
-          text-transform: uppercase;
-          letter-spacing: 1.5px;
-          animation: pulse-badge 2s infinite;
-          box-shadow: 0 4px 20px rgba(239, 68, 68, 0.5), 0 0 30px rgba(244, 63, 94, 0.2);
-          position: relative;
-          overflow: hidden;
-        }
-
-        .live-badge::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-          animation: shimmer 3s infinite;
-        }
-
-        @keyframes shimmer {
-          0% { left: -100%; }
-          50% { left: 100%; }
-          100% { left: 100%; }
-        }
-
-        @keyframes pulse-badge {
-          0%, 100% { transform: scale(1); box-shadow: 0 4px 20px rgba(239, 68, 68, 0.5), 0 0 30px rgba(244, 63, 94, 0.2); }
-          50% { transform: scale(1.05); box-shadow: 0 6px 30px rgba(239, 68, 68, 0.7), 0 0 50px rgba(244, 63, 94, 0.3); }
-        }
-
-        .room-info h2 {
-          font-size: 24px;
-          color: white;
-          font-weight: 800;
-          text-shadow: 0 2px 20px rgba(139, 92, 246, 0.3);
-          background: linear-gradient(135deg, #fff 0%, #c4b5fd 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-
-        .participant-count {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: #c4b5fd;
-          font-size: 14px;
-          font-weight: 600;
-          background: linear-gradient(145deg, rgba(139, 92, 246, 0.15), rgba(30, 27, 75, 0.3));
-          padding: 8px 18px;
-          border-radius: 20px;
-          border: 1px solid rgba(139, 92, 246, 0.2);
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .participant-count svg {
-          width: 18px;
-          height: 18px;
-          color: #34d399;
-          filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.5));
-        }
-
-        .room-header .leave-btn {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 13px 28px;
-          border-radius: 14px;
-          border: none;
-          background: linear-gradient(135deg, #ef4444 0%, #f43f5e 50%, #ec4899 100%);
-          color: white;
-          font-weight: 800;
-          font-size: 14px;
-          cursor: pointer;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          box-shadow: 0 6px 25px rgba(239, 68, 68, 0.4), 0 0 40px rgba(244, 63, 94, 0.15);
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .room-header .leave-btn::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
-          opacity: 0;
-          transition: opacity 0.3s;
-        }
-
-        .room-header .leave-btn:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 10px 35px rgba(239, 68, 68, 0.6), 0 0 60px rgba(244, 63, 94, 0.25);
-        }
-
-        .room-header .leave-btn:hover::before {
-          opacity: 1;
-        }
-
-        .room-content {
-          flex: 1;
-          display: flex;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .video-area {
-          flex: 1;
-          position: relative;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: radial-gradient(ellipse at center, #1a1a3e 0%, #0f0f23 100%);
-        }
-
-        .screen-share-container {
-          position: absolute;
-          inset: 20px;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .screen-video {
-          flex: 1;
-          width: 100%;
-          border-radius: 16px;
-          background: #1a1a2e;
-        }
-
-        .screen-share-indicator {
-          position: absolute;
-          top: 20px;
-          left: 20px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 16px;
-          background: rgba(102, 126, 234, 0.9);
-          border-radius: 8px;
-          color: white;
-          font-size: 14px;
-          font-weight: 600;
-        }
-
-        .local-video-container {
-          position: absolute;
-          background: linear-gradient(145deg, #2a2a4a, #1a1a3a);
-          border-radius: 20px;
-          overflow: hidden;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 3px rgba(102, 126, 234, 0.5);
-        }
-
-        .local-video-container.full {
-          inset: 24px;
-        }
-
-        .local-video-container.pip {
-          width: 260px;
-          height: 195px;
-          bottom: 120px;
-          right: 24px;
-          z-index: 20;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(102, 126, 234, 0.5);
-        }
-
-        .local-video {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-
-        .video-off-overlay {
-          position: absolute;
-          inset: 0;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          background: linear-gradient(145deg, #2d2d5a, #1a1a3a);
-        }
-
-        .video-off-overlay span {
-          font-size: 56px;
-          margin-bottom: 12px;
-          filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.3));
-        }
-
-        .video-off-overlay p {
-          color: rgba(255, 255, 255, 0.7);
-          font-size: 14px;
-          font-weight: 500;
-        }
-
-        .local-video-label {
-          position: absolute;
-          bottom: 10px;
-          left: 10px;
-          padding: 6px 12px;
-          background: linear-gradient(145deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.5));
-          backdrop-filter: blur(10px);
-          border-radius: 8px;
-          color: white;
-          font-size: 13px;
-          font-weight: 600;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-        }
-
-        .room-sidebar {
-          width: 0;
-          background: linear-gradient(180deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
-          border-left: 1px solid rgba(139, 92, 246, 0.2);
-          transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-          box-shadow: -10px 0 40px rgba(139, 92, 246, 0.15);
-        }
-
-        .room-sidebar.open {
-          width: 400px;
-        }
-
-        .sidebar-tabs {
-          display: flex;
-          padding: 20px 16px 16px;
-          gap: 8px;
-          border-bottom: 1px solid rgba(139, 92, 246, 0.15);
-          background: linear-gradient(180deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 27, 75, 0.4) 100%);
-        }
-
-        .sidebar-tab {
-          flex: 1;
-          padding: 14px 16px;
-          border: 2px solid transparent;
-          background: linear-gradient(145deg, rgba(30, 27, 75, 0.6), rgba(15, 23, 42, 0.8));
-          color: rgba(199, 210, 254, 0.7);
-          font-size: 14px;
-          font-weight: 700;
-          cursor: pointer;
-          border-radius: 14px;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          text-transform: uppercase;
-          letter-spacing: 0.8px;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .sidebar-tab::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.1));
-          opacity: 0;
-          transition: opacity 0.3s;
-        }
-
-        .sidebar-tab:hover {
-          border-color: rgba(139, 92, 246, 0.4);
-          color: #e0e7ff;
-          transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(139, 92, 246, 0.2);
-        }
-
-        .sidebar-tab:hover::before {
-          opacity: 1;
-        }
-
-        .sidebar-tab.active {
-          background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 50%, #f43f5e 100%);
-          color: white;
-          border-color: rgba(255, 255, 255, 0.2);
-          box-shadow: 0 8px 30px rgba(139, 92, 246, 0.5), 0 0 60px rgba(236, 72, 153, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-          transform: translateY(-2px);
-        }
-
-        .sidebar-tab.active::before {
-          display: none;
-        }
-
-        .sidebar-close {
-          width: 48px;
-          border: 2px solid rgba(244, 63, 94, 0.3);
-          background: linear-gradient(145deg, rgba(244, 63, 94, 0.15), rgba(244, 63, 94, 0.05));
-          color: #fb7185;
-          border-radius: 14px;
-          cursor: pointer;
-          transition: all 0.3s;
-          font-size: 18px;
-          font-weight: 700;
-        }
-
-        .sidebar-close:hover {
-          background: linear-gradient(145deg, #f43f5e, #e11d48);
-          color: white;
-          border-color: transparent;
-          transform: scale(1.08);
-          box-shadow: 0 8px 25px rgba(244, 63, 94, 0.5);
-        }
-
-        .chat-panel {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          background: linear-gradient(180deg, rgba(15, 23, 42, 0.3) 0%, rgba(30, 27, 75, 0.1) 100%);
-        }
-
-        .chat-messages {
-          flex: 1;
-          padding: 24px 20px;
-          overflow-y: auto;
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-
-        .chat-message {
-          display: flex;
-          gap: 12px;
-          animation: messagePopIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        @keyframes messagePopIn {
-          from { opacity: 0; transform: scale(0.85) translateY(20px); }
-          to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-
-        .chat-message.own {
-          flex-direction: row-reverse;
-        }
-
-        .msg-avatar {
-          font-size: 40px;
-          flex-shrink: 0;
-          filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
-          animation: avatarBounce 0.5s ease;
-        }
-
-        @keyframes avatarBounce {
-          0% { transform: scale(0); }
-          50% { transform: scale(1.2); }
-          100% { transform: scale(1); }
-        }
-
-        .msg-content {
-          max-width: 78%;
-          background: linear-gradient(145deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
-          padding: 16px 20px;
-          border-radius: 20px;
-          border-top-left-radius: 4px;
-          border: 1px solid rgba(139, 92, 246, 0.15);
-          backdrop-filter: blur(20px);
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(139, 92, 246, 0.05);
-          position: relative;
-          overflow: hidden;
-        }
-
-        .msg-content::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 3px;
-          background: linear-gradient(90deg, #8b5cf6, #ec4899, #f43f5e);
-          opacity: 0.6;
-        }
-
-        .chat-message.own .msg-content {
-          background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 30%, #ec4899 100%);
-          border-radius: 20px;
-          border-top-right-radius: 4px;
-          border: 1px solid rgba(255, 255, 255, 0.15);
-          box-shadow: 0 8px 32px rgba(124, 58, 237, 0.4), 0 0 60px rgba(236, 72, 153, 0.15);
-        }
-
-        .chat-message.own .msg-content::before {
-          background: linear-gradient(90deg, rgba(255,255,255,0.4), rgba(255,255,255,0.1));
-          opacity: 0.5;
-        }
-
-        .msg-header {
-          display: flex;
-          justify-content: space-between;
-          gap: 16px;
-          margin-bottom: 8px;
-          align-items: center;
-        }
-
-        .msg-sender {
-          font-weight: 800;
-          font-size: 13px;
-          color: #c4b5fd;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .chat-message.own .msg-sender {
-          color: rgba(255, 255, 255, 0.95);
-        }
-
-        .msg-time {
-          font-size: 11px;
-          color: rgba(167, 139, 250, 0.6);
-          font-weight: 500;
-        }
-
-        .chat-message.own .msg-time {
-          color: rgba(255, 255, 255, 0.7);
-        }
-
-        .msg-text {
-          font-size: 15px;
-          line-height: 1.6;
-          color: #e2e8f0;
-          font-weight: 500;
-        }
-
-        .chat-message.own .msg-text {
-          color: rgba(255, 255, 255, 0.98);
-          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-        }
-
-        .no-messages {
-          text-align: center;
-          color: rgba(167, 139, 250, 0.5);
-          padding: 60px 20px;
-          font-size: 15px;
-          font-weight: 500;
-        }
-
-        .chat-input {
-          display: flex;
-          gap: 14px;
-          padding: 20px 24px;
-          border-top: 1px solid rgba(139, 92, 246, 0.12);
-          background: linear-gradient(180deg, rgba(15, 23, 42, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%);
-          position: relative;
-        }
-
-        .chat-input::before {
-          content: '';
-          position: absolute;
-          top: -1px;
-          left: 10%;
-          right: 10%;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.3), rgba(236, 72, 153, 0.3), transparent);
-        }
-
-        .chat-input input {
-          flex: 1;
-          padding: 16px 24px;
-          border: 2px solid rgba(139, 92, 246, 0.2);
-          background: linear-gradient(145deg, rgba(30, 27, 75, 0.6), rgba(15, 23, 42, 0.8));
-          border-radius: 16px;
-          color: #e2e8f0;
-          font-size: 15px;
-          font-weight: 500;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2);
-        }
-
-        .chat-input input::placeholder {
-          color: rgba(167, 139, 250, 0.4);
-          font-weight: 400;
-        }
-
-        .chat-input input:focus {
-          outline: none;
-          border-color: rgba(139, 92, 246, 0.6);
-          background: linear-gradient(145deg, rgba(30, 27, 75, 0.8), rgba(15, 23, 42, 0.95));
-          box-shadow: 0 0 30px rgba(139, 92, 246, 0.2), inset 0 2px 8px rgba(0, 0, 0, 0.2);
-        }
-
-        .chat-input button {
-          width: 54px;
-          height: 54px;
-          border: none;
-          background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 50%, #f43f5e 100%);
-          border-radius: 16px;
-          color: white;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-          box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4), 0 0 40px rgba(236, 72, 153, 0.15);
-          position: relative;
-          overflow: hidden;
-        }
-
-        .chat-input button::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent);
-          opacity: 0;
-          transition: opacity 0.3s;
-        }
-
-        .chat-input button:hover {
-          transform: scale(1.12) rotate(-5deg);
-          box-shadow: 0 12px 35px rgba(139, 92, 246, 0.6), 0 0 60px rgba(236, 72, 153, 0.25);
-        }
-
-        .chat-input button:hover::before {
-          opacity: 1;
-        }
-
-        .chat-input button:active {
-          transform: scale(1.05) rotate(0deg);
-        }
-
-        .chat-input button svg {
-          width: 24px;
-          height: 24px;
-          position: relative;
-          z-index: 1;
-          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
-        }
-
-        .materials-panel {
-          flex: 1;
-          overflow-y: auto;
-          padding: 16px;
-        }
-
-        .materials-list {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .material-item {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 12px;
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 10px;
-        }
-
-        .material-icon {
-          font-size: 24px;
-          width: 40px;
-          height: 40px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: rgba(102, 126, 234, 0.2);
-          border-radius: 8px;
-        }
-
-        .material-icon svg {
-          width: 20px;
-          height: 20px;
-          color: #667eea;
-        }
-
-        .material-info {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .material-name {
-          font-size: 13px;
-          font-weight: 600;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .material-meta {
-          font-size: 11px;
-          color: #94a3b8;
-        }
-
-        .download-btn {
-          width: 36px;
-          height: 36px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: rgba(16, 185, 129, 0.2);
-          color: #10b981;
-          border-radius: 8px;
-          text-decoration: none;
-          transition: all 0.3s;
-        }
-
-        .download-btn:hover {
-          background: #10b981;
-          color: white;
-        }
-
-        .download-btn svg {
-          width: 16px;
-          height: 16px;
-        }
-
-        .no-materials {
-          text-align: center;
-          color: #94a3b8;
-          padding: 40px;
-        }
-
-        .room-controls {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          gap: 16px;
-          padding: 20px 32px;
-          background: linear-gradient(180deg, rgba(15, 15, 35, 0.8) 0%, rgba(10, 10, 30, 0.95) 100%);
-          backdrop-filter: blur(20px);
-          border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .controls-group {
-          display: flex;
-          gap: 8px;
-        }
-
-        .controls-divider {
-          width: 1px;
-          height: 50px;
-          background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-          margin: 0 8px;
-        }
-
-        .control-btn {
-          width: 80px;
-          height: 80px;
-          border-radius: 20px;
-          border: none;
-          background: linear-gradient(145deg, rgba(60, 60, 100, 0.6), rgba(40, 40, 80, 0.4));
-          color: white;
-          cursor: pointer;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          position: relative;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        }
-
-        .control-btn:hover {
-          transform: translateY(-4px) scale(1.05);
-          box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        }
-
-        .control-btn:active {
-          transform: translateY(-2px) scale(1.02);
-        }
-
-        .control-btn svg, .control-btn span:first-child {
-          font-size: 26px;
-        }
-
-        .btn-label {
-          font-size: 11px;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          opacity: 0.9;
-        }
-
-        .control-btn.off {
-          background: linear-gradient(145deg, #dc2626, #b91c1c);
-          box-shadow: 0 4px 20px rgba(220, 38, 38, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        }
-
-        .control-btn.off:hover {
-          box-shadow: 0 8px 30px rgba(220, 38, 38, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        }
-
-        .control-btn.sharing {
-          background: linear-gradient(145deg, #10b981, #059669);
-          box-shadow: 0 4px 20px rgba(16, 185, 129, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-          animation: pulse-glow 2s infinite;
-        }
-
-        @keyframes pulse-glow {
-          0%, 100% { box-shadow: 0 4px 20px rgba(16, 185, 129, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2); }
-          50% { box-shadow: 0 4px 30px rgba(16, 185, 129, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.3); }
-        }
-
-        .control-btn.whiteboard-active {
-          background: linear-gradient(145deg, #8b5cf6, #7c3aed);
-          box-shadow: 0 4px 20px rgba(139, 92, 246, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-          animation: pulse-glow-purple 2s infinite;
-        }
-
-        @keyframes pulse-glow-purple {
-          0%, 100% { box-shadow: 0 4px 20px rgba(139, 92, 246, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2); }
-          50% { box-shadow: 0 4px 30px rgba(139, 92, 246, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.3); }
-        }
-
-        .control-btn.chat-active {
-          background: linear-gradient(145deg, #3b82f6, #2563eb);
-          box-shadow: 0 4px 20px rgba(59, 130, 246, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        }
-
-        .control-btn.materials-active {
-          background: linear-gradient(145deg, #f59e0b, #d97706);
-          box-shadow: 0 4px 20px rgba(245, 158, 11, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        }
-
-        .control-btn.leave-btn {
-          background: linear-gradient(145deg, #ef4444, #dc2626);
-          box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        }
-
-        .control-btn.leave-btn:hover {
-          box-shadow: 0 8px 30px rgba(239, 68, 68, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-          background: linear-gradient(145deg, #f87171, #ef4444);
-        }
-
-        .control-btn svg {
-          width: 28px;
-          height: 28px;
-        }
-
-        .notification-badge {
-          position: absolute;
-          top: 8px;
-          right: 8px;
-          width: 22px;
-          height: 22px;
-          background: linear-gradient(145deg, #f43f5e, #e11d48);
-          border-radius: 50%;
-          font-size: 11px;
-          font-weight: 700;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 2px 8px rgba(244, 63, 94, 0.5);
-        }
-
-        @media (max-width: 768px) {
-          .room-sidebar.open {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            z-index: 10;
-          }
-
-          .control-btn {
-            width: 64px;
-            height: 70px;
-          }
-
-          .btn-label {
-            font-size: 9px;
-          }
-
-          .room-controls {
-            gap: 8px;
-            padding: 12px 16px;
-          }
-
-          .controls-divider {
-            height: 40px;
-            margin: 0 4px;
-          }
-
-          .local-video-container.pip {
-            width: 120px;
-            height: 90px;
-            bottom: 100px;
-            right: 12px;
-          }
-
-          .room-info h2 {
-            font-size: 16px;
-          }
-
-          .live-badge {
-            padding: 4px 10px;
-            font-size: 10px;
-          }
-
-          .participant-count {
-            display: none;
-          }
-        }
-
-        /* Whiteboard Styles */
-        .whiteboard-container {
-          position: absolute;
-          inset: 20px;
-          display: flex;
-          flex-direction: column;
-          background: #0a0a1a;
-          border-radius: 16px;
-          overflow: hidden;
-        }
-
-        .whiteboard-canvas {
-          flex: 1;
-          width: 100%;
-          cursor: crosshair;
-          touch-action: none;
-        }
-
-        .whiteboard-toolbar {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px 16px;
-          background: rgba(0, 0, 0, 0.6);
-          backdrop-filter: blur(10px);
-        }
-
-        .wb-tool {
-          width: 44px;
-          height: 44px;
-          border-radius: 10px;
-          border: none;
-          background: rgba(255, 255, 255, 0.1);
-          color: white;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-        }
-
-        .wb-tool:hover {
-          background: rgba(255, 255, 255, 0.2);
-        }
-
-        .wb-tool.active {
-          background: linear-gradient(135deg, #667eea, #764ba2);
-        }
-
-        .wb-tool svg {
-          width: 22px;
-          height: 22px;
-        }
-
-        .wb-tool.wb-clear:hover {
-          background: #ef4444;
-        }
-
-        .wb-divider {
-          width: 1px;
-          height: 30px;
-          background: rgba(255, 255, 255, 0.2);
-          margin: 0 4px;
-        }
-
-        .wb-color-picker {
-          width: 44px;
-          height: 44px;
-          border: none;
-          border-radius: 10px;
-          cursor: pointer;
-          background: transparent;
-        }
-
-        .wb-color-picker::-webkit-color-swatch-wrapper {
-          padding: 0;
-        }
-
-        .wb-color-picker::-webkit-color-swatch {
-          border-radius: 8px;
-          border: 2px solid rgba(255, 255, 255, 0.3);
-        }
-
-        .wb-brush-size {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: white;
-          font-size: 13px;
-        }
-
-        .wb-brush-size input[type="range"] {
-          width: 80px;
-          height: 6px;
-          -webkit-appearance: none;
-          background: rgba(255, 255, 255, 0.2);
-          border-radius: 3px;
-          cursor: pointer;
-        }
-
-        .wb-brush-size input[type="range"]::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          width: 16px;
-          height: 16px;
-          background: white;
-          border-radius: 50%;
-          cursor: pointer;
-        }
-
-        .whiteboard-indicator {
-          position: absolute;
-          top: 20px;
-          left: 20px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 16px;
-          background: rgba(102, 126, 234, 0.9);
-          border-radius: 8px;
-          color: white;
-          font-size: 14px;
-          font-weight: 600;
-        }
-
-        .whiteboard-indicator svg {
-          width: 18px;
-          height: 18px;
-        }
-
-        @media (max-width: 768px) {
-          .whiteboard-toolbar {
-            flex-wrap: wrap;
-            gap: 6px;
-            padding: 10px;
-          }
-          
-          .wb-tool {
-            width: 40px;
-            height: 40px;
-          }
-          
-          .wb-brush-size input[type="range"] {
-            width: 60px;
-          }
-        }
+/* ========== ROOT / RESET ========== */
+.vroom{position:fixed;inset:0;background:#f0f2f5;display:flex;flex-direction:column;z-index:200;color:#1d1d1f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;}
+
+/* ========== TOP BAR ========== */
+.vr-top{display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 12px;background:#fff;border-bottom:1px solid #e5e5e7;flex-shrink:0;z-index:10;}
+.vr-top-l{display:flex;align-items:center;gap:8px;}
+.vr-top-meeting-icon{width:22px;height:22px;background:#007aff;border-radius:5px;display:flex;align-items:center;justify-content:center;color:#fff;}
+.vr-top-info{display:flex;align-items:center;gap:6px;}
+.vr-top-title{font-size:12px;font-weight:500;color:#1d1d1f;}
+.vr-top-meta{font-size:11px;color:#8e8e93;}
+.vr-top-signal{color:#34c759;display:flex;align-items:center;}
+.vr-top-icon-btn{display:flex;align-items:center;gap:4px;padding:4px 8px;border:none;background:transparent;color:#6e6e73;border-radius:5px;cursor:pointer;font-size:11px;transition:all 0.15s;}
+.vr-top-icon-btn:hover{background:#f2f2f7;}
+.vr-top-layout-btn{display:flex;align-items:center;gap:4px;padding:4px 10px;border:1px solid #e5e5e7;background:#fff;border-radius:6px;cursor:pointer;font-size:11px;color:#1d1d1f;transition:all 0.15s;}
+.vr-top-layout-btn:hover{background:#f2f2f7;}
+.vr-top-divider{width:1px;height:16px;background:#e5e5e7;margin:0 4px;}
+.vr-top-r{display:flex;align-items:center;gap:2px;}
+.vr-top-win-btn{width:28px;height:28px;border:none;background:transparent;color:#6e6e73;border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.vr-top-win-btn:hover{background:#f2f2f7;}
+.vr-top-close:hover{background:#ff3b30;color:#fff;}
+
+/* ========== MAIN ========== */
+.vr-main{flex:1;display:flex;overflow:hidden;position:relative;background:#f0f2f5;}
+.vr-video-area{flex:1;position:relative;transition:margin-right 0.25s ease;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:8px;}
+
+/* ========== SCREEN SHARE ========== */
+.vr-screen-share{position:absolute;inset:8px;z-index:5;background:#000;border-radius:12px;overflow:hidden;}
+.vr-screen-vid{width:100%;height:100%;object-fit:contain;}
+.vr-screen-badge{position:absolute;top:12px;left:12px;padding:5px 12px;background:rgba(0,0,0,0.7);border-radius:6px;font-size:11px;color:#fff;display:flex;align-items:center;gap:6px;backdrop-filter:blur(4px);}
+
+/* ========== GRID ========== */
+.vr-grid{display:grid;grid-template-columns:repeat(2, 1fr);grid-template-rows:repeat(2, 1fr);gap:8px;width:100%;height:100%;max-width:1100px;max-height:640px;}
+.vr-grid-pip{position:absolute;bottom:70px;right:12px;width:auto;height:auto;z-index:8;gap:4px;grid-template-columns:repeat(2, 160px);grid-template-rows:repeat(2, 110px);}
+
+/* ========== SPEAKER VIEW ========== */
+.vr-speaker-view{display:flex;flex-direction:column;height:100%;width:100%;max-width:1100px;}
+.vr-tile-speaker{flex:1;min-height:0;border-radius:12px;position:relative;background:#e8eaed;margin:0 0 8px;}
+.vr-speaker-strip{display:flex;gap:8px;padding:0;overflow-x:auto;justify-content:center;flex-shrink:0;}
+.vr-unpin{position:absolute;top:12px;right:12px;z-index:6;background:rgba(0,0,0,0.5);border:none;color:#fff;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;display:flex;align-items:center;gap:4px;backdrop-filter:blur(4px);}
+
+/* ========== TILES ========== */
+.vr-tile{border-radius:12px;overflow:hidden;position:relative;background:#e8eaed;transition:all 0.2s;}
+.vr-tile-grid{aspect-ratio:16/10;}
+.vr-tile-thumb{width:160px;height:100px;flex-shrink:0;cursor:pointer;border-radius:8px;}
+.vr-tile-thumb:hover{outline:2px solid #007aff;outline-offset:-2px;}
+.vr-speaking{outline:2px solid #34c759!important;outline-offset:-2px;}
+.vr-tile-vid{width:100%;height:100%;object-fit:cover;}
+.vr-tile-off{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#e8eaed;}
+.vr-avatar-big{font-size:64px;opacity:0.5;}
+.vr-avatar-sm{font-size:40px;opacity:0.5;}
+
+/* Tile label - matching Tencent Meeting style */
+.vr-tile-label{position:absolute;bottom:10px;left:10px;right:10px;padding:6px 10px;background:rgba(0,0,0,0.55);border-radius:8px;font-size:12px;color:#fff;display:flex;align-items:center;gap:6px;flex-wrap:wrap;backdrop-filter:blur(6px);}
+.vr-tile-name{font-weight:500;}
+.vr-tile-role{font-size:10px;color:rgba(255,255,255,0.75);}
+.vr-verified{width:14px;height:14px;background:#34c759;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;}
+.vr-mute-badge{width:18px;height:18px;background:rgba(255,59,48,0.9);border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.vr-speaking-badge{width:18px;height:18px;background:#34c759;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;}
+.vr-tile-label-mini{position:absolute;bottom:6px;left:6px;right:6px;padding:4px 8px;background:rgba(0,0,0,0.55);border-radius:6px;font-size:11px;color:#fff;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(6px);}
+
+/* HD Badge */
+.vr-hd-badge{position:absolute;top:16px;right:16px;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:6px;font-size:10px;font-weight:700;color:#1d1d1f;backdrop-filter:blur(4px);letter-spacing:0.5px;border:1px solid rgba(0,0,0,0.06);}
+
+/* ========== SIDE PANEL ========== */
+.vr-panel{width:360px;background:#fff;border-left:1px solid #e5e5e7;display:flex;flex-direction:column;flex-shrink:0;position:absolute;top:0;right:0;bottom:0;z-index:15;animation:vr-slide 0.2s ease;}
+@keyframes vr-slide{from{transform:translateX(20px);opacity:0}to{transform:translateX(0);opacity:1}}
+.vr-panel-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #f2f2f7;}
+.vr-panel-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#1d1d1f;}
+.vr-panel-actions{display:flex;align-items:center;gap:6px;}
+.vr-panel-x{width:28px;height:28px;border:none;background:transparent;color:#8e8e93;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.vr-panel-x:hover{background:#f2f2f7;color:#1d1d1f;}
+.vr-panel-search{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid #f2f2f7;}
+.vr-panel-search svg{color:#8e8e93;}
+.vr-panel-search input{flex:1;border:none;background:transparent;font-size:13px;color:#1d1d1f;outline:none;}
+.vr-panel-search input::placeholder{color:#c7c7cc;}
+
+/* ========== MEMBERS ========== */
+.vr-members-body{flex:1;overflow-y:auto;padding:4px 0;}
+.vr-member-row{display:flex;align-items:center;gap:10px;padding:8px 16px;transition:background 0.15s;cursor:pointer;}
+.vr-member-row:hover{background:#f9f9fb;}
+.vr-member-me{background:#f0f7ff;}
+.vr-member-av{font-size:32px;position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;}
+.vr-status-dot{position:absolute;bottom:0;right:0;width:8px;height:8px;border-radius:50%;border:2px solid #fff;}
+.vr-member-info{flex:1;min-width:0;display:flex;flex-direction:column;}
+.vr-member-name{font-size:13px;font-weight:500;color:#1d1d1f;display:flex;align-items:center;}
+.vr-member-sub{font-size:11px;color:#8e8e93;margin-top:1px;}
+.vr-member-actions{display:flex;align-items:center;gap:8px;}
+.vr-call-btn{width:28px;height:28px;border:none;background:#f0f7ff;color:#007aff;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.vr-call-btn:hover{background:#007aff;color:#fff;}
+
+/* ========== CHAT ========== */
+.vr-chat-body{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.vr-chat-msgs{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:10px;}
+.vr-msg{display:flex;gap:8px;align-items:flex-start;}
+.vr-msg-me{flex-direction:row-reverse;}
+.vr-msg-av{font-size:28px;flex-shrink:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;}
+.vr-msg-bub{max-width:78%;padding:8px 12px;background:#f2f2f7;border-radius:14px;display:flex;flex-direction:column;}
+.vr-msg-me .vr-msg-bub{background:#007aff;}
+.vr-msg-sender{font-size:11px;font-weight:500;color:#8e8e93;margin-bottom:3px;}
+.vr-msg-me .vr-msg-sender{color:rgba(255,255,255,0.7);}
+.vr-msg-txt{font-size:13px;color:#1d1d1f;line-height:1.45;word-break:break-word;}
+.vr-msg-me .vr-msg-txt{color:#fff;}
+.vr-msg-emoji{font-size:28px;line-height:1;}
+.vr-msg-time{font-size:10px;color:#c7c7cc;align-self:flex-end;margin-top:4px;}
+.vr-msg-me .vr-msg-time{color:rgba(255,255,255,0.5);}
+.vr-chat-input{display:flex;gap:8px;padding:10px 16px;border-top:1px solid #f2f2f7;background:#fff;}
+.vr-chat-input input{flex:1;padding:9px 14px;background:#f2f2f7;border:1px solid transparent;border-radius:18px;color:#1d1d1f;font-size:13px;outline:none;}
+.vr-chat-input input:focus{border-color:#007aff;background:#fff;}
+.vr-chat-input input::placeholder{color:#c7c7cc;}
+.vr-chat-input button{width:36px;height:36px;border:none;background:#007aff;border-radius:50%;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;flex-shrink:0;}
+.vr-chat-input button:hover{background:#0051d5;}
+
+/* ========== TRANSCRIPT / YUANBAO MINUTES ========== */
+.vr-translate-toggle{padding:4px 10px;border:1px solid #e5e5e7;background:#fff;border-radius:6px;cursor:pointer;font-size:11px;display:flex;align-items:center;gap:4px;color:#6e6e73;transition:all 0.15s;}
+.vr-translate-on{background:#f0f7ff;border-color:#007aff;color:#007aff;}
+.vr-transcript-body{flex:1;overflow-y:auto;display:flex;flex-direction:column;}
+
+/* AI Summary */
+.vr-ai-summary{padding:14px 16px;border-bottom:1px solid #f2f2f7;background:#fafafa;}
+.vr-ai-header{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#1d1d1f;margin-bottom:10px;}
+.vr-ai-item{margin-bottom:6px;}
+.vr-ai-title{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#fff;border-radius:8px;font-size:12px;font-weight:500;color:#1d1d1f;cursor:pointer;border:1px solid #e5e5e7;transition:all 0.15s;}
+.vr-ai-title:hover{background:#f9f9fb;}
+.vr-ai-content{padding:8px 10px;font-size:12px;color:#6e6e73;line-height:1.6;background:#fff;border:1px solid #f2f2f7;border-top:none;border-radius:0 0 8px 8px;}
+.vr-ai-divider{height:1px;background:#e5e5e7;margin:10px 0;}
+.vr-ai-feature{display:flex;align-items:center;gap:6px;font-size:12px;color:#1d1d1f;padding:4px 0;}
+
+/* Live Transcript */
+.vr-transcript-live{flex:1;overflow-y:auto;padding:12px 16px;}
+.vr-transcribing-indicator{display:flex;align-items:center;gap:6px;font-size:11px;color:#34c759;padding:4px 0 10px;font-weight:500;}
+.vr-pulse-dot{width:6px;height:6px;background:#34c759;border-radius:50%;animation:vr-pulse 1.5s infinite;}
+@keyframes vr-pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.vr-transcript-line{padding:8px 0;border-bottom:1px solid #f2f2f7;}
+.vr-transcript-header{display:flex;align-items:center;gap:8px;margin-bottom:3px;}
+.vr-transcript-speaker{font-size:11px;font-weight:600;color:#007aff;}
+.vr-transcript-time{font-size:10px;color:#c7c7cc;}
+.vr-transcript-text{font-size:12px;color:#3a3a3c;margin:4px 0 0;line-height:1.6;}
+
+/* AI Secretary */
+.vr-ai-secretary{display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid #f2f2f7;background:#fafafa;}
+.vr-ai-avatar{width:32px;height:32px;background:#007aff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.vr-ai-info{flex:1;}
+.vr-ai-info span{font-size:12px;font-weight:500;color:#1d1d1f;display:block;}
+.vr-ai-info small{font-size:10px;color:#8e8e93;}
+.vr-ai-action{padding:5px 12px;border:1px solid #007aff;background:#fff;color:#007aff;border-radius:6px;cursor:pointer;font-size:11px;transition:all 0.15s;}
+.vr-ai-action:hover{background:#007aff;color:#fff;}
+
+/* ========== MORE PANEL ========== */
+.vr-more-body{flex:1;padding:8px;}
+.vr-more-item{display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border:none;background:transparent;color:#1d1d1f;border-radius:10px;cursor:pointer;text-align:left;font-size:13px;transition:all 0.15s;}
+.vr-more-item:hover{background:#f9f9fb;}
+.vr-more-active{background:#f0f7ff!important;}
+.vr-more-icon{width:36px;height:36px;background:#f2f2f7;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#6e6e73;}
+.vr-more-text{display:flex;flex-direction:column;line-height:1.45;}
+.vr-more-text strong{font-size:13px;color:#1d1d1f;}
+.vr-more-text small{font-size:11px;color:#8e8e93;}
+
+/* ========== BOTTOM CONTROL BAR ========== */
+.vr-bar-wrap{display:flex;justify-content:center;padding:10px 0 14px;flex-shrink:0;z-index:20;background:#fff;border-top:1px solid #e5e5e7;}
+.vr-bar{display:flex;align-items:center;gap:4px;padding:4px 10px;background:#fff;border-radius:16px;}
+.vr-bar-group{display:flex;align-items:center;gap:4px;}
+.vr-bar-group::after{content:'';width:1px;height:24px;background:#e5e5e7;margin-left:6px;}
+.vr-bar-group:last-of-type::after{display:none;}
+
+.vr-bar-btn{position:relative;min-width:52px;height:52px;border:none;background:transparent;color:#6e6e73;border-radius:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:all 0.15s;padding:2px;}
+.vr-bar-btn:hover{background:#f2f2f7;color:#1d1d1f;}
+.vr-bar-btn svg{width:20px;height:20px;}
+.vr-bar-lbl{font-size:9px;color:#8e8e93;line-height:1;font-weight:500;}
+.vr-bar-btn:hover .vr-bar-lbl{color:#1d1d1f;}
+
+/* Off state - red */
+.vr-bar-off{color:#ff3b30!important;}
+.vr-bar-off:hover{background:#fff2f2!important;}
+
+/* On/active state - blue */
+.vr-bar-on{color:#007aff!important;background:#f0f7ff!important;}
+.vr-bar-on .vr-bar-lbl{color:#007aff!important;}
+
+.vr-bar-badge{position:absolute;top:2px;right:4px;min-width:16px;height:16px;padding:0 4px;background:#ff3b30;border-radius:8px;font-size:9px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;line-height:1;}
+
+/* Emoji picker */
+.vr-bar-emoji-wrap{position:relative;}
+.vr-emoji-picker{position:absolute;bottom:58px;left:50%;transform:translateX(-50%);display:flex;gap:4px;padding:8px;background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.12);border:1px solid #e5e5e7;z-index:30;}
+.vr-emoji-btn{width:36px;height:36px;border:none;background:transparent;border-radius:8px;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.vr-emoji-btn:hover{background:#f2f2f7;transform:scale(1.15);}
+
+/* End button */
+.vr-bar-end{min-width:52px;height:36px;border:none;background:#ff3b30;color:#fff;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;font-size:12px;font-weight:600;margin-left:6px;padding:0 16px;}
+.vr-bar-end:hover{background:#d70015;}
+
+/* ========== RINGING OVERLAY ========== */
+.vr-ring-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);}
+.vr-ring-card{text-align:center;animation:vr-pop 0.3s ease;background:#fff;padding:40px 48px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.2);}
+@keyframes vr-pop{from{transform:scale(0.8);opacity:0}to{transform:scale(1);opacity:1}}
+.vr-ring-av{font-size:80px;display:block;margin-bottom:16px;}
+.vr-ring-card h2{color:#1d1d1f;margin:0 0 8px;font-size:22px;font-weight:600;}
+.vr-ring-card p{color:#8e8e93;margin:0 0 20px;font-size:14px;}
+.vr-ring-dots{display:flex;justify-content:center;gap:8px;margin-bottom:24px;}
+.vr-ring-dots span{width:8px;height:8px;background:#007aff;border-radius:50%;animation:vr-bounce 1.4s infinite;}
+.vr-ring-dots span:nth-child(2){animation-delay:0.2s;}
+.vr-ring-dots span:nth-child(3){animation-delay:0.4s;}
+@keyframes vr-bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
+.vr-ring-cancel{width:52px;height:52px;border:none;background:#ff3b30;color:#fff;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;margin:0 auto;transition:all 0.15s;}
+.vr-ring-cancel:hover{background:#d70015;transform:scale(1.08);}
+
+/* ========== RESPONSIVE ========== */
+@media(max-width:768px){
+  .vr-panel{position:fixed;inset:0;width:100%;z-index:50;}
+  .vr-bar{gap:2px;padding:4px 6px;}
+  .vr-bar-btn{min-width:44px;height:44px;}
+  .vr-bar-btn svg{width:18px;height:18px;}
+  .vr-bar-lbl{display:none;}
+  .vr-bar-group::after{margin-left:2px;}
+  .vr-bar-end{min-width:44px;height:32px;padding:0 10px;}
+  .vr-grid{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;}
+  .vr-grid-pip{grid-template-columns:repeat(2, 120px);grid-template-rows:repeat(2, 80px);}
+  .vr-speaker-strip{gap:4px;}
+  .vr-tile-thumb{width:110px;height:70px;}
+  .vr-top-title{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .vr-hd-badge{display:none;}
+}
       `}</style>
     </div>
   );
 }
-
-export default VideoRoom;

@@ -2316,6 +2316,36 @@ input::placeholder {
 @media (max-width: 768px) {
   .subjects-grid {
     grid-template-columns: 1fr;
+    gap: 0.6rem !important;
+  }
+  .subject-card {
+    padding: 0.6rem 0.8rem !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 0.6rem !important;
+    border-radius: 10px !important;
+  }
+  .subject-icon-bg {
+    width: 36px !important;
+    height: 36px !important;
+    flex-shrink: 0 !important;
+  }
+  .subject-icon {
+    font-size: 1.1rem !important;
+  }
+  .subject-info h3 {
+    font-size: 0.8rem !important;
+    margin-bottom: 0.1rem !important;
+  }
+  .subject-info p {
+    font-size: 0.55rem !important;
+  }
+  .subject-btn {
+    margin-top: 0 !important;
+    margin-left: auto !important;
+    padding: 0.3rem 0.7rem !important;
+    font-size: 0.6rem !important;
+    border-radius: 6px !important;
   }
 }
 
@@ -12223,6 +12253,70 @@ input::placeholder {
 /* ---- Learning Videos (Bilibili link cards) ---- */
 .learning-videos-section {
   margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Collapsible header button */
+.learning-videos-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 400px;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  border-radius: var(--radius-md, 10px);
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: var(--gray-800, #1e293b);
+}
+.learning-videos-toggle:hover {
+  background: var(--gray-50, #f8fafc);
+  border-color: var(--primary, #3b82f6);
+}
+.learning-videos-toggle .toggle-left {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.learning-videos-toggle .toggle-icon {
+  font-size: 1rem;
+}
+.learning-videos-toggle .toggle-label {
+  font-weight: 600;
+}
+.learning-videos-toggle .toggle-arrow {
+  font-size: 0.6rem;
+  color: var(--gray-400, #94a3b8);
+  transition: transform 0.25s ease;
+}
+.learning-videos-toggle .toggle-arrow.open {
+  transform: rotate(180deg);
+}
+
+/* Collapsible body */
+.learning-videos-body {
+  width: 100%;
+  max-width: 560px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.25s ease;
+}
+.learning-videos-body.open {
+  max-height: 2600px; /* large enough to fit all cards */
+  opacity: 1;
+}
+.learning-videos-body .video-tab-btns {
+  padding-top: 0.6rem;
+}
+.learning-videos-body .video-grid {
+  margin-top: 0.6rem;
 }
 
 .video-tab-btns {
@@ -12231,12 +12325,12 @@ input::placeholder {
 }
 
 .video-tab-btn {
-  padding: 0.45rem 1.1rem;
+  padding: 0.3rem 0.8rem;
   border: 1px solid var(--gray-200, #e2e8f0);
   border-radius: 20px;
   background: #fff;
   color: var(--gray-600, #64748b);
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -12257,8 +12351,8 @@ input::placeholder {
 .video-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1.25rem;
-  margin-top: 1rem;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
 }
 
 /* Bilibili video card — clickable link to bilibili.com */
@@ -12283,7 +12377,7 @@ input::placeholder {
 /* Thumbnail — gradient fallback or real cover image */
 .bili-thumb {
   position: relative;
-  height: 140px;
+  height: 90px;
   overflow: hidden;
   background: #e2e8f0; /* fallback while image loads */
 }
@@ -12314,12 +12408,12 @@ input::placeholder {
   padding: 10px;
 }
 .bili-thumb-cover .cover-emoji {
-  font-size: 1.6rem;
+  font-size: 0.9rem;
   line-height: 1;
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
 }
 .bili-thumb-cover .cover-label {
-  font-size: 0.85rem;
+  font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   text-align: center;
@@ -12342,16 +12436,16 @@ input::placeholder {
 .bili-cover-bus   { background: linear-gradient(135deg, #b45309 0%, #f59e0b 50%, #fde68a 100%); }
 
 .bili-play-icon {
-  width: 52px;
-  height: 52px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: rgba(255,255,255,0.95);
   color: #1e293b;
-  font-size: 1.2rem;
+  font-size: 0.6rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   transition: transform 0.2s;
 }
 
@@ -12360,14 +12454,14 @@ input::placeholder {
 }
 
 .bili-card-info {
-  padding: 0.75rem 1rem;
+  padding: 0.4rem 0.6rem;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.15rem;
 }
 
 .bili-card-title {
-  font-size: 0.9rem;
+  font-size: 0.7rem;
   font-weight: 600;
   color: #1e293b;
   line-height: 1.3;
@@ -12378,7 +12472,7 @@ input::placeholder {
 }
 
 .bili-card-meta {
-  font-size: 0.75rem;
+  font-size: 0.6rem;
   color: #94a3b8;
 }
 
@@ -12418,4 +12512,149 @@ input::placeholder {
   .hero-image { width: 180px; right: -20px; bottom: -30px; opacity: 0.6; }
   .hero-stats { flex-direction: row; flex-wrap: wrap; }
   .dashboard-hero { padding: 1.5rem 1rem; }
+}
+
+/* ============================================
+   GLOBAL MOBILE ICON/CARD SIZE REDUCTION — 70% smaller
+   (Aggressive shrink for all icons, cards, and fixed-size elements)
+   ============================================ */
+@media (max-width: 768px) {
+  /* ===== UNIVERSAL SVG SHRINK ===== */
+  /* Any SVG inside an icon-like container gets capped hard */
+  .feature-icon,
+  .stat-icon,
+  .nav-icon,
+  .records-stats .stat-icon,
+  [class*="-icon"] {
+    max-width: 24px !important;
+    max-height: 24px !important;
+  }
+
+  /* Aggressive: any SVG nested 2 levels deep in icon containers */
+  .feature-icon svg,
+  .stat-icon svg,
+  .nav-icon svg,
+  .records-stats .stat-icon svg,
+  [class*="-icon"] svg,
+  .nav-item svg {
+    width: 12px !important;
+    height: 12px !important;
+    max-width: 12px !important;
+    max-height: 12px !important;
+    min-width: auto !important;
+    min-height: auto !important;
+  }
+
+  /* But DON'T shrink SVG in hero, landing, or non-icon contexts */
+  .hero-image svg,
+  .landing-hero svg,
+  .dashboard-hero svg,
+  .hero-slide-img svg { width: auto !important; height: auto !important; max-width: none !important; }
+
+  /* ===== FEATURE CARDS (landing page) ===== */
+  .feature-icon {
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+    border-radius: 6px !important;
+  }
+  .feature-card {
+    padding: 0.5rem 0.4rem !important;
+    gap: 0.25rem !important;
+  }
+  .feature-card h3 { font-size: 0.65rem !important; }
+  .feature-card p  { font-size: 0.5rem !important; }
+
+  /* ===== RECORDS STAT CARDS (student records page) ===== */
+  .records-stats .stat-icon {
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+    border-radius: 6px !important;
+  }
+  .records-stats .stat-card {
+    padding: 0.4rem 0.5rem !important;
+    gap: 0.4rem !important;
+  }
+  .records-stats .stat-number { font-size: 0.75rem !important; }
+  .records-stats .stat-label  { font-size: 0.55rem !important; }
+
+  /* ===== HERO STAT CARDS (dashboard hero) ===== */
+  .hero-stats .stat-icon { font-size: 0.6rem !important; }
+  .stat-card {
+    padding: 0.4rem 0.5rem !important;
+    gap: 0.3rem !important;
+  }
+  .stat-icon  { font-size: 0.6rem !important; }
+  .stat-number { font-size: 0.75rem !important; }
+  .stat-label  { font-size: 0.5rem !important; }
+
+  /* ===== USER AVATAR ===== */
+  .user-avatar {
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 0.55rem !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+  }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar { width: 200px !important; }
+  .nav-item { padding: 0.35rem 0.75rem !important; font-size: 0.65rem !important; }
+  .nav-item svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  /* ===== DASHBOARD DOWNLOAD SECTION ===== */
+  .dash-dl-icon { font-size: 1.2rem !important; }
+  .dash-download-platforms { gap: 4px !important; padding: 8px 10px 12px !important; }
+  .dash-dl-card { padding: 8px 4px !important; border-radius: 8px !important; }
+
+  /* ===== BUTTONS WITH ICONS ===== */
+  .btn-install-app svg,
+  .btn-download-app svg,
+  .btn-share-app svg,
+  .btn-copy-app-link svg,
+  .share-app-banner svg,
+  .install-app-banner svg {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  /* ===== DASHBOARD HERO FURTHER SHRINK ===== */
+  .dashboard-hero { padding: 0.5rem 0.75rem !important; border-radius: 8px !important; }
+  .hero-text h1 { font-size: 1rem !important; }
+  .hero-subtitle { font-size: 0.6rem !important; line-height: 1.3 !important; }
+  .greeting-badge { font-size: 0.55rem !important; padding: 0.2rem 0.5rem !important; }
+  .btn-hero-primary,
+  .btn-hero-secondary { padding: 0.35rem 0.6rem !important; font-size: 0.6rem !important; }
+
+  /* ===== COLLAPSIBLE LEARNING VIDEOS ===== */
+  .learning-videos-toggle { padding: 0.5rem 0.7rem !important; font-size: 0.75rem !important; }
+  .learning-videos-toggle .toggle-icon { font-size: 1rem !important; }
+  .learning-videos-toggle .toggle-arrow { font-size: 0.55rem !important; }
+
+  /* ===== BILIBILI VIDEO CARDS (mobile shrink) ===== */
+  .bili-play-icon {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 0.65rem !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+  }
+  .bili-thumb { height: 80px !important; }
+  .bili-thumb-cover { gap: 2px !important; padding: 4px !important; }
+  .bili-thumb-cover .cover-emoji { font-size: 0.85rem !important; }
+  .bili-thumb-cover .cover-label { font-size: 0.55rem !important; }
+  .bili-card-info { padding: 0.4rem 0.55rem !important; }
+  .bili-card-title { font-size: 0.6rem !important; }
+  .bili-card-meta { font-size: 0.45rem !important; }
+  .video-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 0.5rem !important; }
+  .video-tab-btn { padding: 0.3rem 0.6rem !important; font-size: 0.65rem !important; }
+
+  /* ===== GENERAL PAGE PADDING SHRINK ===== */
+  .dashboard-page { padding: 0.4rem !important; }
+  .dash-header { gap: 0.35rem !important; }
 }

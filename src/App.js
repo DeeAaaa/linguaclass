@@ -5,6 +5,7 @@ import { createPeerConnection, addTracksToPeer, replaceVideoTrack, createOffer, 
 import { supabase, signIn, signOut, getSession, signInLocal, fetchTeachers, updateTeacher, fetchStudents, fetchContacts, saveContacts, fetchVideoRoomContacts, addVideoRoomContact, removeVideoRoomContact } from './supabase';
 import { LoginForm } from './auth/AuthForms';
 import { joinSignalingRoom } from './signaling';
+import VideoRoom from './VideoRoom';
 
 // ============================================
 // AUTH CONTEXT
@@ -1260,6 +1261,7 @@ function DashboardPage({ user, setCurrentPage }) {
   const [hoveredCard, setHoveredCard] = useState(null);
   const [installGuide, setInstallGuide] = useState(null); // 'android' | 'ios' | 'desktop' | null
   const [videoTab, setVideoTab] = useState('teaching'); // 'teaching' | 'songs'
+  const [showLearningVideos, setShowLearningVideos] = useState(false); // collapsible on mobile
 
   // Listen for install guide event from pwa-install fallback
   useEffect(() => {
@@ -1431,10 +1433,20 @@ function DashboardPage({ user, setCurrentPage }) {
         </div>
       )}
 
-      {/* Learning Videos — Bilibili links for all visitors */}
+      {/* Learning Videos — Collapsible Bilibili link cards */}
       <section className="learning-videos-section">
-        <div className="section-header-row">
-          <h2><span>🎬</span> Learn English with Videos</h2>
+        <button
+          className="learning-videos-toggle"
+          onClick={() => setShowLearningVideos(prev => !prev)}
+          aria-expanded={showLearningVideos}
+        >
+          <span className="toggle-left">
+            <span className="toggle-icon">🎬</span>
+            <span className="toggle-label">Learn English with Videos</span>
+          </span>
+          <span className={`toggle-arrow${showLearningVideos ? ' open' : ''}`}>▼</span>
+        </button>
+        <div className={`learning-videos-body${showLearningVideos ? ' open' : ''}`}>
           <div className="video-tab-btns">
             <button
               className={`video-tab-btn ${videoTab === 'teaching' ? 'active' : ''}`}
@@ -1445,118 +1457,118 @@ function DashboardPage({ user, setCurrentPage }) {
               onClick={() => setVideoTab('songs')}
             >🎵 Songs</button>
           </div>
+          {videoTab === 'teaching' ? (
+            <div className="video-grid">
+              <a className="bili-video-card" href="https://www.bilibili.com/video/BV1Eh4y1m7XV?p=25" target="_blank" rel="noopener noreferrer">
+                <div className="bili-thumb bili-cover-pu1">
+                  <div className="bili-thumb-cover">
+                    <span className="cover-emoji">📚</span>
+                    <span className="cover-label">Power Up 1–3</span>
+                  </div>
+                  <span className="bili-play-icon">▶</span>
+                </div>
+                <div className="bili-card-info">
+                  <span className="bili-card-title">Power Up 1–3 · 自学素材</span>
+                  <span className="bili-card-meta">A妈有资源 · Lesson 25 | bilibili</span>
+                </div>
+              </a>
+              <a className="bili-video-card" href="https://b23.tv/ep2034926" target="_blank" rel="noopener noreferrer">
+                <div className="bili-thumb bili-cover-yakka">
+                  <div className="bili-thumb-cover">
+                    <span className="cover-emoji">🍌</span>
+                    <span className="cover-label">Yakka Dee · Banana</span>
+                  </div>
+                  <span className="bili-play-icon">▶</span>
+                </div>
+                <div className="bili-card-info">
+                  <span className="bili-card-title">Yakka Dee 开口说英语 · EP1 Banana</span>
+                  <span className="bili-card-meta">儿童英语启蒙 · 第一季 | bilibili</span>
+                </div>
+              </a>
+              <a className="bili-video-card" href="https://b23.tv/XOJoAnM" target="_blank" rel="noopener noreferrer">
+                <div className="bili-thumb bili-cover-phonics">
+                  <div className="bili-thumb-cover">
+                    <span className="cover-emoji">🔤</span>
+                    <span className="cover-label">Oxford Phonics L1</span>
+                  </div>
+                  <span className="bili-play-icon">▶</span>
+                </div>
+                <div className="bili-card-info">
+                  <span className="bili-card-title">牛津自然拼读 Level 1 · 字母表</span>
+                  <span className="bili-card-meta">幼儿英语自然拼读 · 全40集 | bilibili</span>
+                </div>
+              </a>
+              <a className="bili-video-card" href="https://www.bilibili.com/video/BV19sdaBDE1w?p=26" target="_blank" rel="noopener noreferrer">
+                <div className="bili-thumb bili-cover-puaj">
+                  <div className="bili-thumb-cover">
+                    <span className="cover-emoji">📖</span>
+                    <span className="cover-label">Power Up 1 · Unit AJ</span>
+                  </div>
+                  <span className="bili-play-icon">▶</span>
+                </div>
+                <div className="bili-card-info">
+                  <span className="bili-card-title">Power Up 1 · Unit AJ Part 4</span>
+                  <span className="bili-card-meta">Cambridge English · Lesson 26 | bilibili</span>
+                </div>
+              </a>
+            </div>
+          ) : (
+            <div className="video-grid">
+              <a className="bili-video-card" href="https://b23.tv/t5yA3Td" target="_blank" rel="noopener noreferrer">
+                <div className="bili-thumb bili-cover-head">
+                  <div className="bili-thumb-cover">
+                    <span className="cover-emoji">🧒</span>
+                    <span className="cover-label">Head, Shoulders, Knees &amp; Toes</span>
+                  </div>
+                  <span className="bili-play-icon">▶</span>
+                </div>
+                <div className="bili-card-info">
+                  <span className="bili-card-title">Head, Shoulders, Knees &amp; Toes</span>
+                  <span className="bili-card-meta">Body parts song · 幼儿园英语 | bilibili</span>
+                </div>
+              </a>
+              <a className="bili-video-card" href="https://b23.tv/JkCNJVv" target="_blank" rel="noopener noreferrer">
+                <div className="bili-thumb bili-cover-hello">
+                  <div className="bili-thumb-cover">
+                    <span className="cover-emoji">👋</span>
+                    <span className="cover-label">Hello, Hello, How Are You?</span>
+                  </div>
+                  <span className="bili-play-icon">▶</span>
+                </div>
+                <div className="bili-card-info">
+                  <span className="bili-card-title">Hello, Hello, How Are You?</span>
+                  <span className="bili-card-meta">SSS greeting song · English启蒙 | bilibili</span>
+                </div>
+              </a>
+              <a className="bili-video-card" href="https://b23.tv/hVNPOjs" target="_blank" rel="noopener noreferrer">
+                <div className="bili-thumb bili-cover-rain2">
+                  <div className="bili-thumb-cover">
+                    <span className="cover-emoji">☔</span>
+                    <span className="cover-label">Rain, Rain, Go Away</span>
+                  </div>
+                  <span className="bili-play-icon">▶</span>
+                </div>
+                <div className="bili-card-info">
+                  <span className="bili-card-title">Rain, Rain, Go Away</span>
+                  <span className="bili-card-meta">一枚桃子老师 · SSS儿歌 | bilibili</span>
+                </div>
+              </a>
+              <a className="bili-video-card" href="https://b23.tv/ImvmhZA" target="_blank" rel="noopener noreferrer">
+                <div className="bili-thumb bili-cover-bus">
+                  <div className="bili-thumb-cover">
+                    <span className="cover-emoji">🚌</span>
+                    <span className="cover-label">The Wheels on the Bus</span>
+                  </div>
+                  <span className="bili-play-icon">▶</span>
+                </div>
+                <div className="bili-card-info">
+                  <span className="bili-card-title">The Wheels on the Bus</span>
+                  <span className="bili-card-meta">SSS classic · 二胖问天 | bilibili</span>
+                </div>
+              </a>
+            </div>
+          )}
         </div>
-        {videoTab === 'teaching' ? (
-          <div className="video-grid">
-            <a className="bili-video-card" href="https://www.bilibili.com/video/BV1Eh4y1m7XV?p=25" target="_blank" rel="noopener noreferrer">
-              <div className="bili-thumb bili-cover-pu1">
-                <div className="bili-thumb-cover">
-                  <span className="cover-emoji">📚</span>
-                  <span className="cover-label">Power Up 1–3</span>
-                </div>
-                <span className="bili-play-icon">▶</span>
-              </div>
-              <div className="bili-card-info">
-                <span className="bili-card-title">Power Up 1–3 · 自学素材</span>
-                <span className="bili-card-meta">A妈有资源 · Lesson 25 | bilibili</span>
-              </div>
-            </a>
-            <a className="bili-video-card" href="https://b23.tv/ep2034926" target="_blank" rel="noopener noreferrer">
-              <div className="bili-thumb bili-cover-yakka">
-                <div className="bili-thumb-cover">
-                  <span className="cover-emoji">🍌</span>
-                  <span className="cover-label">Yakka Dee · Banana</span>
-                </div>
-                <span className="bili-play-icon">▶</span>
-              </div>
-              <div className="bili-card-info">
-                <span className="bili-card-title">Yakka Dee 开口说英语 · EP1 Banana</span>
-                <span className="bili-card-meta">儿童英语启蒙 · 第一季 | bilibili</span>
-              </div>
-            </a>
-            <a className="bili-video-card" href="https://b23.tv/XOJoAnM" target="_blank" rel="noopener noreferrer">
-              <div className="bili-thumb bili-cover-phonics">
-                <div className="bili-thumb-cover">
-                  <span className="cover-emoji">🔤</span>
-                  <span className="cover-label">Oxford Phonics L1</span>
-                </div>
-                <span className="bili-play-icon">▶</span>
-              </div>
-              <div className="bili-card-info">
-                <span className="bili-card-title">牛津自然拼读 Level 1 · 字母表</span>
-                <span className="bili-card-meta">幼儿英语自然拼读 · 全40集 | bilibili</span>
-              </div>
-            </a>
-            <a className="bili-video-card" href="https://www.bilibili.com/video/BV19sdaBDE1w?p=26" target="_blank" rel="noopener noreferrer">
-              <div className="bili-thumb bili-cover-puaj">
-                <div className="bili-thumb-cover">
-                  <span className="cover-emoji">📖</span>
-                  <span className="cover-label">Power Up 1 · Unit AJ</span>
-                </div>
-                <span className="bili-play-icon">▶</span>
-              </div>
-              <div className="bili-card-info">
-                <span className="bili-card-title">Power Up 1 · Unit AJ Part 4</span>
-                <span className="bili-card-meta">Cambridge English · Lesson 26 | bilibili</span>
-              </div>
-            </a>
-          </div>
-        ) : (
-          <div className="video-grid">
-            <a className="bili-video-card" href="https://b23.tv/t5yA3Td" target="_blank" rel="noopener noreferrer">
-              <div className="bili-thumb bili-cover-head">
-                <div className="bili-thumb-cover">
-                  <span className="cover-emoji">🧒</span>
-                  <span className="cover-label">Head, Shoulders, Knees &amp; Toes</span>
-                </div>
-                <span className="bili-play-icon">▶</span>
-              </div>
-              <div className="bili-card-info">
-                <span className="bili-card-title">Head, Shoulders, Knees &amp; Toes</span>
-                <span className="bili-card-meta">Body parts song · 幼儿园英语 | bilibili</span>
-              </div>
-            </a>
-            <a className="bili-video-card" href="https://b23.tv/JkCNJVv" target="_blank" rel="noopener noreferrer">
-              <div className="bili-thumb bili-cover-hello">
-                <div className="bili-thumb-cover">
-                  <span className="cover-emoji">👋</span>
-                  <span className="cover-label">Hello, Hello, How Are You?</span>
-                </div>
-                <span className="bili-play-icon">▶</span>
-              </div>
-              <div className="bili-card-info">
-                <span className="bili-card-title">Hello, Hello, How Are You?</span>
-                <span className="bili-card-meta">SSS greeting song · English启蒙 | bilibili</span>
-              </div>
-            </a>
-            <a className="bili-video-card" href="https://b23.tv/hVNPOjs" target="_blank" rel="noopener noreferrer">
-              <div className="bili-thumb bili-cover-rain2">
-                <div className="bili-thumb-cover">
-                  <span className="cover-emoji">☔</span>
-                  <span className="cover-label">Rain, Rain, Go Away</span>
-                </div>
-                <span className="bili-play-icon">▶</span>
-              </div>
-              <div className="bili-card-info">
-                <span className="bili-card-title">Rain, Rain, Go Away</span>
-                <span className="bili-card-meta">一枚桃子老师 · SSS儿歌 | bilibili</span>
-              </div>
-            </a>
-            <a className="bili-video-card" href="https://b23.tv/ImvmhZA" target="_blank" rel="noopener noreferrer">
-              <div className="bili-thumb bili-cover-bus">
-                <div className="bili-thumb-cover">
-                  <span className="cover-emoji">🚌</span>
-                  <span className="cover-label">The Wheels on the Bus</span>
-                </div>
-                <span className="bili-play-icon">▶</span>
-              </div>
-              <div className="bili-card-info">
-                <span className="bili-card-title">The Wheels on the Bus</span>
-                <span className="bili-card-meta">SSS classic · 二胖问天 | bilibili</span>
-              </div>
-            </a>
-          </div>
-        )}
       </section>
 
       {/* Subjects */}
@@ -7029,9 +7041,9 @@ function App() {
       case 'calendar': return <CalendarPage user={user} />;
       case 'files': return <FilesPage user={user} />;
       case 'studentrecords': return <StudentRecordsPage user={user} />;
-      case 'contacts': setCurrentPage('video'); return <VideoRoomPage user={user} />;
+      case 'contacts': setCurrentPage('video'); return <VideoRoom user={user} onLeave={() => setCurrentPage('dashboard')} />;
       case 'admin': return <AdministrationPage user={user} />;
-      case 'video': return <VideoRoomPage user={user} />;
+      case 'video': return <VideoRoom user={user} onLeave={() => setCurrentPage('dashboard')} />;
       default: return <DashboardPage user={user} setCurrentPage={setCurrentPage} />;
     }
   };
