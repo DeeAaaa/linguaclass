@@ -213,6 +213,103 @@ export default function VideoRoom({ user, onLeave, classData }) {
   const [callingMember, setCallingMember] = useState(null);
   const [ringing, setRinging] = useState(false);
 
+  // ============== INVITE CODE SYSTEM ==============
+  const generate6DigitCode = () => String(Math.floor(100000 + Math.random() * 900000));
+  const [inviteCode, setInviteCode] = useState(() => {
+    const saved = localStorage.getItem('video_room_invite_code');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Expire after 24 hours
+        if (Date.now() - parsed.ts < 24 * 60 * 60 * 1000) return parsed.code;
+      } catch (_) {}
+    }
+    const code = generate6DigitCode();
+    localStorage.setItem('video_room_invite_code', JSON.stringify({ code, ts: Date.now() }));
+    return code;
+  });
+  const [inviteCopied, setInviteCopied] = useState('');
+  const [guestJoining, setGuestJoining] = useState(false);
+  const [guestName, setGuestName] = useState('');
+  const guestInputRef = useRef(null);
+
+  // Regenerate invite code
+  const regenerateCode = () => {
+    const code = generate6DigitCode();
+    setInviteCode(code);
+    localStorage.setItem('video_room_invite_code', JSON.stringify({ code, ts: Date.now() }));
+  };
+
+  // Build invite link
+  const inviteLink = `${window.location.origin}${window.location.pathname}#?invite=${inviteCode}`;
+
+  // Copy helpers
+  const copyToClipboard = (text, label) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setInviteCopied(label);
+      setTimeout(() => setInviteCopied(''), 2000);
+    }).catch(() => {});
+  };
+
+  // ============== GUEST JOIN (via invite code) ==============
+  // Check URL hash for invite code on mount
+  useEffect(() => {
+    const hash = window.location.hash || '';
+    const match = hash.match(/[?&]invite=(\d{6})/);
+    if (match) {
+      const urlCode = match[1];
+      const saved = localStorage.getItem('video_room_invite_code');
+      let valid = false;
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed.code === urlCode && (Date.now() - parsed.ts < 24 * 60 * 60 * 1000)) {
+            valid = true;
+          }
+        } catch (_) {}
+      }
+      if (valid) {
+        setGuestJoining(true);
+        setTimeout(() => guestInputRef.current?.focus(), 100);
+      }
+    }
+  }, []);
+
+  const handleGuestJoin = () => {
+    const name = guestName.trim();
+    if (!name) return;
+    const guestMember = {
+      id: `guest-${Date.now()}`,
+      name,
+      avatar: '🔑',
+      role: 'Guest',
+      status: 'active',
+      speaking: false,
+      videoOn: false,
+      micOn: true,
+      verified: true,
+      isMe: false,
+      inCall: true,
+      source: 'invite'
+    };
+    setMembers(prev => [...prev, guestMember]);
+    setChatMsgs(prev => [...prev, {
+      id: Date.now(),
+      sender: 'System',
+      avatar: '🔑',
+      text: `${name} joined via invite code.`,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isMe: false,
+      isSystem: true
+    }]);
+    setGuestJoining(false);
+    setGuestName('');
+    // Clean URL hash so refresh doesn't re-trigger
+    if (window.location.hash) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  };
+
   // ============== TIMER ==============
   useEffect(() => {
     const t = setInterval(() => setDuration(d => d + 1), 1000);
@@ -824,6 +921,88 @@ export default function VideoRoom({ user, onLeave, classData }) {
               </>
             )}
 
+            {/* Invite Panel — Share code to let non-contacts join */}
+            {activePanel === 'invite' && (
+              <>
+                <div className="vr-panel-hd">
+                  <div className="vr-panel-title">
+                    <I.Invite size={16} />
+                    <span>Invite to Room</span>
+                  </div>
+                  <button className="vr-panel-x" onClick={() => setActivePanel(null)}><I.Close size={14} /></button>
+                </div>
+                <div className="vr-invite-body">
+                  {/* Room Info */}
+                  <div className="vr-invite-section">
+                    <h4 className="vr-invite-label">Meeting ID</h4>
+                    <div className="vr-invite-code-row">
+                      <span className="vr-invite-id">{meetingId}</span>
+                      <button className="vr-invite-copy" onClick={() => copyToClipboard(meetingId, 'id')}>
+                        {inviteCopied === 'id' ? <><I.Check size={12} /> Copied</> : <><svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> Copy ID</>}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Invite Code (One-Time Access) */}
+                  <div className="vr-invite-section vr-invite-highlight">
+                    <h4 className="vr-invite-label">
+                      <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2z"/></svg>
+                      One-Time Access Code
+                    </h4>
+                    <p className="vr-invite-desc">Share this 6-digit code. Anyone can join your room — no account or contact needed.</p>
+                    <div className="vr-invite-big-code">{inviteCode}</div>
+                    <div className="vr-invite-btn-row">
+                      <button className="vr-invite-copy vr-invite-copy-primary" onClick={() => copyToClipboard(inviteCode, 'code')}>
+                        {inviteCopied === 'code' ? <><I.Check size={12} /> Copied!</> : <><svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> Copy Code</>}
+                      </button>
+                      <button className="vr-invite-copy vr-invite-copy-primary" onClick={() => copyToClipboard(inviteLink, 'link')}>
+                        {inviteCopied === 'link' ? <><I.Check size={12} /> Copied!</> : <><svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg> Copy Link</>}
+                      </button>
+                    </div>
+                    <button className="vr-invite-refresh" onClick={regenerateCode}>
+                      <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                      Generate New Code
+                    </button>
+                  </div>
+
+                  {/* How it works */}
+                  <div className="vr-invite-steps">
+                    <h4 className="vr-invite-label">How participants join</h4>
+                    <div className="vr-invite-step">
+                      <span className="vr-invite-step-num">1</span>
+                      <span>Share the <strong>6-digit code</strong> or <strong>link</strong> with them (WhatsApp, SMS, email, etc.)</span>
+                    </div>
+                    <div className="vr-invite-step">
+                      <span className="vr-invite-step-num">2</span>
+                      <span>They open the link or paste the code on the <strong>Join a Room</strong> box on the dashboard.</span>
+                    </div>
+                    <div className="vr-invite-step">
+                      <span className="vr-invite-step-num">3</span>
+                      <span>They enter their name — then join your room instantly as a <strong>verified guest</strong>.</span>
+                    </div>
+                  </div>
+
+                  {/* Quick test: simulate guest join */}
+                  <div className="vr-invite-test">
+                    <h4 className="vr-invite-label">Quick Test</h4>
+                    <p className="vr-invite-desc">Simulate a guest joining with this code:</p>
+                    <div className="vr-invite-test-row">
+                      <input
+                        placeholder="Guest name..."
+                        value={guestName}
+                        onChange={e => setGuestName(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleGuestJoin()}
+                        className="vr-invite-test-input"
+                      />
+                      <button className="vr-invite-test-btn" onClick={handleGuestJoin} disabled={!guestName.trim()}>
+                        <I.VideoCall size={14} /> Join as Guest
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* More Panel */}
             {activePanel === 'more' && (
               <>
@@ -851,9 +1030,9 @@ export default function VideoRoom({ user, onLeave, classData }) {
                     <span className="vr-more-icon"><I.Translate size={20} /></span>
                     <div className="vr-more-text"><strong>Translation</strong><small>{showTranslation ? 'Chinese → English' : 'English → Chinese'}</small></div>
                   </button>
-                  <button className="vr-more-item">
+                  <button className="vr-more-item" onClick={() => togglePanel('invite')}>
                     <span className="vr-more-icon"><I.Invite size={20} /></span>
-                    <div className="vr-more-text"><strong>Invite</strong><small>Copy meeting link & ID</small></div>
+                    <div className="vr-more-text"><strong>Invite</strong><small>Share room code & invite link</small></div>
                   </button>
                 </div>
               </>
@@ -896,7 +1075,7 @@ export default function VideoRoom({ user, onLeave, classData }) {
               <I.Screen />
               <span className="vr-bar-lbl">Share Screen</span>
             </button>
-            <button className="vr-bar-btn" onClick={() => togglePanel('members')} title="Invite">
+            <button className="vr-bar-btn" onClick={() => togglePanel('invite')} title="Invite">
               <I.Invite />
               <span className="vr-bar-lbl">Invite</span>
             </button>
@@ -929,6 +1108,35 @@ export default function VideoRoom({ user, onLeave, classData }) {
           </button>
         </div>
       </div>
+
+      {/* ========== GUEST JOIN OVERLAY (when invite code is in URL) ========== */}
+      {guestJoining && (
+        <div className="vr-ring-overlay">
+          <div className="vr-guest-card">
+            <span className="vr-guest-icon">🔑</span>
+            <h2>You've been invited!</h2>
+            <p className="vr-guest-room">Room code: <strong>{inviteCode}</strong></p>
+            <p className="vr-guest-desc">Enter your name to join the video classroom as a guest.</p>
+            <input
+              ref={guestInputRef}
+              className="vr-guest-input"
+              placeholder="Your name"
+              value={guestName}
+              onChange={e => setGuestName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleGuestJoin()}
+              autoFocus
+            />
+            <div className="vr-guest-actions">
+              <button className="vr-guest-join" onClick={handleGuestJoin} disabled={!guestName.trim()}>
+                <I.VideoCall size={16} /> Join Room
+              </button>
+              <button className="vr-guest-cancel" onClick={() => { setGuestJoining(false); setGuestName(''); }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ========== RINGING OVERLAY ========== */}
       {ringing && callingMember && (
@@ -1189,6 +1397,50 @@ export default function VideoRoom({ user, onLeave, classData }) {
 @keyframes vr-bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
 .vr-ring-cancel{width:52px;height:52px;border:none;background:#ff3b30;color:#fff;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;margin:0 auto;transition:all 0.15s;}
 .vr-ring-cancel:hover{background:#d70015;transform:scale(1.08);}
+
+/* ========== INVITE PANEL ========== */
+.vr-invite-body{flex:1;overflow-y:auto;padding:16px;}
+.vr-invite-section{margin-bottom:16px;}
+.vr-invite-label{font-size:11px;font-weight:600;color:#8e8e93;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 8px;display:flex;align-items:center;gap:4px;}
+.vr-invite-code-row{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#f9f9fb;border-radius:10px;border:1px solid #e5e5e7;}
+.vr-invite-id{font-size:18px;font-weight:700;letter-spacing:1px;color:#1d1d1f;font-family:'SF Mono','Cascadia Code','Fira Code',monospace;}
+.vr-invite-copy{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border:1px solid #e5e5e7;background:#fff;color:#007aff;border-radius:8px;cursor:pointer;font-size:11px;font-weight:500;transition:all 0.15s;font-family:inherit;white-space:nowrap;}
+.vr-invite-copy:hover{background:#f0f7ff;border-color:#007aff;}
+.vr-invite-copy-primary{flex:1;justify-content:center;padding:8px 12px;font-size:12px;}
+.vr-invite-highlight{padding:16px;background:linear-gradient(135deg,#f0f7ff,#fafbff);border-radius:14px;border:1.5px dashed #007aff;}
+.vr-invite-highlight .vr-invite-label{color:#007aff;}
+.vr-invite-desc{font-size:12px;color:#6e6e73;margin:0 0 12px;line-height:1.55;}
+.vr-invite-big-code{font-size:36px;font-weight:800;letter-spacing:6px;color:#007aff;text-align:center;padding:12px 0 4px;font-family:'SF Mono','Cascadia Code','Fira Code',monospace;background:#fff;border-radius:10px;margin-bottom:12px;border:1px solid #e5e5e7;user-select:all;}
+.vr-invite-btn-row{display:flex;gap:8px;margin-bottom:10px;}
+.vr-invite-refresh{width:100%;padding:8px;border:1px solid #e5e5e7;background:#fff;color:#6e6e73;border-radius:8px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.15s;font-family:inherit;}
+.vr-invite-refresh:hover{background:#f2f2f7;color:#1d1d1f;}
+.vr-invite-steps{margin-top:8px;}
+.vr-invite-step{display:flex;gap:10px;padding:8px 0;font-size:12px;color:#6e6e73;line-height:1.5;}
+.vr-invite-step-num{width:22px;height:22px;background:#f2f2f7;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#007aff;flex-shrink:0;}
+.vr-invite-test{margin-top:16px;padding:14px;background:#f9f9fb;border-radius:12px;border:1px solid #e5e5e7;}
+.vr-invite-test-row{display:flex;gap:8px;}
+.vr-invite-test-input{flex:1;padding:9px 12px;border:1px solid #e5e5e7;border-radius:8px;font-size:13px;color:#1d1d1f;background:#fff;outline:none;font-family:inherit;}
+.vr-invite-test-input:focus{border-color:#007aff;}
+.vr-invite-test-btn{padding:8px 16px;border:none;background:#007aff;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px;transition:all 0.15s;font-family:inherit;white-space:nowrap;}
+.vr-invite-test-btn:hover{background:#0051d5;}
+.vr-invite-test-btn:disabled{opacity:0.4;cursor:not-allowed;}
+
+/* ========== GUEST JOIN OVERLAY ========== */
+.vr-guest-card{text-align:center;animation:vr-pop 0.3s ease;background:#fff;padding:36px 44px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.2);max-width:380px;width:90%;}
+.vr-guest-icon{font-size:48px;display:block;margin-bottom:12px;}
+.vr-guest-card h2{color:#1d1d1f;margin:0 0 6px;font-size:20px;font-weight:600;}
+.vr-guest-room{font-size:13px;color:#8e8e93;margin:0 0 12px;}
+.vr-guest-room strong{color:#007aff;letter-spacing:2px;}
+.vr-guest-desc{font-size:13px;color:#6e6e73;margin:0 0 16px;line-height:1.5;}
+.vr-guest-input{width:100%;padding:12px 16px;border:2px solid #e5e5e7;border-radius:12px;font-size:16px;color:#1d1d1f;outline:none;text-align:center;box-sizing:border-box;transition:border 0.15s;font-family:inherit;}
+.vr-guest-input:focus{border-color:#007aff;}
+.vr-guest-input::placeholder{color:#c7c7cc;}
+.vr-guest-actions{display:flex;gap:10px;margin-top:16px;}
+.vr-guest-join{flex:1;padding:12px 0;border:none;background:#007aff;color:#fff;border-radius:12px;cursor:pointer;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.15s;font-family:inherit;}
+.vr-guest-join:hover{background:#0051d5;}
+.vr-guest-join:disabled{opacity:0.4;cursor:not-allowed;}
+.vr-guest-cancel{flex:1;padding:12px 0;border:1px solid #e5e5e7;background:#fff;color:#6e6e73;border-radius:12px;cursor:pointer;font-size:15px;font-weight:500;transition:all 0.15s;font-family:inherit;}
+.vr-guest-cancel:hover{background:#f2f2f7;}
 
 /* ========== RESPONSIVE ========== */
 @media(max-width:768px){

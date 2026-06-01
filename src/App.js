@@ -1262,6 +1262,25 @@ function DashboardPage({ user, setCurrentPage }) {
   const [installGuide, setInstallGuide] = useState(null); // 'android' | 'ios' | 'desktop' | null
   const [videoTab, setVideoTab] = useState('teaching'); // 'teaching' | 'songs'
   const [showLearningVideos, setShowLearningVideos] = useState(false); // collapsible on mobile
+  const [joinCode, setJoinCode] = useState('');
+  const [joinError, setJoinError] = useState('');
+  const [joinSuccess, setJoinSuccess] = useState('');
+
+  const handleJoinRoom = () => {
+    const code = joinCode.trim();
+    if (!code || code.length !== 6 || !/^\d{6}$/.test(code)) {
+      setJoinError('Please enter a valid 6-digit code.');
+      setJoinSuccess('');
+      return;
+    }
+    setJoinError('');
+    setJoinSuccess('Valid code! Entering room...');
+    setTimeout(() => {
+      setCurrentPage?.('video');
+      // Set the invite code in hash so VideoRoom picks it up
+      window.location.hash = `?invite=${code}`;
+    }, 600);
+  };
 
   // Listen for install guide event from pwa-install fallback
   useEffect(() => {
@@ -1381,6 +1400,31 @@ function DashboardPage({ user, setCurrentPage }) {
                   <span className="stat-label">Students</span>
                 </div>
               </div>
+            </div>
+
+            {/* Join Room with Code — for guests */}
+            <div className="join-room-card">
+              <div className="join-room-header">
+                <span className="join-room-icon">🔑</span>
+                <span>Join a Room</span>
+              </div>
+              <p className="join-room-desc">Received a 6-digit invite code? Enter it here to join a live class.</p>
+              <div className="join-room-input-row">
+                <input
+                  type="text"
+                  className="join-room-input"
+                  placeholder="6-digit code"
+                  value={joinCode}
+                  onChange={e => { setJoinCode(e.target.value); setJoinError(''); setJoinSuccess(''); }}
+                  onKeyDown={e => e.key === 'Enter' && handleJoinRoom()}
+                  maxLength={6}
+                  pattern="[0-9]*"
+                  inputMode="numeric"
+                />
+                <button className="join-room-btn" onClick={handleJoinRoom}>Join</button>
+              </div>
+              {joinError && <span className="join-room-error">{joinError}</span>}
+              {joinSuccess && <span className="join-room-success">{joinSuccess}</span>}
             </div>
           </div>
         </div>
