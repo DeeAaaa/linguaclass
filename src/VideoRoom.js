@@ -165,8 +165,8 @@ export default function VideoRoom({ user, onLeave, classData }) {
   const [meetingTitle] = useState('Weekly Product Sync — Q3 Planning');
   const [meetingId] = useState(() => String(Math.floor(100000000 + Math.random() * 900000000)));
   const [duration, setDuration] = useState(5469); // Start at ~1:31:09 like screenshot
-  const [videoEnabled, setVideoEnabled] = useState(true);
-  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [videoEnabled, setVideoEnabled] = useState(false);
+  const [audioEnabled, setAudioEnabled] = useState(false);
   const [screenSharing, setScreenSharing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
@@ -181,7 +181,7 @@ export default function VideoRoom({ user, onLeave, classData }) {
 
   // Members / Media - start with ONLY the host
   const [members, setMembers] = useState([{
-    id: 'me', name, avatar: av, role: 'Host', status: 'active', speaking: false, videoOn: videoEnabled, micOn: audioEnabled, isMe: true, verified: true
+    id: 'me', name, avatar: av, role: 'Host', status: 'active', speaking: false, videoOn: false, micOn: false, isMe: true, verified: true
   }]);
   // Contacts (people you can invite) — loaded from real registered data
   const [contacts, setContacts] = useState(loadContactsFromLocalStorage);
@@ -325,6 +325,9 @@ export default function VideoRoom({ user, onLeave, classData }) {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: true });
         if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop());
         localStreamRef.current = stream;
+        // Start with camera & mic OFF
+        stream.getVideoTracks().forEach(t => { t.enabled = false; });
+        stream.getAudioTracks().forEach(t => { t.enabled = false; });
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
       } catch (e) {
         console.log('Camera error:', e);
@@ -334,6 +337,13 @@ export default function VideoRoom({ user, onLeave, classData }) {
     })();
     return () => { if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; } };
   }, []);
+
+  // Re-attach srcObject when video element re-enters DOM after toggling video on
+  useEffect(() => {
+    if (videoEnabled && localStreamRef.current && localVideoRef.current) {
+      localVideoRef.current.srcObject = localStreamRef.current;
+    }
+  }, [videoEnabled]);
 
   useEffect(() => {
     const vt = localStreamRef.current?.getVideoTracks()[0];
@@ -1069,7 +1079,7 @@ export default function VideoRoom({ user, onLeave, classData }) {
             </button>
             <button className={`vr-bar-btn ${!videoEnabled ? 'vr-bar-off' : ''}`} onClick={toggleVideo} title="Camera">
               {videoEnabled ? <I.Camera /> : <I.CameraOff />}
-              <span className="vr-bar-lbl">Stop Video</span>
+              <span className="vr-bar-lbl">{videoEnabled ? 'Stop Video' : 'Start Video'}</span>
             </button>
             <button className={`vr-bar-btn ${screenSharing ? 'vr-bar-on' : ''}`} onClick={toggleScreenShare} title="Share Screen">
               <I.Screen />
