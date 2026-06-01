@@ -55,20 +55,22 @@ const statusDot = { active: '#34c759', away: '#ff9f0a', offline: '#8e8e93' };
 function loadContactsFromLocalStorage() {
   const contacts = [];
   const addedIds = new Set();
+  let removedIds;
+  try { removedIds = new Set(JSON.parse(localStorage.getItem('video_room_removed_ids') || '[]')); } catch (_) { removedIds = new Set(); }
 
   // 1) Family accounts (parents + children)
   try {
     const families = JSON.parse(localStorage.getItem('classroom_family_accounts') || '[]');
     for (const f of families) {
       const parentId = `family-${f.id}-parent`;
-      if (!addedIds.has(parentId)) {
+      if (!addedIds.has(parentId) && !removedIds.has(parentId)) {
         contacts.push({ id: parentId, name: f.parentName || 'Parent', role: 'Parent', email: f.parentEmail || '', avatar: '👨‍👩‍👧', status: 'active', source: 'family' });
         addedIds.add(parentId);
       }
       if (Array.isArray(f.children)) {
         f.children.forEach((child, idx) => {
           const cid = `family-${f.id}-child-${idx}`;
-          if (!addedIds.has(cid)) {
+          if (!addedIds.has(cid) && !removedIds.has(cid)) {
             contacts.push({ id: cid, name: child.name || 'Child', role: 'Student', email: f.parentEmail || '', subject: child.subject || '', avatar: '👦', status: 'active', source: 'family' });
             addedIds.add(cid);
           }
@@ -82,7 +84,7 @@ function loadContactsFromLocalStorage() {
     const teachers = JSON.parse(localStorage.getItem('linguaclass_teachers') || '[]');
     for (const t of teachers) {
       const tid = `teacher-${t.id}`;
-      if (!addedIds.has(tid) && t.name) {
+      if (!addedIds.has(tid) && !removedIds.has(tid) && t.name) {
         contacts.push({ id: tid, name: t.name, role: 'Teacher', email: t.email || '', subject: t.subject || '', avatar: '👩‍🏫', status: t.status === 'inactive' ? 'offline' : 'active', source: 'teacher' });
         addedIds.add(tid);
       }
@@ -94,7 +96,7 @@ function loadContactsFromLocalStorage() {
     const students = JSON.parse(localStorage.getItem('linguaclass_students') || '[]');
     for (const s of students) {
       const sid = `student-${s.id}`;
-      if (!addedIds.has(sid) && s.name) {
+      if (!addedIds.has(sid) && !removedIds.has(sid) && s.name) {
         contacts.push({ id: sid, name: s.name, role: 'Student', email: s.parentEmail || '', subject: s.subject || '', avatar: s.avatar || '👦', status: 'active', source: 'student' });
         addedIds.add(sid);
       }
@@ -105,27 +107,30 @@ function loadContactsFromLocalStorage() {
   try {
     const vr = JSON.parse(localStorage.getItem('video_room_contacts') || '[]');
     for (const c of vr) {
-      if (!addedIds.has(c.id)) {
+      if (!addedIds.has(c.id) && !removedIds.has(c.id)) {
         contacts.push({ ...c, source: 'manual' });
         addedIds.add(c.id);
       }
     }
   } catch (_) {}
 
-  // 5) Seed: if absolutely empty, show just 2 so the panel isn't blank
-  if (contacts.length === 0) {
-    contacts.push(
-      { id: 'seed-demo-student', name: 'Student Demo', role: 'Student', email: '', subject: 'English', avatar: '👧', status: 'active', source: 'seed' },
-      { id: 'seed-demo-teacher', name: 'Teacher Demo', role: 'Teacher', email: '', subject: 'Mathematics', avatar: '👩‍🏫', status: 'active', source: 'seed' }
-    );
-  }
-
+  // 5) No seeds — if empty, show helpful empty state
   return contacts;
 }
 
 function persistVideoRoomContacts(contacts) {
   const manual = contacts.filter(c => c.source === 'manual');
   localStorage.setItem('video_room_contacts', JSON.stringify(manual));
+}
+
+function addRemovedId(id) {
+  try {
+    const removed = JSON.parse(localStorage.getItem('video_room_removed_ids') || '[]');
+    if (!removed.includes(id)) {
+      removed.push(id);
+      localStorage.setItem('video_room_removed_ids', JSON.stringify(removed));
+    }
+  } catch (_) {}
 }
 
 const TX = [
@@ -394,6 +399,7 @@ export default function VideoRoom({ user, onLeave, classData }) {
     const updated = contacts.filter(c => c.id !== contactId);
     setContacts(updated);
     persistVideoRoomContacts(updated);
+    addRemovedId(contactId);
   };
 
   const getMemberTiles = () => {
@@ -684,11 +690,15 @@ export default function VideoRoom({ user, onLeave, classData }) {
                   {filteredAvailable.length === 0 ? (
                     <div className="vr-no-contacts">
                       <span style={{ fontSize: 28, opacity: 0.4 }}>📋</span>
-                      <span style={{ fontSize: 12, color: '#8e8e93', marginTop: 6 }}>{contactSearch ? 'No contacts match your search' : 'All contacts are already in the call'}</span>
+                      <span style={{ fontSize: 12, color: '#8e8e93', marginTop: 6 }}>
+                        {contactSearch ? 'No contacts match your search' : 
+                         contacts.length === 0 ? 'No contacts yet — Register families/teachers/students first, or use + to add one.' :
+                         'All contacts are already in the call'}
+                      </span>
                     </div>
                   ) : (
                     filteredAvailable.map(c => (
-                      <div key={c.id} className="vr-member-row">
+                      <div key={c.id} className="vr-member-row vr-contact-row" onClick={() => callMember(c)} title={`Click to call ${c.name}`}>
                         <div className="vr-member-av">
                           <span>{c.avatar}</span>
                           <span className="vr-status-dot" style={{ background: statusDot[c.status] || '#8e8e93' }} />
@@ -698,14 +708,12 @@ export default function VideoRoom({ user, onLeave, classData }) {
                           <span className="vr-member-sub">{c.role}{c.subject ? ` · ${c.subject}` : ''}{c.source === 'manual' ? ' · Added by you' : ''}</span>
                         </div>
                         <div className="vr-member-actions">
-                          <button className="vr-call-btn" onClick={() => callMember(c)} title="Call to join">
+                          <button className="vr-call-btn" onClick={(e) => { e.stopPropagation(); callMember(c); }} title="Call to join">
                             <I.VideoCall size={14} />
                           </button>
-                          {c.source === 'manual' && (
-                            <button className="vr-remove-btn" onClick={() => removeContact(c.id)} title="Remove contact">
-                              <I.Close size={12} />
-                            </button>
-                          )}
+                          <button className="vr-remove-btn" onClick={(e) => { e.stopPropagation(); removeContact(c.id); }} title="Remove contact">
+                            <I.Close size={12} />
+                          </button>
                         </div>
                       </div>
                     ))
@@ -1028,8 +1036,9 @@ export default function VideoRoom({ user, onLeave, classData }) {
 
 /* ========== MEMBERS ========== */
 .vr-members-body{flex:1;overflow-y:auto;padding:4px 0;}
-.vr-member-row{display:flex;align-items:center;gap:10px;padding:8px 16px;transition:background 0.15s;cursor:pointer;}
+.vr-member-row{cursor:pointer;display:flex;align-items:center;gap:10px;padding:8px 16px;transition:background 0.15s;}
 .vr-member-row:hover{background:#f9f9fb;}
+.vr-contact-row:hover{background:#f0f7ff;}
 .vr-member-me{background:#f0f7ff;}
 .vr-member-av{font-size:32px;position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;}
 .vr-status-dot{position:absolute;bottom:0;right:0;width:8px;height:8px;border-radius:50%;border:2px solid #fff;}
