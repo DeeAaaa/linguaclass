@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 // ============== INLINE SVG ICONS ==============
 const Svg = ({ children, d, size = 20, style, ...rest }) => (
@@ -18,8 +18,7 @@ const I = {
   Close: (p) => <Svg {...p} d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>,
   ChevronDown: (p) => <Svg {...p} d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"/>,
   ChevronUp: (p) => <Svg {...p} d="M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z"/>,
-  Speaker: (p) => <Svg {...p} d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>,
-  SpeakerOff: (p) => <Svg {...p} d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>,
+  Speaker: (p) => <Svg {...p} d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>,
   Caption: (p) => <Svg {...p} d="M19 4H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-9 13H7v-2h3v2zm0-3H7v-1h3v1zm0-3H7V9h3v2zm4.68 6h-2.16l-.84-2h-1.68l-.84 2h-2.16L10.22 7h2.56l1.9 7zM14 11.73L13.06 9h-.12L12 11.73V13h2v-1.27z"/>,
   Record: (p) => <Svg {...p}><circle cx="12" cy="12" r="6"/></Svg>,
   Poll: (p) => <Svg {...p} d="M3 3v18h18V3H3zm6 14H7v-5h2v5zm4 0h-2V7h2v10zm4 0h-2v-5h2v5z"/>,
@@ -37,10 +36,14 @@ const I = {
   WindowMax: (p) => <Svg {...p} d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>,
   Settings: (p) => <Svg {...p} d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.58 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>,
   Send: (p) => <Svg {...p} d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>,
-  Warning: (p) => <Svg {...p} d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>,
-  Robot: (p) => <Svg {...p} d="M20 9V7c0-1.1-.9-2-2-2h-3c0-1.66-1.34-3-3-3S9 3.34 9 5H6c-1.1 0-2 .9-2 2v2c-1.66 0-3 1.34-3 3s1.34 3 3 3v4c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-4c1.66 0 3-1.34 3-3s-1.34-3-3-3zm-2 10H6V7h12v12zm-9-6c-.83 0-1.5-.67-1.5-1.5S8.17 10 9 10s1.5.67 1.5 1.5S9.83 13 9 13zm4.5-1.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5-.67-1.5-1.5-1.5-1.5.67-1.5 1.5zM9 17h6v-2H9v2z"/>,
-  Pin: (p) => <Svg {...p} d="M14 4v5c0 1.12.37 2.16 1 3H9c.63-.84 1-1.88 1-3V4H14zm3-2H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 .55-.45 1-1 1s-1 .45-1 1 .45 1 1 1h3.01L9 22h2l.99-10H15c.55 0 1-.45 1-1s-.45-1-1-1c-.55 0-1-.45-1-1V4h1c.55 0 1-.45 1-1s-.45-1-1-1z"/>,
   More: (p) => <Svg {...p} d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>,
+  Apps: (p) => <Svg {...p} d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/>,
+  Share: (p) => <Svg {...p} d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>,
+  Copy: (p) => <Svg {...p} d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>,
+  Signal: (p) => <Svg {...p} d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/>,
+  Security: (p) => <Svg {...p} d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>,
+  Refresh: (p) => <Svg {...p} d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>,
+  Lock: (p) => <Svg {...p} d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2z"/>,
 };
 
 // ============== HELPERS ==============
@@ -48,17 +51,15 @@ const fmtTime = s => {
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
   return h ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}` : `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
 };
-const statusDot = { active: '#34c759', away: '#ff9f0a', offline: '#8e8e93' };
 
-// ============== DATA ==============
-// Load contacts from registered family accounts + teachers + students in localStorage
+// ============== DATA LOADING ==============
 function loadContactsFromLocalStorage() {
   const contacts = [];
   const addedIds = new Set();
   let removedIds;
   try { removedIds = new Set(JSON.parse(localStorage.getItem('video_room_removed_ids') || '[]')); } catch (_) { removedIds = new Set(); }
 
-  // 1) Family accounts (parents + children)
+  // 1) Family accounts
   try {
     const families = JSON.parse(localStorage.getItem('classroom_family_accounts') || '[]');
     for (const f of families) {
@@ -79,7 +80,7 @@ function loadContactsFromLocalStorage() {
     }
   } catch (_) {}
 
-  // 2) Managed teachers
+  // 2) Teachers
   try {
     const teachers = JSON.parse(localStorage.getItem('linguaclass_teachers') || '[]');
     for (const t of teachers) {
@@ -91,7 +92,7 @@ function loadContactsFromLocalStorage() {
     }
   } catch (_) {}
 
-  // 3) Registered students (from admin panel)
+  // 3) Students
   try {
     const students = JSON.parse(localStorage.getItem('linguaclass_students') || '[]');
     for (const s of students) {
@@ -103,7 +104,7 @@ function loadContactsFromLocalStorage() {
     }
   } catch (_) {}
 
-  // 4) Manually added video-room contacts (persisted)
+  // 4) Manually added
   try {
     const vr = JSON.parse(localStorage.getItem('video_room_contacts') || '[]');
     for (const c of vr) {
@@ -114,7 +115,6 @@ function loadContactsFromLocalStorage() {
     }
   } catch (_) {}
 
-  // 5) No seeds — if empty, show helpful empty state
   return contacts;
 }
 
@@ -126,13 +126,11 @@ function persistVideoRoomContacts(contacts) {
 function addRemovedId(id) {
   try {
     const removed = JSON.parse(localStorage.getItem('video_room_removed_ids') || '[]');
-    if (!removed.includes(id)) {
-      removed.push(id);
-      localStorage.setItem('video_room_removed_ids', JSON.stringify(removed));
-    }
+    if (!removed.includes(id)) { removed.push(id); localStorage.setItem('video_room_removed_ids', JSON.stringify(removed)); }
   } catch (_) {}
 }
 
+// ============== SEED DATA ==============
 const TX = [
   { en:"Good morning everyone, let's get started with today's agenda.", zh:'大家早上好，让我们开始今天的议程。', speaker:'AI Huihui' },
   { en:'It is necessary to plan how to better link the procurement and sales sides.', zh:'有必要规划如何更好地连接采购和销售端。', speaker:'Wang Dapeng' },
@@ -150,40 +148,95 @@ const TX = [
   { en:"Any more questions before we wrap up today's session?", zh:'结束前还有问题吗？', speaker:'AI Huihui' },
 ];
 
-const CHAT_SEED = [
-  { id:1, from:'AI Huihui', av:'👩', txt:'Welcome everyone! The meeting minutes will be generated automatically.', t:'20:26', me:false },
-  { id:2, from:'Wang Dapeng', av:'👨', txt:'Thanks! I can see the real-time summary on the side panel.', t:'20:26', me:false },
-];
+// ============== VIDEO TILE COMPONENT ==============
+function VideoTile({ member, isMe,_name,_av, videoEnabled, localVideoRef, size, onPinned }) {
+  const speaking = member.speaking;
+  const tileClass = `vr-tile ${speaking ? 'vr-tile-spk' : ''} ${size === 'main' ? 'vr-tile-main' : size === 'side' ? 'vr-tile-side' : size === 'thumb' ? 'vr-tile-thumb' : ''}`;
+
+  // Name tag accent color
+  const accentColor = speaking ? '#34c759' : (member.role === 'Host' ? '#ff9f0a' : '#636366');
+
+  const tileJsx = (
+    <div className={tileClass} onClick={onPinned}>
+      {(member.isMe && videoEnabled) ? (
+        <video ref={localVideoRef} autoPlay playsInline muted className="vr-tile-vid" />
+      ) : (
+        <div className="vr-tile-bg">
+          <span className="vr-tile-emoji">{member.isMe ? _av : member.avatar}</span>
+        </div>
+      )}
+
+      {/* Name overlay - Tencent Meeting style with colored left bar */}
+      <div className="vr-tile-label">
+        <div className="vr-tile-label-bar" style={{ background: accentColor }} />
+        <div className="vr-tile-label-body">
+          <div className="vr-tile-label-top">
+            <span className="vr-tile-label-name">{member.isMe ? _name : member.name}</span>
+            {member.verified && <I.Check size={10} style={{ color: '#34c759', marginLeft: 3 }} />}
+          </div>
+          <span className="vr-tile-label-sub">
+            {member.isMe ? 'Host' : member.role}
+            {member.subject ? ` · ${member.subject}` : ''}
+          </span>
+        </div>
+        <div className="vr-tile-label-mic">
+          {member.isMe ? (
+            member.micOn ? <I.Mic size={13} color="#fff" /> : <I.MicOff size={13} color="#ff3b30" />
+          ) : (
+            !member.micOn ? <I.MicOff size={13} color="#ff3b30" /> : (speaking ? <I.Mic size={13} color="#34c759" /> : null)
+          )}
+        </div>
+      </div>
+
+      {/* HD ULTRA badge */}
+      {member.id === 'demo-3' && size !== 'side' && size !== 'thumb' && (
+        <div className="vr-hd-badge"><span>HD</span><small>ULTRA</small></div>
+      )}
+    </div>
+  );
+
+  return tileJsx;
+}
 
 // ============== MAIN COMPONENT ==============
 export default function VideoRoom({ user, onLeave, classData }) {
-  const name = user?.name || 'You';
+  const _name = user?.name || 'You';
   const role = user?.role || 'student';
-  const av = user?.avatar || '🙂';
+  const _av = user?.avatar || '🙂';
 
   // Meeting state
   const [meetingTitle] = useState('Weekly Product Sync — Q3 Planning');
   const [meetingId] = useState(() => String(Math.floor(100000000 + Math.random() * 900000000)));
-  const [duration, setDuration] = useState(5469); // Start at ~1:31:09 like screenshot
+  const [duration, setDuration] = useState(5469);
   const [videoEnabled, setVideoEnabled] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [screenSharing, setScreenSharing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
-  const [layoutMode, setLayoutMode] = useState('spotlight');
+  const [layoutMode, setLayoutMode] = useState('grid');
   const [pinnedMember, setPinnedMember] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [fullscreenTile, setFullscreenTile] = useState(false);
+  const [showLayoutMenu, setShowLayoutMenu] = useState(false);
 
   // Side panels
   const [activePanel, setActivePanel] = useState(null);
   const [showTranslation, setShowTranslation] = useState(false);
 
-  // Members / Media - start with ONLY the host
-  const [members, setMembers] = useState([{
-    id: 'me', name, avatar: av, role: 'Host', status: 'active', speaking: false, videoOn: false, micOn: false, isMe: true, verified: true
-  }]);
-  // Contacts (people you can invite) — loaded from real registered data
+  // DEMO members to match Tencent Meeting screenshots
+  const DEMO_MEMBERS = [
+    { id: 'demo-1', name: 'AI Huihui', avatar: '👩‍💼', role: 'Tencent Meeting Account Manager', status: 'active', speaking: true, videoOn: false, micOn: true, verified: true, isMe: false, subject: '' },
+    { id: 'demo-2', name: 'Wang Dapeng', avatar: '👨‍💼', role: 'Procurement Manager', status: 'active', speaking: false, videoOn: false, micOn: true, verified: false, isMe: false, subject: '' },
+    { id: 'demo-3', name: 'Wang Xiaohong', avatar: '👩‍💻', role: 'Sales Consultant', status: 'active', speaking: false, videoOn: false, micOn: false, verified: true, isMe: false, subject: 'Sunshine Technology Group' },
+    { id: 'demo-4', name: 'Zhang Xiaoyu', avatar: '👨‍🎓', role: 'Marketing Lead', status: 'active', speaking: false, videoOn: false, micOn: true, verified: false, isMe: false, subject: '' },
+  ];
+
+  // Start with host + demo members so the room looks populated
+  const [members, setMembers] = useState(() => [
+    { id: 'me', name: _name, avatar: _av, role: 'Host', status: 'active', speaking: false, videoOn: false, micOn: false, isMe: true, verified: true, subject: '' },
+    ...DEMO_MEMBERS,
+  ]);
+
+  // Contacts
   const [contacts, setContacts] = useState(loadContactsFromLocalStorage);
   const [contactSearch, setContactSearch] = useState('');
   const [showAddContactForm, setShowAddContactForm] = useState(false);
@@ -195,7 +248,10 @@ export default function VideoRoom({ user, onLeave, classData }) {
 
   // Chat
   const [chatMsg, setChatMsg] = useState('');
-  const [chatMsgs, setChatMsgs] = useState([]);
+  const [chatMsgs, setChatMsgs] = useState([
+    { id: 1, sender: 'AI Huihui', avatar: '👩‍💼', text: 'Welcome everyone! The meeting minutes will be generated automatically.', time: '01:31', isMe: false, isSystem: false },
+    { id: 2, sender: 'Wang Dapeng', avatar: '👨‍💼', text: 'Thanks! I can see the real-time summary on the side panel.', time: '01:31', isMe: false, isSystem: false },
+  ]);
   const chatEndRef = useRef(null);
 
   // Transcript
@@ -220,7 +276,6 @@ export default function VideoRoom({ user, onLeave, classData }) {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // Expire after 24 hours
         if (Date.now() - parsed.ts < 24 * 60 * 60 * 1000) return parsed.code;
       } catch (_) {}
     }
@@ -233,17 +288,14 @@ export default function VideoRoom({ user, onLeave, classData }) {
   const [guestName, setGuestName] = useState('');
   const guestInputRef = useRef(null);
 
-  // Regenerate invite code
   const regenerateCode = () => {
     const code = generate6DigitCode();
     setInviteCode(code);
     localStorage.setItem('video_room_invite_code', JSON.stringify({ code, ts: Date.now() }));
   };
 
-  // Build invite link
   const inviteLink = `${window.location.origin}${window.location.pathname}#?invite=${inviteCode}`;
 
-  // Copy helpers
   const copyToClipboard = (text, label) => {
     navigator.clipboard.writeText(text).then(() => {
       setInviteCopied(label);
@@ -251,8 +303,7 @@ export default function VideoRoom({ user, onLeave, classData }) {
     }).catch(() => {});
   };
 
-  // ============== GUEST JOIN (via invite code) ==============
-  // Check URL hash for invite code on mount
+  // ============== GUEST JOIN ==============
   useEffect(() => {
     const hash = window.location.hash || '';
     const match = hash.match(/[?&]invite=(\d{6})/);
@@ -263,9 +314,7 @@ export default function VideoRoom({ user, onLeave, classData }) {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (parsed.code === urlCode && (Date.now() - parsed.ts < 24 * 60 * 60 * 1000)) {
-            valid = true;
-          }
+          if (parsed.code === urlCode && (Date.now() - parsed.ts < 24 * 60 * 60 * 1000)) valid = true;
         } catch (_) {}
       }
       if (valid) {
@@ -276,38 +325,16 @@ export default function VideoRoom({ user, onLeave, classData }) {
   }, []);
 
   const handleGuestJoin = () => {
-    const name = guestName.trim();
-    if (!name) return;
+    const gname = guestName.trim();
+    if (!gname) return;
     const guestMember = {
-      id: `guest-${Date.now()}`,
-      name,
-      avatar: '🔑',
-      role: 'Guest',
-      status: 'active',
-      speaking: false,
-      videoOn: false,
-      micOn: true,
-      verified: true,
-      isMe: false,
-      inCall: true,
-      source: 'invite'
+      id: `guest-${Date.now()}`, name: gname, avatar: '🔑', role: 'Guest', status: 'active', speaking: false, videoOn: false, micOn: true, verified: true, isMe: false, inCall: true, source: 'invite', subject: ''
     };
     setMembers(prev => [...prev, guestMember]);
-    setChatMsgs(prev => [...prev, {
-      id: Date.now(),
-      sender: 'System',
-      avatar: '🔑',
-      text: `${name} joined via invite code.`,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isMe: false,
-      isSystem: true
-    }]);
+    setChatMsgs(prev => [...prev, { id: Date.now(), sender: 'System', avatar: '🔑', text: `${gname} joined via invite code.`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isMe: false, isSystem: true }]);
     setGuestJoining(false);
     setGuestName('');
-    // Clean URL hash so refresh doesn't re-trigger
-    if (window.location.hash) {
-      window.history.replaceState(null, '', window.location.pathname);
-    }
+    if (window.location.hash) { window.history.replaceState(null, '', window.location.pathname); }
   };
 
   // ============== TIMER ==============
@@ -325,7 +352,6 @@ export default function VideoRoom({ user, onLeave, classData }) {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: true });
         if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop());
         localStreamRef.current = stream;
-        // Start with camera & mic OFF
         stream.getVideoTracks().forEach(t => { t.enabled = false; });
         stream.getAudioTracks().forEach(t => { t.enabled = false; });
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
@@ -338,7 +364,6 @@ export default function VideoRoom({ user, onLeave, classData }) {
     return () => { if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; } };
   }, []);
 
-  // Re-attach srcObject when video element re-enters DOM after toggling video on
   useEffect(() => {
     if (videoEnabled && localStreamRef.current && localVideoRef.current) {
       localVideoRef.current.srcObject = localStreamRef.current;
@@ -349,6 +374,7 @@ export default function VideoRoom({ user, onLeave, classData }) {
     const vt = localStreamRef.current?.getVideoTracks()[0];
     if (vt) vt.enabled = videoEnabled;
   }, [videoEnabled]);
+
   useEffect(() => {
     const at = localStreamRef.current?.getAudioTracks()[0];
     if (at) at.enabled = audioEnabled;
@@ -408,13 +434,13 @@ export default function VideoRoom({ user, onLeave, classData }) {
 
   const sendChat = () => {
     if (!chatMsg.trim()) return;
-    const msg = { id: Date.now(), sender: 'You', avatar: av, text: chatMsg.trim(), time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isMe: true };
+    const msg = { id: Date.now(), sender: 'You', avatar: _av, text: chatMsg.trim(), time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isMe: true, isSystem: false };
     setChatMsgs(prev => [...prev, msg]);
     setChatMsg('');
   };
 
   const sendEmoji = (emoji) => {
-    const msg = { id: Date.now(), sender: 'You', avatar: av, text: emoji, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isMe: true, isEmoji: true };
+    const msg = { id: Date.now(), sender: 'You', avatar: _av, text: emoji, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isMe: true, isEmoji: true, isSystem: false };
     setChatMsgs(prev => [...prev, msg]);
     setShowEmojiPicker(false);
   };
@@ -427,7 +453,6 @@ export default function VideoRoom({ user, onLeave, classData }) {
     onLeave?.();
   };
 
-  // ============== CALL A CONTACT / MEMBER ==============
   const callMember = (member) => {
     if (member.isMe) return;
     setCallingMember(member);
@@ -435,48 +460,30 @@ export default function VideoRoom({ user, onLeave, classData }) {
     setTimeout(() => {
       setRinging(false);
       setCallingMember(null);
-      // If not already in members, add them to the room
       setMembers(prev => {
         const exists = prev.find(m => m.id === member.id);
         if (exists) {
           return prev.map(m => m.id === member.id ? { ...m, status: 'active', inCall: true } : m);
         }
         return [...prev, {
-          id: member.id,
-          name: member.name,
-          avatar: member.avatar || '👤',
-          role: member.role || 'Participant',
-          subject: member.subject,
-          speaking: false,
-          videoOn: true,
-          micOn: true,
-          verified: !!member.verified,
-          status: 'active',
-          inCall: true,
-          isMe: false
+          id: member.id, name: member.name, avatar: member.avatar || '👤', role: member.role || 'Participant',
+          subject: member.subject || '', speaking: false, videoOn: true, micOn: true,
+          verified: !!member.verified, status: 'active', inCall: true, isMe: false
         }];
       });
-      // Also add to chat
       setChatMsgs(prev => [...prev, {
-        id: Date.now(),
-        sender: 'System',
-        avatar: '📞',
-        text: `${member.name} joined the call.`,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isMe: false,
-        isSystem: true
+        id: Date.now(), sender: 'System', avatar: '📞', text: `${member.name} joined the call.`,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isMe: false, isSystem: true
       }]);
     }, 2500);
   };
 
-  // Filter contacts not yet in the room
   const availableContacts = contacts.filter(c => !members.some(m => m.id === c.id));
   const filteredAvailable = availableContacts.filter(c => {
     const q = contactSearch.toLowerCase();
     return c.name.toLowerCase().includes(q) || (c.role || '').toLowerCase().includes(q) || (c.subject || '').toLowerCase().includes(q);
   });
 
-  // Remove a participant
   const removeMember = (memberId) => {
     setMembers(prev => prev.filter(m => m.id !== memberId));
   };
@@ -484,18 +491,9 @@ export default function VideoRoom({ user, onLeave, classData }) {
   // ============== CONTACT MANAGEMENT ==============
   const AVATAR_MAP = { Student: '👦', Teacher: '👩‍🏫', Parent: '👨‍👩‍👧' };
   const addContact = () => {
-    const name = (newContact.name || '').trim();
-    if (!name) return;
-    const c = {
-      id: `manual-${Date.now()}`,
-      name,
-      role: newContact.role || 'Student',
-      email: (newContact.email || '').trim(),
-      subject: (newContact.subject || '').trim(),
-      avatar: AVATAR_MAP[newContact.role] || '👤',
-      status: 'active',
-      source: 'manual'
-    };
+    const n = (newContact.name || '').trim();
+    if (!n) return;
+    const c = { id: `manual-${Date.now()}`, name: n, role: newContact.role || 'Student', email: (newContact.email || '').trim(), subject: (newContact.subject || '').trim(), avatar: AVATAR_MAP[newContact.role] || '👤', status: 'active', source: 'manual' };
     const updated = [c, ...contacts];
     setContacts(updated);
     persistVideoRoomContacts(updated);
@@ -509,318 +507,222 @@ export default function VideoRoom({ user, onLeave, classData }) {
     addRemovedId(contactId);
   };
 
-  const getMemberTiles = () => {
-    if (layoutMode === 'speaker') {
-      const speaker = pinnedMember || members.find(m => m.speaking && !m.isMe) || members[0];
-      const others = members.filter(m => m !== speaker);
-      return { speaker, others };
-    }
-    if (layoutMode === 'spotlight') {
-      const mainPerson = pinnedMember || members.find(m => m.speaking) || members[0];
-      const sideParticipants = members.filter(m => m !== mainPerson);
-      return { speaker: mainPerson, others: sideParticipants, mainPerson, sideParticipants };
-    }
-    return { speaker: null, others: members };
-  };
-
-  const { speaker, others, mainPerson = members[0], sideParticipants = members.slice(1) } = getMemberTiles();
-  const visibleMembers = screenSharing ? members.slice(0, 4) : (layoutMode === 'speaker' ? [speaker, ...others] : members);
-
-  const handleSpotlightClick = (m) => {
-    if (!m.isMe) setPinnedMember(m);
-  };
-
-  // Emoji reactions
+  // ============== LAYOUT HELPERS ==============
   const EMOJIS = ['👍', '❤️', '😂', '🎉', '👏', '🔥', '😮', '🤔'];
+
+  // Compute grid columns based on count
+  const gridCount = members.length;
+  const getGridCols = (n) => {
+    if (n <= 1) return 1;
+    if (n <= 2) return 2;
+    if (n <= 4) return 2;
+    return 3;
+  };
+
+  // For speaker view: pick pinned or speaking member as main
+  const speakerMember = pinnedMember || members.find(m => m.speaking && !m.isMe) || members[0];
+  const speakerOthers = members.filter(m => m !== speakerMember);
 
   return (
     <div className="vroom">
       {/* ========== TOP BAR ========== */}
       <header className="vr-top">
-        <div className="vr-top-l">
-          <div className="vr-top-meeting-icon">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+        <div className="vr-top-left">
+          <div className="vr-top-logo">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
           </div>
-          <div className="vr-top-info">
-            <span className="vr-top-title">Meeting details</span>
-            <span className="vr-top-meta">{fmtTime(duration)}</span>
-          </div>
-          <div className="vr-top-signal">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
-          </div>
-          <button className="vr-top-icon-btn" title="Copy meeting info">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+          <span className="vr-top-title">Meeting details</span>
+          <span className="vr-top-timer">{fmtTime(duration)}</span>
+          <span className="vr-top-dot" />
+          <I.Signal size={13} style={{ color: '#34c759' }} />
+          <I.Security size={13} style={{ color: '#8e8e93' }} />
+          <button className="vr-top-icon" title="Copy meeting info" onClick={() => copyToClipboard(meetingId, 'id')}>
+            <I.Copy size={13} />
           </button>
         </div>
-        <div className="vr-top-r">
-          <button className="vr-top-layout-btn" onClick={() => setLayoutMode(l => l === 'spotlight' ? 'speaker' : l === 'speaker' ? 'grid' : 'spotlight')}>
-            <I.Layout size={14} />
-            <span>{layoutMode === 'spotlight' ? 'Spotlight' : layoutMode === 'speaker' ? 'Speaker View' : 'Grid Layout'}</span>
-            <I.ChevronDown size={12} />
-          </button>
-          <button className="vr-top-icon-btn" title="Host Tools">
-            <I.Crown size={14} />
+        <div className="vr-top-right">
+          {/* Layout switcher */}
+          <div className="vr-layout-menu-wrap">
+            <button className="vr-top-btn" onClick={() => setShowLayoutMenu(!showLayoutMenu)}>
+              <I.Layout size={14} />
+              <span>{layoutMode === 'grid' ? 'Grid Layout' : layoutMode === 'speaker' ? 'Speaker View' : 'Spotlight'}</span>
+              <I.ChevronDown size={10} />
+            </button>
+            {showLayoutMenu && (
+              <div className="vr-layout-dropdown">
+                <div className={`vr-layout-item ${layoutMode === 'grid' ? 'vr-layout-active' : ''}`} onClick={() => { setLayoutMode('grid'); setShowLayoutMenu(false); }}>
+                  <I.Layout size={14} /> Grid Layout
+                </div>
+                <div className={`vr-layout-item ${layoutMode === 'speaker' ? 'vr-layout-active' : ''}`} onClick={() => { setLayoutMode('speaker'); setShowLayoutMenu(false); }}>
+                  <I.Screen size={14} /> Speaker View
+                </div>
+                <div className={`vr-layout-item ${layoutMode === 'spotlight' ? 'vr-layout-active' : ''}`} onClick={() => { setLayoutMode('spotlight'); setShowLayoutMenu(false); }}>
+                  <I.Sparkle size={14} /> Spotlight
+                </div>
+              </div>
+            )}
+          </div>
+          <button className="vr-top-btn">
+            <I.Crown size={13} />
             <span>Host Tools</span>
             <I.ChevronDown size={10} />
           </button>
-          <button className="vr-top-icon-btn" title="Settings">
+          <button className="vr-top-btn vr-top-btn-solo" title="Settings">
             <I.Settings size={14} />
           </button>
-          <div className="vr-top-divider" />
-          <button className="vr-top-win-btn" title="Minimize"><I.WindowMin size={12} /></button>
-          <button className="vr-top-win-btn" title="Maximize"><I.WindowMax size={12} /></button>
-          <button className="vr-top-win-btn vr-top-close" title="Close" onClick={handleLeave}><I.Close size={12} /></button>
+          <div className="vr-top-sep" />
+          <button className="vr-top-win" title="Minimize"><I.WindowMin size={11} /></button>
+          <button className="vr-top-win" title="Maximize"><I.WindowMax size={11} /></button>
+          <button className="vr-top-win vr-top-close" title="Close" onClick={handleLeave}><I.Close size={11} /></button>
         </div>
       </header>
 
-      {/* ========== MAIN CONTENT ========== */}
-      <div className="vr-main">
-        {/* --- Video Area --- */}
-        <div className="vr-video-area" style={activePanel ? { marginRight: 360 } : {}}>
-          {/* Screen Share Overlay */}
+      {/* ========== MAIN BODY ========== */}
+      <div className="vr-body">
+        <div className="vr-video-zone" style={{ marginRight: activePanel ? 340 : 0 }}>
+          {/* SCREEN SHARE */}
           {screenSharing && (
-            <div className="vr-screen-share">
+            <div className="vr-screen-overlay">
               <video ref={screenVideoRef} autoPlay playsInline className="vr-screen-vid" />
-              <div className="vr-screen-badge"><I.Screen size={12} /> You are sharing screen</div>
+              <div className="vr-screen-badge"><I.Screen size={12} /> Sharing screen</div>
             </div>
           )}
 
-          {/* Layout: Speaker View */}
-          {layoutMode === 'speaker' && speaker && !screenSharing && (
-            <div className="vr-speaker-view">
-              <div className={`vr-tile vr-tile-speaker ${speaker.speaking ? 'vr-speaking' : ''}`}>
-                {speaker.isMe ? (
-                  videoEnabled ? <video ref={localVideoRef} autoPlay playsInline muted className="vr-tile-vid" /> : <div className="vr-tile-off"><span className="vr-avatar-big">{av}</span></div>
-                ) : (
-                  <div className="vr-tile-off"><span className="vr-avatar-big">{speaker.avatar}</span></div>
-                )}
-                <div className="vr-tile-label">
-                  <span className="vr-tile-name">{speaker.isMe ? `${name}` : speaker.name}</span>
-                  <span className="vr-tile-role">{speaker.isMe ? 'Host' : speaker.role}</span>
-                  {speaker.verified && <span className="vr-verified">✓</span>}
-                  {!speaker.micOn && <span className="vr-mute-badge"><I.MicOff size={10} /></span>}
-                </div>
+          {/* GRID LAYOUT */}
+          {layoutMode === 'grid' && !screenSharing && (
+            <div className="vr-grid-wrap">
+              <div className="vr-grid" style={{
+                gridTemplateColumns: `repeat(${getGridCols(gridCount)}, 1fr)`,
+                maxWidth: gridCount <= 2 ? 900 : gridCount <= 4 ? 1100 : 1300,
+              }}>
+                {members.map(m => (
+                  <VideoTile
+                    key={m.id}
+                    member={m}
+                    isMe={m.isMe}
+                    _name={_name}
+                    _av={_av}
+                    videoEnabled={videoEnabled}
+                    localVideoRef={m.isMe ? localVideoRef : null}
+                    onPinned={!m.isMe ? () => setPinnedMember(m) : undefined}
+                  />
+                ))}
               </div>
-              {pinnedMember && (
-                <button className="vr-unpin" onClick={() => setPinnedMember(null)}><I.Pin size={11} /></button>
-              )}
+            </div>
+          )}
+
+          {/* SPEAKER VIEW */}
+          {layoutMode === 'speaker' && !screenSharing && (
+            <div className="vr-speaker-wrap">
+              <div className="vr-speaker-main">
+                <VideoTile member={speakerMember} isMe={speakerMember.isMe} _name={_name} _av={_av} videoEnabled={videoEnabled} localVideoRef={speakerMember.isMe ? localVideoRef : null} size="main" />
+                {pinnedMember && (
+                  <button className="vr-unpin-btn" onClick={() => setPinnedMember(null)}>Unpin</button>
+                )}
+              </div>
               <div className="vr-speaker-strip">
-                {others.map(m => (
-                  <div key={m.id}
-                    className={`vr-tile vr-tile-thumb ${m.speaking ? 'vr-speaking' : ''}`}
-                    onClick={() => setPinnedMember(m)}
-                  >
-                    {m.isMe ? (
-                      videoEnabled ? <video ref={localVideoRef} autoPlay playsInline muted className="vr-tile-vid" /> : <span className="vr-avatar-sm">{av}</span>
-                    ) : (
-                      <span className="vr-avatar-sm">{m.avatar}</span>
-                    )}
-                    <div className="vr-tile-label-mini">
-                      <span>{m.isMe ? 'You' : m.name}</span>
-                      {m.micOn ? <I.Mic size={8} /> : <I.MicOff size={8} style={{ color: '#ff3b30' }} />}
-                    </div>
-                  </div>
+                {speakerOthers.map(m => (
+                  <VideoTile key={m.id} member={m} isMe={m.isMe} _name={_name} _av={_av} videoEnabled={videoEnabled} localVideoRef={m.isMe ? localVideoRef : null} size="thumb" onPinned={() => setPinnedMember(m)} />
                 ))}
               </div>
             </div>
           )}
 
-          {/* Layout: Spotlight (Theater) View */}
+          {/* SPOTLIGHT VIEW */}
           {layoutMode === 'spotlight' && !screenSharing && (
-            <div className="vr-spotlight-view">
-              {/* Main speaker tile */}
-              <div className={`vr-tile vr-tile-spotlight ${(mainPerson.speaking) ? 'vr-speaking' : ''}`}>
-                {mainPerson.isMe ? (
-                  videoEnabled ? <video ref={localVideoRef} autoPlay playsInline muted className="vr-tile-vid" /> : <div className="vr-tile-off"><span className="vr-avatar-big">{av}</span></div>
-                ) : (
-                  <div className="vr-tile-off"><span className="vr-avatar-big">{mainPerson.avatar}</span></div>
+            <div className="vr-spotlight-wrap">
+              <div className="vr-spotlight-main">
+                <VideoTile member={speakerMember} isMe={speakerMember.isMe} _name={_name} _av={_av} videoEnabled={videoEnabled} localVideoRef={speakerMember.isMe ? localVideoRef : null} size="main" />
+                {pinnedMember && (
+                  <button className="vr-unpin-btn" onClick={() => setPinnedMember(null)}>Unpin</button>
                 )}
-                <div className="vr-tile-label">
-                  <span className="vr-tile-name">{mainPerson.isMe ? name : mainPerson.name}</span>
-                  <span className="vr-tile-role">{mainPerson.isMe ? 'Host' : mainPerson.role}</span>
-                  {mainPerson.verified && <span className="vr-verified">✓</span>}
-                  {!mainPerson.micOn && <span className="vr-mute-badge"><I.MicOff size={10} /></span>}
-                  {mainPerson.speaking && <span className="vr-speaking-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg></span>}
-                </div>
               </div>
-              {/* Side participant strip */}
               <div className="vr-spotlight-strip">
-                {sideParticipants.map(m => (
-                  <div key={m.id}
-                    className={`vr-tile vr-tile-spot ${m.speaking ? 'vr-speaking' : ''}`}
-                    onClick={() => handleSpotlightClick(m)}
-                  >
-                    {m.isMe ? (
-                      videoEnabled ? <video ref={localVideoRef} autoPlay playsInline muted className="vr-tile-vid" /> : <span className="vr-avatar-sm">{av}</span>
-                    ) : (
-                      <span className="vr-avatar-sm">{m.avatar}</span>
-                    )}
-                    <div className="vr-tile-label-min">
-                      <span>{m.isMe ? 'You' : m.name}</span>
-                      {!m.micOn && <I.MicOff size={8} style={{ color: '#ff3b30' }} />}
-                      {m.speaking && <span style={{width:6,height:6,background:'#34c759',borderRadius:'50%',display:'inline-block'}} />}
-                    </div>
-                  </div>
+                {speakerOthers.map(m => (
+                  <VideoTile key={m.id} member={m} isMe={m.isMe} _name={_name} _av={_av} videoEnabled={videoEnabled} localVideoRef={m.isMe ? localVideoRef : null} size="side" onPinned={() => setPinnedMember(m)} />
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Layout: Grid View */}
-          {(layoutMode === 'grid' || (screenSharing && layoutMode !== 'speaker')) && (
-            <div className={`vr-grid ${screenSharing ? 'vr-grid-pip' : ''}`}>
-              {screenSharing ? (
-                members.slice(0, 4).map(m => (
-                  <div key={m.id} className={`vr-tile vr-tile-grid ${m.speaking ? 'vr-speaking' : ''}`}>
-                    {m.isMe ? (
-                      videoEnabled ? <video ref={localVideoRef} autoPlay playsInline muted className="vr-tile-vid" /> : <span className="vr-avatar-big">{av}</span>
-                    ) : (
-                      <span className="vr-avatar-big">{m.avatar}</span>
-                    )}
-                    <div className="vr-tile-label">
-                      <span className="vr-tile-name">{m.isMe ? name : m.name}</span>
-                      {!m.micOn && <I.MicOff size={10} style={{ color: '#ff3b30' }} />}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                visibleMembers.map(m => (
-                  <div key={m.id}
-                    className={`vr-tile vr-tile-grid ${m.speaking ? 'vr-speaking' : ''}`}
-                    onClick={() => layoutMode === 'speaker' && !m.isMe && setPinnedMember(m)}
-                  >
-                    {m.isMe ? (
-                      videoEnabled ? <video ref={localVideoRef} autoPlay playsInline muted className="vr-tile-vid" /> : <div className="vr-tile-off"><span className="vr-avatar-big">{av}</span></div>
-                    ) : (
-                      <div className="vr-tile-off"><span className="vr-avatar-big">{m.avatar}</span></div>
-                    )}
-                    <div className="vr-tile-label">
-                      <span className="vr-tile-name">{m.isMe ? name : m.name}</span>
-                      <span className="vr-tile-role">{m.isMe ? 'Host' : m.role}</span>
-                      {m.verified && <span className="vr-verified">✓</span>}
-                      {!m.micOn && <span className="vr-mute-badge"><I.MicOff size={10} /></span>}
-                      {m.speaking && <span className="vr-speaking-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg></span>}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-          {/* HD Badge */}
-          <div className="vr-hd-badge">HD ULTRA</div>
-
-          {/* Empty room label */}
-          {members.length <= 1 && (
-            <div className="vr-empty-room-label">
-              <span className="vr-empty-dot" />
-              <span>Waiting for participants · Invite from contacts to start the class</span>
             </div>
           )}
         </div>
 
-        {/* --- Side Panel --- */}
+        {/* ========== SIDE PANEL ========== */}
         {activePanel && (
           <aside className="vr-panel">
             {/* Members Panel */}
             {activePanel === 'members' && (
               <>
                 <div className="vr-panel-hd">
-                  <div className="vr-panel-title">
-                    <I.Members size={16} />
-                    <span>Participants ({members.length})</span>
-                  </div>
+                  <div className="vr-panel-ttl"><I.Members size={16} /> Participants ({members.length})</div>
                   <button className="vr-panel-x" onClick={() => setActivePanel(null)}><I.Close size={14} /></button>
                 </div>
-                <div className="vr-panel-search">
-                  <I.Search size={14} />
+                <div className="vr-panel-srch">
+                  <I.Search size={14} style={{ color: '#8e8e93' }} />
                   <input placeholder="Search participants" />
                 </div>
-                <div className="vr-members-body">
-                  {/* Current participants */}
+                <div className="vr-mem-list">
                   {members.map(m => (
-                    <div key={m.id} className={`vr-member-row ${m.isMe ? 'vr-member-me' : ''}`}>
-                      <div className="vr-member-av">
-                        <span>{m.avatar}</span>
-                        <span className="vr-status-dot" style={{ background: statusDot[m.status] || '#8e8e93' }} />
+                    <div key={m.id} className={`vr-mem-row ${m.isMe ? 'vr-mem-me' : ''}`}>
+                      <div className="vr-mem-av">
+                        <span style={{ fontSize: 28 }}>{m.isMe ? _av : m.avatar}</span>
+                        <span className="vr-mem-dot" style={{ background: m.speaking ? '#34c759' : '#8e8e93' }} />
                       </div>
-                      <div className="vr-member-info">
-                        <span className="vr-member-name">
-                          {m.isMe ? `${name}` : m.name}
-                          {m.role === 'teacher' && <I.Crown size={10} style={{ color: '#ff9f0a', marginLeft: 4 }} />}
-                        </span>
-                        <span className="vr-member-sub">{m.isMe ? 'Host · Host' : (m.role || 'Participant')}{m.subject ? ` · ${m.subject}` : ''}</span>
+                      <div className="vr-mem-info">
+                        <span className="vr-mem-name">{m.isMe ? `${_name}` : m.name}{m.role === 'Host' && <I.Crown size={10} style={{ color: '#ff9f0a', marginLeft: 4 }} />}</span>
+                        <span className="vr-mem-sub">{m.isMe ? 'Host · Host' : (m.role || 'Participant')}{m.subject ? ` · ${m.subject}` : ''}</span>
                       </div>
-                      <div className="vr-member-actions">
+                      <div className="vr-mem-actions">
                         {m.micOn ? <I.Mic size={14} style={{ color: '#8e8e93' }} /> : <I.MicOff size={14} style={{ color: '#ff3b30' }} />}
                         {m.videoOn ? <I.Camera size={14} style={{ color: '#8e8e93' }} /> : <I.CameraOff size={14} style={{ color: '#8e8e93' }} />}
-                        {!m.isMe && (
-                          <button className="vr-remove-btn" onClick={() => removeMember(m.id)} title="Remove">
-                            <I.Close size={12} />
-                          </button>
+                        {!m.isMe && !m.id?.startsWith?.('demo-') && (
+                          <button className="vr-mem-rm" onClick={() => removeMember(m.id)}><I.Close size={12} /></button>
                         )}
                       </div>
                     </div>
                   ))}
-
-                  {/* Divider + Add from Contacts */}
-                  <div className="vr-members-divider">
+                  <div className="vr-mem-div">
                     <span>Add from Contacts</span>
-                    <span className="vr-members-divider-count">{availableContacts.length} available</span>
+                    <span className="vr-mem-div-cnt">{availableContacts.length} available</span>
                   </div>
-                  <div className="vr-panel-search" style={{ marginTop: 0 }}>
-                    <I.Search size={14} />
+                  <div className="vr-panel-srch" style={{ marginTop: 0 }}>
+                    <I.Search size={14} style={{ color: '#8e8e93' }} />
                     <input placeholder="Search contacts..." value={contactSearch} onChange={e => setContactSearch(e.target.value)} />
-                    <button className="vr-add-contact-btn" onClick={() => setShowAddContactForm(!showAddContactForm)} title="Add contact" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#007aff', padding: 2 }}>
+                    <button onClick={() => setShowAddContactForm(!showAddContactForm)} title="Add contact" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#007aff', padding: 2 }}>
                       <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
                     </button>
                   </div>
-
-                  {/* Add Contact Form */}
                   {showAddContactForm && (
-                    <div className="vr-add-contact-form">
+                    <div className="vr-add-form">
                       <input placeholder="Name *" value={newContact.name} onChange={e => setNewContact({ ...newContact, name: e.target.value })} />
                       <select value={newContact.role} onChange={e => setNewContact({ ...newContact, role: e.target.value })}>
-                        <option value="Student">Student</option>
-                        <option value="Teacher">Teacher</option>
-                        <option value="Parent">Parent</option>
+                        <option value="Student">Student</option><option value="Teacher">Teacher</option><option value="Parent">Parent</option>
                       </select>
                       <input placeholder="Email (optional)" value={newContact.email} onChange={e => setNewContact({ ...newContact, email: e.target.value })} />
                       <input placeholder="Subject (optional)" value={newContact.subject} onChange={e => setNewContact({ ...newContact, subject: e.target.value })} />
-                      <div className="vr-add-contact-actions">
-                        <button className="vr-add-contact-save" onClick={addContact}>Add Contact</button>
-                        <button className="vr-add-contact-cancel" onClick={() => { setShowAddContactForm(false); setNewContact({ name: '', role: 'Student', email: '', subject: '' }); }}>Cancel</button>
+                      <div className="vr-add-acts">
+                        <button className="vr-add-save" onClick={addContact}>Add Contact</button>
+                        <button className="vr-add-cancel" onClick={() => { setShowAddContactForm(false); setNewContact({ name: '', role: 'Student', email: '', subject: '' }); }}>Cancel</button>
                       </div>
                     </div>
                   )}
-
                   {filteredAvailable.length === 0 ? (
-                    <div className="vr-no-contacts">
+                    <div className="vr-no-cts">
                       <span style={{ fontSize: 28, opacity: 0.4 }}>📋</span>
                       <span style={{ fontSize: 12, color: '#8e8e93', marginTop: 6 }}>
-                        {contactSearch ? 'No contacts match your search' : 
-                         contacts.length === 0 ? 'No contacts yet — Register families/teachers/students first, or use + to add one.' :
-                         'All contacts are already in the call'}
+                        {contactSearch ? 'No contacts match' : contacts.length === 0 ? 'No contacts yet' : 'All contacts in call'}
                       </span>
                     </div>
                   ) : (
                     filteredAvailable.map(c => (
-                      <div key={c.id} className="vr-member-row vr-contact-row" onClick={() => callMember(c)} title={`Click to call ${c.name}`}>
-                        <div className="vr-member-av">
-                          <span>{c.avatar}</span>
-                          <span className="vr-status-dot" style={{ background: statusDot[c.status] || '#8e8e93' }} />
+                      <div key={c.id} className="vr-mem-row vr-mem-ct" onClick={() => callMember(c)}>
+                        <div className="vr-mem-av"><span style={{ fontSize: 28 }}>{c.avatar}</span></div>
+                        <div className="vr-mem-info">
+                          <span className="vr-mem-name">{c.name}</span>
+                          <span className="vr-mem-sub">{c.role}{c.subject ? ` · ${c.subject}` : ''}</span>
                         </div>
-                        <div className="vr-member-info">
-                          <span className="vr-member-name">{c.name}</span>
-                          <span className="vr-member-sub">{c.role}{c.subject ? ` · ${c.subject}` : ''}{c.source === 'manual' ? ' · Added by you' : ''}</span>
-                        </div>
-                        <div className="vr-member-actions">
-                          <button className="vr-call-btn" onClick={(e) => { e.stopPropagation(); callMember(c); }} title="Call to join">
-                            <I.VideoCall size={14} />
-                          </button>
-                          <button className="vr-remove-btn" onClick={(e) => { e.stopPropagation(); removeContact(c.id); }} title="Remove contact">
-                            <I.Close size={12} />
-                          </button>
+                        <div className="vr-mem-actions">
+                          <button className="vr-mem-call" onClick={(e) => { e.stopPropagation(); callMember(c); }}><I.VideoCall size={14} /></button>
+                          <button className="vr-mem-rm" onClick={(e) => { e.stopPropagation(); removeContact(c.id); }}><I.Close size={12} /></button>
                         </div>
                       </div>
                     ))
@@ -833,27 +735,24 @@ export default function VideoRoom({ user, onLeave, classData }) {
             {activePanel === 'chat' && (
               <>
                 <div className="vr-panel-hd">
-                  <div className="vr-panel-title">
-                    <I.Chat size={16} />
-                    <span>Chat</span>
-                  </div>
+                  <div className="vr-panel-ttl"><I.Chat size={16} /> Chat</div>
                   <button className="vr-panel-x" onClick={() => setActivePanel(null)}><I.Close size={14} /></button>
                 </div>
                 <div className="vr-chat-body">
                   <div className="vr-chat-msgs">
                     {chatMsgs.map(m => (
-                      <div key={m.id} className={`vr-msg ${m.isMe ? 'vr-msg-me' : ''} ${m.isSystem ? 'vr-msg-system' : ''}`}>
+                      <div key={m.id} className={`vr-msg ${m.isMe ? 'vr-msg-me' : ''} ${m.isSystem ? 'vr-msg-sys' : ''}`}>
                         {!m.isSystem && <span className="vr-msg-av">{m.avatar}</span>}
                         <div className="vr-msg-bub">
-                          {!m.isSystem && <span className="vr-msg-sender">{m.sender}</span>}
+                          {!m.isSystem && <span className="vr-msg-from">{m.sender}</span>}
                           <span className={`vr-msg-txt ${m.isEmoji ? 'vr-msg-emoji' : ''}`}>{m.text}</span>
-                          {!m.isSystem && <span className="vr-msg-time">{m.time}</span>}
+                          {!m.isSystem && <span className="vr-msg-ts">{m.time}</span>}
                         </div>
                       </div>
                     ))}
                     <div ref={chatEndRef} />
                   </div>
-                  <div className="vr-chat-input">
+                  <div className="vr-chat-inp">
                     <input placeholder="Send a message to everyone..." value={chatMsg} onChange={e => setChatMsg(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} />
                     <button onClick={sendChat}><I.Send size={16} /></button>
                   </div>
@@ -861,152 +760,98 @@ export default function VideoRoom({ user, onLeave, classData }) {
               </>
             )}
 
-            {/* Transcript Panel */}
+            {/* Yuanbao Minutes / Transcript */}
             {activePanel === 'transcript' && (
               <>
                 <div className="vr-panel-hd">
-                  <div className="vr-panel-title">
-                    <I.Caption size={16} />
-                    <span>Yuanbao Minutes</span>
-                  </div>
-                  <div className="vr-panel-actions">
-                    <button className={`vr-translate-toggle ${showTranslation ? 'vr-translate-on' : ''}`} onClick={() => setShowTranslation(!showTranslation)}>
+                  <div className="vr-panel-ttl"><I.Sparkle size={16} style={{ color: '#007aff' }} /> Yuanbao Minutes</div>
+                  <div className="vr-panel-actr">
+                    <button className={`vr-tran-toggle ${showTranslation ? 'vr-tran-on' : ''}`} onClick={() => setShowTranslation(!showTranslation)}>
                       <I.Translate size={12} /> {showTranslation ? '中文' : 'EN'}
                     </button>
                     <button className="vr-panel-x" onClick={() => setActivePanel(null)}><I.Close size={14} /></button>
                   </div>
                 </div>
-                <div className="vr-transcript-body">
-                  {/* AI Summary Section */}
-                  <div className="vr-ai-summary">
-                    <div className="vr-ai-header">
-                      <I.Sparkle size={14} style={{ color: '#007aff' }} />
-                      <span>Real-time summary</span>
-                    </div>
+                <div className="vr-tran-body">
+                  {/* AI Summary */}
+                  <div className="vr-ai-box">
+                    <div className="vr-ai-head"><I.Sparkle size={13} style={{ color: '#007aff' }} /> Real-time summary</div>
                     {aiSummary.map((item, idx) => (
                       <div key={idx} className="vr-ai-item">
-                        <div className="vr-ai-title" onClick={() => setAiSummary(prev => prev.map((s, i) => i === idx ? { ...s, expanded: !s.expanded } : s))}>
+                        <div className="vr-ai-togg" onClick={() => setAiSummary(prev => prev.map((s, i) => i === idx ? { ...s, expanded: !s.expanded } : s))}>
                           <span>{item.title}</span>
                           {item.expanded ? <I.ChevronUp size={12} /> : <I.ChevronDown size={12} />}
                         </div>
-                        {item.expanded && <div className="vr-ai-content">{item.content}</div>}
+                        {item.expanded && <div className="vr-ai-text">{item.content}</div>}
                       </div>
                     ))}
-                    <div className="vr-ai-divider" />
-                    <div className="vr-ai-feature">
-                      <I.Check size={12} style={{ color: '#34c759' }} />
-                      <span>Distinguish participating speakers</span>
-                    </div>
+                    <div className="vr-ai-sep" />
+                    <div className="vr-ai-feat"><I.Check size={12} style={{ color: '#34c759' }} /> Distinguish participating speakers</div>
                   </div>
-
                   {/* Live Transcript */}
-                  <div className="vr-transcript-live">
-                    {isTranscribing && (
-                      <div className="vr-transcribing-indicator">
-                        <span className="vr-pulse-dot" /> Transcribing live
-                      </div>
-                    )}
+                  <div className="vr-tran-live">
+                    {isTranscribing && <div className="vr-tran-ind"><span className="vr-pulse" /> Transcribing live</div>}
                     {transcriptLines.map(line => (
-                      <div key={line.id} className="vr-transcript-line">
-                        <div className="vr-transcript-header">
-                          <span className="vr-transcript-speaker">{line.speaker}</span>
-                          <span className="vr-transcript-time">{line.time}</span>
-                        </div>
-                        <p className="vr-transcript-text">{showTranslation ? line.zh : line.en}</p>
+                      <div key={line.id} className="vr-tran-line">
+                        <div className="vr-tran-hd"><span className="vr-tran-spk">{line.speaker}</span><span className="vr-tran-tm">{line.time}</span></div>
+                        <p className="vr-tran-txt">{showTranslation ? line.zh : line.en}</p>
                       </div>
                     ))}
                     <div ref={chatEndRef} />
                   </div>
-
                   {/* AI Secretary */}
-                  <div className="vr-ai-secretary">
-                    <div className="vr-ai-avatar">🤖</div>
-                    <div className="vr-ai-info">
-                      <span>WeMeet Secretary</span>
-                      <small>AI-powered meeting assistant</small>
-                    </div>
-                    <button className="vr-ai-action">Summary now</button>
+                  <div className="vr-ai-bot">
+                    <div className="vr-ai-bot-av">🤖</div>
+                    <div className="vr-ai-bot-info"><span>WeMeet Secretary</span><small>AI-powered meeting assistant</small></div>
+                    <button className="vr-ai-bot-btn">Summary now</button>
                   </div>
                 </div>
               </>
             )}
 
-            {/* Invite Panel — Share code to let non-contacts join */}
+            {/* Invite Panel */}
             {activePanel === 'invite' && (
               <>
                 <div className="vr-panel-hd">
-                  <div className="vr-panel-title">
-                    <I.Invite size={16} />
-                    <span>Invite to Room</span>
-                  </div>
+                  <div className="vr-panel-ttl"><I.Invite size={16} /> Invite to Room</div>
                   <button className="vr-panel-x" onClick={() => setActivePanel(null)}><I.Close size={14} /></button>
                 </div>
-                <div className="vr-invite-body">
-                  {/* Room Info */}
-                  <div className="vr-invite-section">
-                    <h4 className="vr-invite-label">Meeting ID</h4>
-                    <div className="vr-invite-code-row">
-                      <span className="vr-invite-id">{meetingId}</span>
-                      <button className="vr-invite-copy" onClick={() => copyToClipboard(meetingId, 'id')}>
-                        {inviteCopied === 'id' ? <><I.Check size={12} /> Copied</> : <><svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> Copy ID</>}
+                <div className="vr-inv-body">
+                  <div className="vr-inv-sect">
+                    <h4 className="vr-inv-lbl">Meeting ID</h4>
+                    <div className="vr-inv-row">
+                      <span className="vr-inv-id">{meetingId}</span>
+                      <button className="vr-inv-cpy" onClick={() => copyToClipboard(meetingId, 'id')}>
+                        {inviteCopied === 'id' ? <><I.Check size={12} /> Copied</> : <><I.Copy size={12} /> Copy ID</>}
                       </button>
                     </div>
                   </div>
-
-                  {/* Invite Code (One-Time Access) */}
-                  <div className="vr-invite-section vr-invite-highlight">
-                    <h4 className="vr-invite-label">
-                      <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2z"/></svg>
-                      One-Time Access Code
-                    </h4>
-                    <p className="vr-invite-desc">Share this 6-digit code. Anyone can join your room — no account or contact needed.</p>
-                    <div className="vr-invite-big-code">{inviteCode}</div>
-                    <div className="vr-invite-btn-row">
-                      <button className="vr-invite-copy vr-invite-copy-primary" onClick={() => copyToClipboard(inviteCode, 'code')}>
-                        {inviteCopied === 'code' ? <><I.Check size={12} /> Copied!</> : <><svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> Copy Code</>}
+                  <div className="vr-inv-sect vr-inv-hl">
+                    <h4 className="vr-inv-lbl"><I.Lock size={13} /> One-Time Access Code</h4>
+                    <p className="vr-inv-desc">Share this 6-digit code. Anyone can join — no account needed.</p>
+                    <div className="vr-inv-big">{inviteCode}</div>
+                    <div className="vr-inv-btns">
+                      <button className="vr-inv-cpy vr-inv-cpy-big" onClick={() => copyToClipboard(inviteCode, 'code')}>
+                        {inviteCopied === 'code' ? <><I.Check size={12} /> Copied!</> : <><I.Copy size={12} /> Copy Code</>}
                       </button>
-                      <button className="vr-invite-copy vr-invite-copy-primary" onClick={() => copyToClipboard(inviteLink, 'link')}>
-                        {inviteCopied === 'link' ? <><I.Check size={12} /> Copied!</> : <><svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg> Copy Link</>}
+                      <button className="vr-inv-cpy vr-inv-cpy-big" onClick={() => copyToClipboard(inviteLink, 'link')}>
+                        {inviteCopied === 'link' ? <><I.Check size={12} /> Copied!</> : <><I.Share size={12} /> Copy Link</>}
                       </button>
                     </div>
-                    <button className="vr-invite-refresh" onClick={regenerateCode}>
-                      <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-                      Generate New Code
-                    </button>
+                    <button className="vr-inv-ref" onClick={regenerateCode}><I.Refresh size={12} /> Generate New Code</button>
                   </div>
-
-                  {/* How it works */}
-                  <div className="vr-invite-steps">
-                    <h4 className="vr-invite-label">How participants join</h4>
-                    <div className="vr-invite-step">
-                      <span className="vr-invite-step-num">1</span>
-                      <span>Share the <strong>6-digit code</strong> or <strong>link</strong> with them (WhatsApp, SMS, email, etc.)</span>
-                    </div>
-                    <div className="vr-invite-step">
-                      <span className="vr-invite-step-num">2</span>
-                      <span>They open the link or paste the code on the <strong>Join a Room</strong> box on the dashboard.</span>
-                    </div>
-                    <div className="vr-invite-step">
-                      <span className="vr-invite-step-num">3</span>
-                      <span>They enter their name — then join your room instantly as a <strong>verified guest</strong>.</span>
-                    </div>
+                  <div className="vr-inv-steps">
+                    <h4 className="vr-inv-lbl">How participants join</h4>
+                    <div className="vr-inv-step"><span className="vr-inv-num">1</span>Share the <strong>code</strong> or <strong>link</strong> (WhatsApp, SMS, email)</div>
+                    <div className="vr-inv-step"><span className="vr-inv-num">2</span>They open the link or enter code on the dashboard <strong>Join a Room</strong> box</div>
+                    <div className="vr-inv-step"><span className="vr-inv-num">3</span>They enter their name and join instantly as a <strong>verified guest</strong></div>
                   </div>
-
-                  {/* Quick test: simulate guest join */}
-                  <div className="vr-invite-test">
-                    <h4 className="vr-invite-label">Quick Test</h4>
-                    <p className="vr-invite-desc">Simulate a guest joining with this code:</p>
-                    <div className="vr-invite-test-row">
-                      <input
-                        placeholder="Guest name..."
-                        value={guestName}
-                        onChange={e => setGuestName(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && handleGuestJoin()}
-                        className="vr-invite-test-input"
-                      />
-                      <button className="vr-invite-test-btn" onClick={handleGuestJoin} disabled={!guestName.trim()}>
-                        <I.VideoCall size={14} /> Join as Guest
-                      </button>
+                  <div className="vr-inv-test">
+                    <h4 className="vr-inv-lbl">Quick Test</h4>
+                    <p className="vr-inv-desc">Simulate a guest joining:</p>
+                    <div className="vr-inv-test-row">
+                      <input placeholder="Guest name..." value={guestName} onChange={e => setGuestName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleGuestJoin()} className="vr-inv-test-inp" />
+                      <button className="vr-inv-test-btn" onClick={handleGuestJoin} disabled={!guestName.trim()}><I.VideoCall size={14} /> Join as Guest</button>
                     </div>
                   </div>
                 </div>
@@ -1017,32 +862,29 @@ export default function VideoRoom({ user, onLeave, classData }) {
             {activePanel === 'more' && (
               <>
                 <div className="vr-panel-hd">
-                  <div className="vr-panel-title">
-                    <I.More size={16} />
-                    <span>More</span>
-                  </div>
+                  <div className="vr-panel-ttl"><I.Apps size={16} /> More</div>
                   <button className="vr-panel-x" onClick={() => setActivePanel(null)}><I.Close size={14} /></button>
                 </div>
                 <div className="vr-more-body">
-                  <button className={`vr-more-item ${isRecording ? 'vr-more-active' : ''}`} onClick={() => setIsRecording(!isRecording)}>
-                    <span className="vr-more-icon" style={isRecording ? { color: '#ff3b30' } : {}}><I.Record size={20} /></span>
-                    <div className="vr-more-text"><strong>Record</strong><small>{isRecording ? 'Recording in progress...' : 'Start recording'}</small></div>
+                  <button className={`vr-more-item ${isRecording ? 'vr-more-on' : ''}`} onClick={() => setIsRecording(!isRecording)}>
+                    <span className="vr-more-ico" style={isRecording ? { color: '#ff3b30' } : {}}><I.Record size={20} /></span>
+                    <div className="vr-more-txt"><strong>Record</strong><small>{isRecording ? 'Recording…' : 'Start recording'}</small></div>
                   </button>
-                  <button className={`vr-more-item ${isTranscribing ? 'vr-more-active' : ''}`} onClick={() => setIsTranscribing(!isTranscribing)}>
-                    <span className="vr-more-icon" style={isTranscribing ? { color: '#007aff' } : {}}><I.Caption size={20} /></span>
-                    <div className="vr-more-text"><strong>Transcription</strong><small>{isTranscribing ? 'On · AI captions active' : 'Turn on captions'}</small></div>
+                  <button className={`vr-more-item ${isTranscribing ? 'vr-more-on' : ''}`} onClick={() => setIsTranscribing(!isTranscribing)}>
+                    <span className="vr-more-ico"><I.Caption size={20} /></span>
+                    <div className="vr-more-txt"><strong>Transcription</strong><small>{isTranscribing ? 'On · AI captions' : 'Turn on captions'}</small></div>
                   </button>
                   <button className="vr-more-item">
-                    <span className="vr-more-icon"><I.Poll size={20} /></span>
-                    <div className="vr-more-text"><strong>Poll / Vote</strong><small>Create a quick poll</small></div>
+                    <span className="vr-more-ico"><I.Poll size={20} /></span>
+                    <div className="vr-more-txt"><strong>Poll / Vote</strong><small>Create a quick poll</small></div>
                   </button>
                   <button className="vr-more-item" onClick={() => setShowTranslation(!showTranslation)}>
-                    <span className="vr-more-icon"><I.Translate size={20} /></span>
-                    <div className="vr-more-text"><strong>Translation</strong><small>{showTranslation ? 'Chinese → English' : 'English → Chinese'}</small></div>
+                    <span className="vr-more-ico"><I.Translate size={20} /></span>
+                    <div className="vr-more-txt"><strong>Translation</strong><small>{showTranslation ? 'Chinese → English' : 'English → Chinese'}</small></div>
                   </button>
                   <button className="vr-more-item" onClick={() => togglePanel('invite')}>
-                    <span className="vr-more-icon"><I.Invite size={20} /></span>
-                    <div className="vr-more-text"><strong>Invite</strong><small>Share room code & invite link</small></div>
+                    <span className="vr-more-ico"><I.Invite size={20} /></span>
+                    <div className="vr-more-txt"><strong>Invite</strong><small>Share room code & link</small></div>
                   </button>
                 </div>
               </>
@@ -1051,98 +893,96 @@ export default function VideoRoom({ user, onLeave, classData }) {
         )}
       </div>
 
-      {/* ========== BOTTOM CONTROL BAR ========== */}
+      {/* ========== BOTTOM TOOLBAR (Tencent Meeting Style) ========== */}
       <div className="vr-bar-wrap">
         <div className="vr-bar">
-          {/* Left group - reactions */}
-          <div className="vr-bar-group">
+          {/* Left: Emoji + Hand */}
+          <div className="vr-bar-seg">
             <div className="vr-bar-emoji-wrap">
-              <button className="vr-bar-btn" onClick={() => setShowEmojiPicker(!showEmojiPicker)} title="Reactions">
-                <I.Emoji />
+              <button className="vr-bar-btn-sm" onClick={() => setShowEmojiPicker(!showEmojiPicker)} title="Reactions">
+                <I.Emoji size={18} />
               </button>
               {showEmojiPicker && (
-                <div className="vr-emoji-picker">
-                  {EMOJIS.map(e => <button key={e} className="vr-emoji-btn" onClick={() => sendEmoji(e)}>{e}</button>)}
+                <div className="vr-emoji-pop">
+                  {EMOJIS.map(e => <button key={e} className="vr-emoji-itm" onClick={() => sendEmoji(e)}>{e}</button>)}
                 </div>
               )}
             </div>
-            <button className={`vr-bar-btn ${handRaised ? 'vr-bar-on' : ''}`} onClick={() => setHandRaised(!handRaised)} title="Raise Hand">
-              <I.Hand />
+            <button className={`vr-bar-btn-sm ${handRaised ? 'vr-bar-act' : ''}`} onClick={() => setHandRaised(!handRaised)} title="Raise Hand">
+              <I.Hand size={18} />
             </button>
           </div>
 
-          {/* Center group - main controls */}
-          <div className="vr-bar-group">
-            <button className={`vr-bar-btn ${!audioEnabled ? 'vr-bar-off' : ''}`} onClick={toggleAudio} title="Microphone">
-              {audioEnabled ? <I.Mic /> : <I.MicOff />}
-              <span className="vr-bar-lbl">Mute</span>
+          <div className="vr-bar-div" />
+
+          {/* Center: Mute, Video, Share, Invite */}
+          <div className="vr-bar-seg">
+            <button className={`vr-bar-btn ${!audioEnabled ? 'vr-bar-off' : ''}`} onClick={toggleAudio}>
+              {audioEnabled ? <I.Mic size={20} /> : <I.MicOff size={20} />}
+              <span className="vr-bar-txt">Mute</span>
             </button>
-            <button className={`vr-bar-btn ${!videoEnabled ? 'vr-bar-off' : ''}`} onClick={toggleVideo} title="Camera">
-              {videoEnabled ? <I.Camera /> : <I.CameraOff />}
-              <span className="vr-bar-lbl">{videoEnabled ? 'Stop Video' : 'Start Video'}</span>
+            <button className={`vr-bar-btn ${!videoEnabled ? 'vr-bar-off' : ''}`} onClick={toggleVideo}>
+              {videoEnabled ? <I.Camera size={20} /> : <I.CameraOff size={20} />}
+              <span className="vr-bar-txt">Stop Video</span>
             </button>
-            <button className={`vr-bar-btn ${screenSharing ? 'vr-bar-on' : ''}`} onClick={toggleScreenShare} title="Share Screen">
-              <I.Screen />
-              <span className="vr-bar-lbl">Share Screen</span>
+            <button className={`vr-bar-btn ${screenSharing ? 'vr-bar-act' : ''}`} onClick={toggleScreenShare}>
+              <I.Screen size={20} />
+              <span className="vr-bar-txt">Share Screen</span>
             </button>
-            <button className="vr-bar-btn" onClick={() => togglePanel('invite')} title="Invite">
-              <I.Invite />
-              <span className="vr-bar-lbl">Invite</span>
+            <button className="vr-bar-btn" onClick={() => togglePanel('invite')}>
+              <I.Invite size={20} />
+              <span className="vr-bar-txt">Invite</span>
             </button>
           </div>
 
-          {/* Right group - panels */}
-          <div className="vr-bar-group">
-            <button className={`vr-bar-btn ${activePanel === 'members' ? 'vr-bar-on' : ''}`} onClick={() => togglePanel('members')} title="Attendees">
-              <I.Members />
-              <span className="vr-bar-lbl">Attendees({members.length})</span>
+          <div className="vr-bar-div" />
+
+          {/* Right: Attendees, Chat, Record, Minutes, App */}
+          <div className="vr-bar-seg">
+            <button className={`vr-bar-btn ${activePanel === 'members' ? 'vr-bar-act' : ''}`} onClick={() => togglePanel('members')}>
+              <I.Members size={20} />
+              <span className="vr-bar-txt">Attendees({members.filter(m => !m.id?.startsWith?.('demo-')).length})</span>
             </button>
-            <button className={`vr-bar-btn ${activePanel === 'chat' ? 'vr-bar-on' : ''}`} onClick={() => togglePanel('chat')} title="Chat">
-              <I.Chat />
-              <span className="vr-bar-lbl">Chat</span>
-              {chatMsgs.length > 0 && <span className="vr-bar-badge">{chatMsgs.length}</span>}
+            <button className={`vr-bar-btn ${activePanel === 'chat' ? 'vr-bar-act' : ''}`} onClick={() => togglePanel('chat')}>
+              <I.Chat size={20} />
+              <span className="vr-bar-txt">Chat</span>
+              {chatMsgs.filter(m => !m.isSystem).length > 0 && <span className="vr-bar-badge">{chatMsgs.filter(m => !m.isSystem).length}</span>}
             </button>
-            <button className={`vr-bar-btn ${activePanel === 'transcript' ? 'vr-bar-on' : ''}`} onClick={() => togglePanel('transcript')} title="Yuanbao Minutes">
-              <I.AI size={20} />
-              <span className="vr-bar-lbl">Yuanbao Minutes</span>
+            <button className={`vr-bar-btn ${isRecording ? 'vr-bar-act' : ''}`} onClick={() => setIsRecording(!isRecording)}>
+              <I.Record size={20} style={isRecording ? { color: '#ff3b30' } : {}} />
+              <span className="vr-bar-txt">Record</span>
             </button>
-            <button className="vr-bar-btn" title="Apps">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/></svg>
-              <span className="vr-bar-lbl">App</span>
+            <button className={`vr-bar-btn ${activePanel === 'transcript' ? 'vr-bar-act' : ''}`} onClick={() => togglePanel('transcript')}>
+              <I.Sparkle size={20} />
+              <span className="vr-bar-txt">Yuanbao Minutes</span>
+            </button>
+            <button className={`vr-bar-btn ${activePanel === 'more' ? 'vr-bar-act' : ''}`} onClick={() => togglePanel('more')}>
+              <I.Apps size={20} />
+              <span className="vr-bar-txt">App</span>
             </button>
           </div>
+
+          <div className="vr-bar-div" />
 
           {/* End call */}
-          <button className="vr-bar-end" onClick={handleLeave} title="End">
+          <button className="vr-bar-end" onClick={handleLeave}>
             <span>End</span>
           </button>
         </div>
       </div>
 
-      {/* ========== GUEST JOIN OVERLAY (when invite code is in URL) ========== */}
+      {/* ========== GUEST JOIN OVERLAY ========== */}
       {guestJoining && (
-        <div className="vr-ring-overlay">
+        <div className="vr-overlay">
           <div className="vr-guest-card">
-            <span className="vr-guest-icon">🔑</span>
+            <span className="vr-guest-ico">🔑</span>
             <h2>You've been invited!</h2>
-            <p className="vr-guest-room">Room code: <strong>{inviteCode}</strong></p>
-            <p className="vr-guest-desc">Enter your name to join the video classroom as a guest.</p>
-            <input
-              ref={guestInputRef}
-              className="vr-guest-input"
-              placeholder="Your name"
-              value={guestName}
-              onChange={e => setGuestName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleGuestJoin()}
-              autoFocus
-            />
-            <div className="vr-guest-actions">
-              <button className="vr-guest-join" onClick={handleGuestJoin} disabled={!guestName.trim()}>
-                <I.VideoCall size={16} /> Join Room
-              </button>
-              <button className="vr-guest-cancel" onClick={() => { setGuestJoining(false); setGuestName(''); }}>
-                Cancel
-              </button>
+            <p className="vr-guest-sub">Room code: <strong>{inviteCode}</strong></p>
+            <p className="vr-guest-desc">Enter your name to join the video classroom.</p>
+            <input ref={guestInputRef} className="vr-guest-inp" placeholder="Your name" value={guestName} onChange={e => setGuestName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleGuestJoin()} autoFocus />
+            <div className="vr-guest-acts">
+              <button className="vr-guest-join" onClick={handleGuestJoin} disabled={!guestName.trim()}><I.VideoCall size={16} /> Join Room</button>
+              <button className="vr-guest-cancel" onClick={() => { setGuestJoining(false); setGuestName(''); }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -1150,328 +990,338 @@ export default function VideoRoom({ user, onLeave, classData }) {
 
       {/* ========== RINGING OVERLAY ========== */}
       {ringing && callingMember && (
-        <div className="vr-ring-overlay">
+        <div className="vr-overlay">
           <div className="vr-ring-card">
             <span className="vr-ring-av">{callingMember.avatar}</span>
             <h2>{callingMember.name}</h2>
             <p>Calling...</p>
             <div className="vr-ring-dots"><span /><span /><span /></div>
-            <button className="vr-ring-cancel" onClick={() => { setRinging(false); setCallingMember(null); }}>
-              <I.Close size={20} />
-            </button>
+            <button className="vr-ring-cancel" onClick={() => { setRinging(false); setCallingMember(null); }}><I.Close size={20} /></button>
           </div>
         </div>
       )}
 
-      {/* ========== STYLES ========== */}
+      {/* ========== STYLES (Complete Rewrite - Tencent Meeting) ========== */}
       <style>{`
-/* ========== ROOT / RESET ========== */
-.vroom{position:fixed;inset:0;background:#f0f2f5;display:flex;flex-direction:column;z-index:200;color:#1d1d1f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;}
+/* ========== ROOT ========== */
+.vroom{position:fixed;inset:0;background:#f0f2f5;display:flex;flex-direction:column;z-index:200;color:#1d1d1f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;user-select:none;}
 
 /* ========== TOP BAR ========== */
-.vr-top{display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 12px;background:#fff;border-bottom:1px solid #e5e5e7;flex-shrink:0;z-index:10;}
-.vr-top-l{display:flex;align-items:center;gap:8px;}
-.vr-top-meeting-icon{width:22px;height:22px;background:#007aff;border-radius:5px;display:flex;align-items:center;justify-content:center;color:#fff;}
-.vr-top-info{display:flex;align-items:center;gap:6px;}
-.vr-top-title{font-size:12px;font-weight:500;color:#1d1d1f;}
-.vr-top-meta{font-size:11px;color:#8e8e93;}
-.vr-top-signal{color:#34c759;display:flex;align-items:center;}
-.vr-top-icon-btn{display:flex;align-items:center;gap:4px;padding:4px 8px;border:none;background:transparent;color:#6e6e73;border-radius:5px;cursor:pointer;font-size:11px;transition:all 0.15s;}
-.vr-top-icon-btn:hover{background:#f2f2f7;}
-.vr-top-layout-btn{display:flex;align-items:center;gap:4px;padding:4px 10px;border:1px solid #e5e5e7;background:#fff;border-radius:6px;cursor:pointer;font-size:11px;color:#1d1d1f;transition:all 0.15s;}
-.vr-top-layout-btn:hover{background:#f2f2f7;}
-.vr-top-divider{width:1px;height:16px;background:#e5e5e7;margin:0 4px;}
-.vr-top-r{display:flex;align-items:center;gap:2px;}
-.vr-top-win-btn{width:28px;height:28px;border:none;background:transparent;color:#6e6e73;border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
-.vr-top-win-btn:hover{background:#f2f2f7;}
+.vr-top{display:flex;align-items:center;justify-content:space-between;height:36px;padding:0 10px;background:#fff;border-bottom:1px solid #e5e5e7;flex-shrink:0;z-index:10;}
+.vr-top-left{display:flex;align-items:center;gap:6px;}
+.vr-top-logo{width:20px;height:20px;background:#007aff;border-radius:5px;display:flex;align-items:center;justify-content:center;color:#fff;}
+.vr-top-title{font-size:11px;font-weight:500;color:#1d1d1f;}
+.vr-top-timer{font-size:10px;color:#8e8e93;margin-left:2px;}
+.vr-top-dot{width:3px;height:3px;border-radius:50%;background:#c7c7cc;margin:0 2px;}
+.vr-top-icon{display:flex;align-items:center;justify-content:center;width:24px;height:24px;border:none;background:transparent;color:#8e8e93;border-radius:5px;cursor:pointer;transition:all 0.15s;}
+.vr-top-icon:hover{background:#f2f2f7;color:#1d1d1f;}
+
+.vr-top-right{display:flex;align-items:center;gap:2px;position:relative;}
+.vr-top-btn{display:flex;align-items:center;gap:4px;padding:4px 8px;border:1px solid transparent;background:transparent;color:#1d1d1f;border-radius:5px;cursor:pointer;font-size:11px;transition:all 0.15s;font-family:inherit;}
+.vr-top-btn:hover{background:#f2f2f7;}
+.vr-top-btn-solo{width:28px;height:28px;padding:0;justify-content:center;}
+.vr-top-sep{width:1px;height:14px;background:#e5e5e7;margin:0 4px;}
+.vr-top-win{width:26px;height:26px;border:none;background:transparent;color:#8e8e93;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.vr-top-win:hover{background:#f2f2f7;}
 .vr-top-close:hover{background:#ff3b30;color:#fff;}
 
-/* ========== MAIN ========== */
-.vr-main{flex:1;display:flex;overflow:hidden;position:relative;background:#f0f2f5;}
-.vr-video-area{flex:1;position:relative;transition:margin-right 0.25s ease;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:8px;}
+/* Layout dropdown */
+.vr-layout-menu-wrap{position:relative;}
+.vr-layout-dropdown{position:absolute;top:100%;left:0;margin-top:4px;background:#fff;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);border:1px solid #e5e5e7;padding:4px;min-width:160px;z-index:50;animation:vr-fade 0.15s;}
+@keyframes vr-fade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.vr-layout-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;cursor:pointer;font-size:12px;color:#1d1d1f;transition:all 0.15s;}
+.vr-layout-item:hover{background:#f2f2f7;}
+.vr-layout-active{background:#f0f7ff;color:#007aff;font-weight:500;}
+
+/* ========== BODY ========== */
+.vr-body{flex:1;display:flex;overflow:hidden;position:relative;}
+.vr-video-zone{flex:1;position:relative;display:flex;align-items:center;justify-content:center;padding:8px;transition:margin-right 0.25s;overflow:hidden;}
 
 /* ========== SCREEN SHARE ========== */
-.vr-screen-share{position:absolute;inset:8px;z-index:5;background:#000;border-radius:12px;overflow:hidden;}
+.vr-screen-overlay{position:absolute;inset:8px;z-index:5;background:#000;border-radius:12px;overflow:hidden;}
 .vr-screen-vid{width:100%;height:100%;object-fit:contain;}
-.vr-screen-badge{position:absolute;top:12px;left:12px;padding:5px 12px;background:rgba(0,0,0,0.7);border-radius:6px;font-size:11px;color:#fff;display:flex;align-items:center;gap:6px;backdrop-filter:blur(4px);}
+.vr-screen-badge{position:absolute;top:12px;left:12px;padding:6px 12px;background:rgba(0,0,0,0.65);border-radius:6px;font-size:11px;color:#fff;display:flex;align-items:center;gap:6px;backdrop-filter:blur(4px);}
 
-/* ========== GRID ========== */
-.vr-grid{display:grid;grid-template-columns:repeat(2, 1fr);grid-template-rows:repeat(2, 1fr);gap:8px;width:100%;height:100%;max-width:1100px;max-height:640px;}
-.vr-grid-pip{position:absolute;bottom:70px;right:12px;width:auto;height:auto;z-index:8;gap:4px;grid-template-columns:repeat(2, 160px);grid-template-rows:repeat(2, 110px);}
+/* ========== GRID LAYOUT ========== */
+.vr-grid-wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
+.vr-grid{display:grid;gap:8px;width:100%;max-height:100%;aspect-ratio:16/10;padding:8px;align-content:center;}
+
+/* Grid responsive for 1 person */
+.vr-grid:has(.vr-tile:only-child){grid-template-columns:1fr!important;grid-template-rows:1fr!important;max-width:900px;}
 
 /* ========== SPEAKER VIEW ========== */
-.vr-speaker-view{display:flex;flex-direction:column;height:100%;width:100%;max-width:1100px;}
-.vr-tile-speaker{flex:1;min-height:0;border-radius:12px;position:relative;background:#e8eaed;margin:0 0 8px;}
-.vr-speaker-strip{display:flex;gap:8px;padding:0;overflow-x:auto;justify-content:center;flex-shrink:0;}
-.vr-unpin{position:absolute;top:12px;right:12px;z-index:6;background:rgba(0,0,0,0.5);border:none;color:#fff;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;display:flex;align-items:center;gap:4px;backdrop-filter:blur(4px);}
+.vr-speaker-wrap{display:flex;flex-direction:column;height:100%;width:100%;max-width:1100px;}
+.vr-speaker-main{flex:1;min-height:0;border-radius:12px;position:relative;background:#e8eaed;margin-bottom:6px;overflow:hidden;}
+.vr-speaker-strip{display:flex;gap:6px;justify-content:center;flex-shrink:0;padding:0 4px;overflow-x:auto;}
+.vr-unpin-btn{position:absolute;top:10px;right:10px;z-index:6;background:rgba(0,0,0,0.5);border:none;color:#fff;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:10px;backdrop-filter:blur(4px);}
 
-/* ========== SPOTLIGHT (THEATER) VIEW ========== */
-.vr-spotlight-view{display:flex;gap:0;width:100%;height:100%;max-width:1200px;max-height:680px;}
-.vr-tile-spotlight{flex:1;min-width:0;border-radius:12px;position:relative;background:#e8eaed;margin:0 8px 0 0;overflow:hidden;}
-.vr-spotlight-strip{display:flex;flex-direction:column;gap:6px;width:200px;flex-shrink:0;overflow-y:auto;padding:0;}
-.vr-tile-spot{aspect-ratio:16/10;width:100%;flex-shrink:0;border-radius:10px;position:relative;background:#e8eaed;overflow:hidden;cursor:pointer;transition:all 0.2s;}
-.vr-tile-spot:hover{outline:2px solid #007aff;outline-offset:-2px;}
-.vr-tile-spot .vr-tile-vid{width:100%;height:100%;object-fit:cover;}
-.vr-tile-spot .vr-avatar-sm{font-size:18px;opacity:0.45;}
-.vr-tile-label-min{position:absolute;bottom:4px;left:4px;right:4px;padding:3px 6px;background:rgba(0,0,0,0.55);border-radius:4px;font-size:10px;color:#fff;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(6px);gap:4px;}
-.vr-tile-label-min span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* ========== SPOTLIGHT VIEW ========== */
+.vr-spotlight-wrap{display:flex;gap:6px;height:100%;width:100%;max-width:1200px;max-height:640px;}
+.vr-spotlight-main{flex:1;min-width:0;border-radius:12px;background:#e8eaed;position:relative;overflow:hidden;margin-right:2px;}
+.vr-spotlight-strip{display:flex;flex-direction:column;gap:4px;width:180px;flex-shrink:0;overflow-y:auto;}
 
-/* ========== TILES ========== */
-.vr-tile{border-radius:12px;overflow:hidden;position:relative;background:#e8eaed;transition:all 0.2s;}
-.vr-tile-grid{aspect-ratio:16/10;}
-.vr-tile-thumb{width:160px;height:100px;flex-shrink:0;cursor:pointer;border-radius:8px;}
-.vr-tile-thumb:hover{outline:2px solid #007aff;outline-offset:-2px;}
-.vr-speaking{outline:2px solid #34c759!important;outline-offset:-2px;}
+/* ========== VIDEO TILES ========== */
+.vr-tile{border-radius:10px;overflow:hidden;position:relative;background:#d5d9de;transition:all 0.2s;aspect-ratio:16/10;}
+.vr-tile-spk{outline:2px solid #34c759;outline-offset:-2px;border-radius:10px;}
 .vr-tile-vid{width:100%;height:100%;object-fit:cover;}
-.vr-tile-off{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#e8eaed;}
-.vr-avatar-big{font-size:28px;opacity:0.5;}
-.vr-avatar-sm{font-size:20px;opacity:0.5;}
+.vr-tile-bg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#d5d9de,#c4c8cd);}
+.vr-tile-emoji{font-size:40px;opacity:0.55;}
 
-/* Tile label - matching Tencent Meeting style */
-.vr-tile-label{position:absolute;bottom:10px;left:10px;right:10px;padding:6px 10px;background:rgba(0,0,0,0.55);border-radius:8px;font-size:12px;color:#fff;display:flex;align-items:center;gap:6px;flex-wrap:wrap;backdrop-filter:blur(6px);}
-.vr-tile-name{font-weight:500;}
-.vr-tile-role{font-size:10px;color:rgba(255,255,255,0.75);}
-.vr-verified{width:14px;height:14px;background:#34c759;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;}
-.vr-mute-badge{width:18px;height:18px;background:rgba(255,59,48,0.9);border-radius:50%;display:flex;align-items:center;justify-content:center;}
-.vr-speaking-badge{width:18px;height:18px;background:#34c759;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;}
-.vr-tile-label-mini{position:absolute;bottom:6px;left:6px;right:6px;padding:4px 8px;background:rgba(0,0,0,0.55);border-radius:6px;font-size:11px;color:#fff;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(6px);}
+/* Thumbnail tile */
+.vr-tile-thumb{width:160px;height:100px;flex-shrink:0;cursor:pointer;border-radius:8px;aspect-ratio:unset;}
+.vr-tile-thumb:hover{outline:2px solid #007aff;outline-offset:-2px;}
 
-/* HD Badge */
-.vr-hd-badge{position:absolute;top:16px;right:16px;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:6px;font-size:10px;font-weight:700;color:#1d1d1f;backdrop-filter:blur(4px);letter-spacing:0.5px;border:1px solid rgba(0,0,0,0.06);}
+/* Side tile */
+.vr-tile-side{width:180px;aspect-ratio:16/10;flex-shrink:0;cursor:pointer;border-radius:8px;}
+.vr-tile-side:hover{outline:2px solid #007aff;outline-offset:-2px;}
+
+/* Main tile */
+.vr-tile-main{border-radius:12px;aspect-ratio:unset;height:100%;width:100%;}
+
+/* ========== TILE NAME OVERLAY (Tencent Meeting Style) ========== */
+.vr-tile-label{position:absolute;bottom:8px;left:8px;display:flex;align-items:center;background:rgba(0,0,0,0.62);border-radius:6px;overflow:hidden;backdrop-filter:blur(8px);max-width:80%;}
+.vr-tile-label-bar{width:3px;align-self:stretch;flex-shrink:0;}
+.vr-tile-label-body{padding:4px 10px 4px 8px;display:flex;flex-direction:column;min-width:0;}
+.vr-tile-label-top{display:flex;align-items:center;gap:3px;}
+.vr-tile-label-name{font-size:11px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vr-tile-label-sub{font-size:9px;color:rgba(255,255,255,0.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;}
+.vr-tile-label-mic{padding:0 8px 0 4px;display:flex;align-items:center;flex-shrink:0;}
+
+/* Thumb tile label (compact) */
+.vr-tile-thumb .vr-tile-label{bottom:4px;left:4px;border-radius:4px;}
+.vr-tile-thumb .vr-tile-label-body{padding:2px 6px 2px 5px;}
+.vr-tile-thumb .vr-tile-label-name{font-size:10px;}
+.vr-tile-thumb .vr-tile-label-sub{display:none;}
+.vr-tile-thumb .vr-tile-label-mic{padding:0 4px 0 2px;}
+
+/* Side tile label */
+.vr-tile-side .vr-tile-label{bottom:4px;left:4px;border-radius:4px;max-width:90%;}
+.vr-tile-side .vr-tile-label-body{padding:3px 7px 3px 6px;}
+.vr-tile-side .vr-tile-label-name{font-size:10px;}
+.vr-tile-side .vr-tile-label-sub{font-size:8px;}
+.vr-tile-side .vr-tile-label-mic{padding:0 5px 0 3px;}
+
+/* ========== HD ULTRA BADGE ========== */
+.vr-hd-badge{position:absolute;top:10px;right:10px;padding:3px 8px;background:rgba(255,255,255,0.94);border-radius:5px;font-weight:700;color:#1d1d1f;backdrop-filter:blur(4px);border:1px solid rgba(0,0,0,0.08);text-align:center;z-index:4;display:flex;flex-direction:column;align-items:center;line-height:1.1;}
+.vr-hd-badge span{font-size:11px;letter-spacing:0.5px;}
+.vr-hd-badge small{font-size:7px;letter-spacing:1px;opacity:0.55;font-weight:500;}
 
 /* ========== SIDE PANEL ========== */
-.vr-panel{width:360px;background:#fff;border-left:1px solid #e5e5e7;display:flex;flex-direction:column;flex-shrink:0;position:absolute;top:0;right:0;bottom:0;z-index:15;animation:vr-slide 0.2s ease;}
-@keyframes vr-slide{from{transform:translateX(20px);opacity:0}to{transform:translateX(0);opacity:1}}
-.vr-panel-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #f2f2f7;}
-.vr-panel-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#1d1d1f;}
-.vr-panel-actions{display:flex;align-items:center;gap:6px;}
-.vr-panel-x{width:28px;height:28px;border:none;background:transparent;color:#8e8e93;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.vr-panel{width:340px;background:#fff;border-left:1px solid #e5e5e7;display:flex;flex-direction:column;flex-shrink:0;position:absolute;top:0;right:0;bottom:0;z-index:15;animation:vr-slide 0.18s ease;}
+@keyframes vr-slide{from{transform:translateX(16px);opacity:0}to{transform:translateX(0);opacity:1}}
+.vr-panel-hd{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #f2f2f7;height:42px;}
+.vr-panel-ttl{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:#1d1d1f;}
+.vr-panel-actr{display:flex;align-items:center;gap:6px;}
+.vr-panel-x{width:28px;height:28px;border:none;background:transparent;color:#8e8e93;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 .vr-panel-x:hover{background:#f2f2f7;color:#1d1d1f;}
-.vr-panel-search{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid #f2f2f7;}
-.vr-panel-search svg{color:#8e8e93;}
-.vr-panel-search input{flex:1;border:none;background:transparent;font-size:13px;color:#1d1d1f;outline:none;}
-.vr-panel-search input::placeholder{color:#c7c7cc;}
+.vr-panel-srch{display:flex;align-items:center;gap:6px;padding:8px 14px;border-bottom:1px solid #f2f2f7;}
+.vr-panel-srch input{flex:1;border:none;background:transparent;font-size:12px;color:#1d1d1f;outline:none;}
+.vr-panel-srch input::placeholder{color:#c7c7cc;}
 
-/* ========== MEMBERS ========== */
-.vr-members-body{flex:1;overflow-y:auto;padding:4px 0;}
-.vr-member-row{cursor:pointer;display:flex;align-items:center;gap:10px;padding:8px 16px;transition:background 0.15s;}
-.vr-member-row:hover{background:#f9f9fb;}
-.vr-contact-row:hover{background:#f0f7ff;}
-.vr-member-me{background:#f0f7ff;}
-.vr-member-av{font-size:32px;position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;}
-.vr-status-dot{position:absolute;bottom:0;right:0;width:8px;height:8px;border-radius:50%;border:2px solid #fff;}
-.vr-member-info{flex:1;min-width:0;display:flex;flex-direction:column;}
-.vr-member-name{font-size:13px;font-weight:500;color:#1d1d1f;display:flex;align-items:center;}
-.vr-member-sub{font-size:11px;color:#8e8e93;margin-top:1px;}
-.vr-member-actions{display:flex;align-items:center;gap:8px;}
-.vr-call-btn{width:28px;height:28px;border:none;background:#f0f7ff;color:#007aff;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
-.vr-call-btn:hover{background:#007aff;color:#fff;}
-.vr-remove-btn{width:24px;height:24px;border:none;background:transparent;color:#8e8e93;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
-.vr-remove-btn:hover{background:#ff3b30;color:#fff;}
+/* ========== MEMBERS LIST ========== */
+.vr-mem-list{flex:1;overflow-y:auto;padding:4px 0;}
+.vr-mem-row{cursor:pointer;display:flex;align-items:center;gap:8px;padding:7px 14px;transition:background 0.12s;}
+.vr-mem-row:hover{background:#f9f9fb;}
+.vr-mem-ct:hover{background:#f0f7ff;}
+.vr-mem-me{background:#f0f7ff;}
+.vr-mem-av{position:relative;width:32px;height:32px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.vr-mem-dot{position:absolute;bottom:0;right:0;width:7px;height:7px;border-radius:50%;border:2px solid #fff;}
+.vr-mem-info{flex:1;min-width:0;display:flex;flex-direction:column;}
+.vr-mem-name{font-size:12px;font-weight:500;color:#1d1d1f;display:flex;align-items:center;}
+.vr-mem-sub{font-size:10px;color:#8e8e93;}
+.vr-mem-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.vr-mem-call{width:26px;height:26px;border:none;background:#f0f7ff;color:#007aff;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.vr-mem-call:hover{background:#007aff;color:#fff;}
+.vr-mem-rm{width:22px;height:22px;border:none;background:transparent;color:#8e8e93;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.vr-mem-rm:hover{background:#ff3b30;color:#fff;}
 
-/* Members divider - Add from Contacts */
-.vr-members-divider{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 6px;font-size:11px;font-weight:600;color:#8e8e93;text-transform:uppercase;letter-spacing:0.5px;border-top:1px solid #f2f2f7;margin-top:6px;}
-.vr-members-divider-count{font-weight:400;color:#c7c7cc;text-transform:none;font-size:10px;}
-.vr-no-contacts{display:flex;flex-direction:column;align-items:center;padding:20px 16px;gap:4px;}
+.vr-mem-div{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 4px;font-size:10px;font-weight:600;color:#8e8e93;text-transform:uppercase;letter-spacing:0.5px;border-top:1px solid #f2f2f7;margin-top:4px;}
+.vr-mem-div-cnt{font-weight:400;color:#c7c7cc;text-transform:none;font-size:9px;}
+.vr-no-cts{display:flex;flex-direction:column;align-items:center;padding:16px;}
 
-/* Add Contact Form */
-.vr-add-contact-form{display:flex;flex-direction:column;gap:8px;padding:8px 16px 12px;background:#fafafa;border-bottom:1px solid #f2f2f7;margin:0;}
-.vr-add-contact-form input,.vr-add-contact-form select{padding:8px 10px;border:1px solid #e5e5e7;border-radius:8px;font-size:12px;color:#1d1d1f;background:#fff;outline:none;font-family:inherit;}
-.vr-add-contact-form input:focus,.vr-add-contact-form select:focus{border-color:#007aff;}
-.vr-add-contact-form select{cursor:pointer;}
-.vr-add-contact-actions{display:flex;gap:8px;}
-.vr-add-contact-save{flex:1;padding:7px 0;border:none;background:#007aff;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;transition:background 0.15s;}
-.vr-add-contact-save:hover{background:#0051d5;}
-.vr-add-contact-cancel{flex:1;padding:7px 0;border:1px solid #e5e5e7;background:#fff;color:#6e6e73;border-radius:8px;cursor:pointer;font-size:12px;transition:all 0.15s;}
-.vr-add-contact-cancel:hover{background:#f2f2f7;}
+.vr-add-form{display:flex;flex-direction:column;gap:6px;padding:8px 14px 10px;background:#fafafa;border-bottom:1px solid #f2f2f7;}
+.vr-add-form input,.vr-add-form select{padding:7px 9px;border:1px solid #e5e5e7;border-radius:6px;font-size:11px;color:#1d1d1f;background:#fff;outline:none;font-family:inherit;}
+.vr-add-form input:focus,.vr-add-form select:focus{border-color:#007aff;}
+.vr-add-form select{cursor:pointer;}
+.vr-add-acts{display:flex;gap:6px;}
+.vr-add-save{flex:1;padding:6px 0;border:none;background:#007aff;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:500;}
+.vr-add-save:hover{background:#0051d5;}
+.vr-add-cancel{flex:1;padding:6px 0;border:1px solid #e5e5e7;background:#fff;color:#6e6e73;border-radius:6px;cursor:pointer;font-size:11px;}
+.vr-add-cancel:hover{background:#f2f2f7;}
 
 /* ========== CHAT ========== */
 .vr-chat-body{flex:1;display:flex;flex-direction:column;overflow:hidden;}
-.vr-chat-msgs{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:10px;}
-.vr-msg{display:flex;gap:8px;align-items:flex-start;}
+.vr-chat-msgs{flex:1;overflow-y:auto;padding:10px 14px;display:flex;flex-direction:column;gap:8px;}
+.vr-msg{display:flex;gap:6px;align-items:flex-start;}
 .vr-msg-me{flex-direction:row-reverse;}
-.vr-msg-av{font-size:28px;flex-shrink:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;}
-.vr-msg-bub{max-width:78%;padding:8px 12px;background:#f2f2f7;border-radius:14px;display:flex;flex-direction:column;}
+.vr-msg-av{font-size:24px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.vr-msg-bub{max-width:75%;padding:7px 10px;background:#f2f2f7;border-radius:12px;display:flex;flex-direction:column;}
 .vr-msg-me .vr-msg-bub{background:#007aff;}
-.vr-msg-sender{font-size:11px;font-weight:500;color:#8e8e93;margin-bottom:3px;}
-.vr-msg-me .vr-msg-sender{color:rgba(255,255,255,0.7);}
-.vr-msg-txt{font-size:13px;color:#1d1d1f;line-height:1.45;word-break:break-word;}
+.vr-msg-from{font-size:10px;font-weight:500;color:#8e8e93;margin-bottom:2px;}
+.vr-msg-me .vr-msg-from{color:rgba(255,255,255,0.7);}
+.vr-msg-txt{font-size:12px;color:#1d1d1f;line-height:1.45;word-break:break-word;}
 .vr-msg-me .vr-msg-txt{color:#fff;}
-.vr-msg-emoji{font-size:28px;line-height:1;}
-
-/* System message */
-.vr-msg-system{justify-content:center!important;padding:4px 0;}
-.vr-msg-system .vr-msg-bub{background:#f0f7ff;border-radius:10px;max-width:90%;text-align:center;padding:6px 14px;font-size:11px;color:#007aff;font-weight:500;}
-
-/* Empty room label */
-.vr-empty-room-label{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);padding:8px 20px;background:rgba(0,0,0,0.55);border-radius:20px;color:#fff;font-size:12px;backdrop-filter:blur(8px);display:flex;align-items:center;gap:8px;pointer-events:none;z-index:5;}
-.vr-empty-room-label .vr-empty-dot{width:7px;height:7px;background:#ff9f0a;border-radius:50%;animation:vr-pulse 1.5s infinite;}
-.vr-msg-time{font-size:10px;color:#c7c7cc;align-self:flex-end;margin-top:4px;}
-.vr-msg-me .vr-msg-time{color:rgba(255,255,255,0.5);}
-.vr-chat-input{display:flex;gap:8px;padding:10px 16px;border-top:1px solid #f2f2f7;background:#fff;}
-.vr-chat-input input{flex:1;padding:9px 14px;background:#f2f2f7;border:1px solid transparent;border-radius:18px;color:#1d1d1f;font-size:13px;outline:none;}
-.vr-chat-input input:focus{border-color:#007aff;background:#fff;}
-.vr-chat-input input::placeholder{color:#c7c7cc;}
-.vr-chat-input button{width:36px;height:36px;border:none;background:#007aff;border-radius:50%;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;flex-shrink:0;}
-.vr-chat-input button:hover{background:#0051d5;}
+.vr-msg-emoji{font-size:24px;line-height:1;}
+.vr-msg-sys{justify-content:center!important;padding:2px 0;}
+.vr-msg-sys .vr-msg-bub{background:#f0f7ff;border-radius:8px;max-width:85%;text-align:center;padding:5px 12px;font-size:10px;color:#007aff;font-weight:500;}
+.vr-msg-ts{font-size:9px;color:#c7c7cc;align-self:flex-end;margin-top:3px;}
+.vr-msg-me .vr-msg-ts{color:rgba(255,255,255,0.5);}
+.vr-chat-inp{display:flex;gap:6px;padding:8px 14px;border-top:1px solid #f2f2f7;background:#fff;}
+.vr-chat-inp input{flex:1;padding:8px 12px;background:#f2f2f7;border:1px solid transparent;border-radius:16px;color:#1d1d1f;font-size:12px;outline:none;}
+.vr-chat-inp input:focus{border-color:#007aff;background:#fff;}
+.vr-chat-inp input::placeholder{color:#c7c7cc;}
+.vr-chat-inp button{width:32px;height:32px;border:none;background:#007aff;border-radius:50%;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.vr-chat-inp button:hover{background:#0051d5;}
 
 /* ========== TRANSCRIPT / YUANBAO MINUTES ========== */
-.vr-translate-toggle{padding:4px 10px;border:1px solid #e5e5e7;background:#fff;border-radius:6px;cursor:pointer;font-size:11px;display:flex;align-items:center;gap:4px;color:#6e6e73;transition:all 0.15s;}
-.vr-translate-on{background:#f0f7ff;border-color:#007aff;color:#007aff;}
-.vr-transcript-body{flex:1;overflow-y:auto;display:flex;flex-direction:column;}
+.vr-tran-toggle{padding:4px 8px;border:1px solid #e5e5e7;background:#fff;border-radius:5px;cursor:pointer;font-size:10px;display:flex;align-items:center;gap:3px;color:#6e6e73;}
+.vr-tran-on{background:#f0f7ff;border-color:#007aff;color:#007aff;}
+.vr-tran-body{flex:1;overflow-y:auto;display:flex;flex-direction:column;}
+.vr-ai-box{padding:10px 14px;border-bottom:1px solid #f2f2f7;background:#fafafa;}
+.vr-ai-head{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#1d1d1f;margin-bottom:8px;}
+.vr-ai-item{margin-bottom:5px;}
+.vr-ai-togg{display:flex;align-items:center;justify-content:space-between;padding:7px 9px;background:#fff;border-radius:6px;font-size:11px;font-weight:500;color:#1d1d1f;cursor:pointer;border:1px solid #e5e5e7;}
+.vr-ai-togg:hover{background:#f9f9fb;}
+.vr-ai-text{padding:7px 9px;font-size:11px;color:#6e6e73;line-height:1.55;background:#fff;border:1px solid #f2f2f7;border-top:none;border-radius:0 0 6px 6px;}
+.vr-ai-sep{height:1px;background:#e5e5e7;margin:8px 0;}
+.vr-ai-feat{display:flex;align-items:center;gap:5px;font-size:11px;color:#1d1d1f;padding:2px 0;}
+.vr-tran-live{flex:1;overflow-y:auto;padding:10px 14px;}
+.vr-tran-ind{display:flex;align-items:center;gap:5px;font-size:10px;color:#34c759;padding:2px 0 8px;font-weight:500;}
+.vr-pulse{width:5px;height:5px;background:#34c759;border-radius:50%;animation:vr-pulse 1.5s infinite;}
+@keyframes vr-pulse{0%,100%{opacity:1}50%{opacity:0.25}}
+.vr-tran-line{padding:7px 0;border-bottom:1px solid #f2f2f7;}
+.vr-tran-hd{display:flex;align-items:center;gap:6px;margin-bottom:2px;}
+.vr-tran-spk{font-size:10px;font-weight:600;color:#007aff;}
+.vr-tran-tm{font-size:9px;color:#c7c7cc;}
+.vr-tran-txt{font-size:11px;color:#3a3a3c;margin:3px 0 0;line-height:1.55;}
+.vr-ai-bot{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid #f2f2f7;background:#fafafa;}
+.vr-ai-bot-av{width:28px;height:28px;background:#007aff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.vr-ai-bot-info{flex:1;display:flex;flex-direction:column;}
+.vr-ai-bot-info span{font-size:11px;font-weight:500;color:#1d1d1f;}
+.vr-ai-bot-info small{font-size:9px;color:#8e8e93;}
+.vr-ai-bot-btn{padding:4px 10px;border:1px solid #007aff;background:#fff;color:#007aff;border-radius:5px;cursor:pointer;font-size:10px;font-weight:500;}
+.vr-ai-bot-btn:hover{background:#007aff;color:#fff;}
 
-/* AI Summary */
-.vr-ai-summary{padding:14px 16px;border-bottom:1px solid #f2f2f7;background:#fafafa;}
-.vr-ai-header{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#1d1d1f;margin-bottom:10px;}
-.vr-ai-item{margin-bottom:6px;}
-.vr-ai-title{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#fff;border-radius:8px;font-size:12px;font-weight:500;color:#1d1d1f;cursor:pointer;border:1px solid #e5e5e7;transition:all 0.15s;}
-.vr-ai-title:hover{background:#f9f9fb;}
-.vr-ai-content{padding:8px 10px;font-size:12px;color:#6e6e73;line-height:1.6;background:#fff;border:1px solid #f2f2f7;border-top:none;border-radius:0 0 8px 8px;}
-.vr-ai-divider{height:1px;background:#e5e5e7;margin:10px 0;}
-.vr-ai-feature{display:flex;align-items:center;gap:6px;font-size:12px;color:#1d1d1f;padding:4px 0;}
-
-/* Live Transcript */
-.vr-transcript-live{flex:1;overflow-y:auto;padding:12px 16px;}
-.vr-transcribing-indicator{display:flex;align-items:center;gap:6px;font-size:11px;color:#34c759;padding:4px 0 10px;font-weight:500;}
-.vr-pulse-dot{width:6px;height:6px;background:#34c759;border-radius:50%;animation:vr-pulse 1.5s infinite;}
-@keyframes vr-pulse{0%,100%{opacity:1}50%{opacity:0.3}}
-.vr-transcript-line{padding:8px 0;border-bottom:1px solid #f2f2f7;}
-.vr-transcript-header{display:flex;align-items:center;gap:8px;margin-bottom:3px;}
-.vr-transcript-speaker{font-size:11px;font-weight:600;color:#007aff;}
-.vr-transcript-time{font-size:10px;color:#c7c7cc;}
-.vr-transcript-text{font-size:12px;color:#3a3a3c;margin:4px 0 0;line-height:1.6;}
-
-/* AI Secretary */
-.vr-ai-secretary{display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid #f2f2f7;background:#fafafa;}
-.vr-ai-avatar{width:32px;height:32px;background:#007aff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;}
-.vr-ai-info{flex:1;}
-.vr-ai-info span{font-size:12px;font-weight:500;color:#1d1d1f;display:block;}
-.vr-ai-info small{font-size:10px;color:#8e8e93;}
-.vr-ai-action{padding:5px 12px;border:1px solid #007aff;background:#fff;color:#007aff;border-radius:6px;cursor:pointer;font-size:11px;transition:all 0.15s;}
-.vr-ai-action:hover{background:#007aff;color:#fff;}
+/* ========== INVITE PANEL ========== */
+.vr-inv-body{flex:1;overflow-y:auto;padding:14px;}
+.vr-inv-sect{margin-bottom:14px;}
+.vr-inv-lbl{font-size:10px;font-weight:600;color:#8e8e93;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 6px;display:flex;align-items:center;gap:3px;}
+.vr-inv-row{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f9f9fb;border-radius:8px;border:1px solid #e5e5e7;}
+.vr-inv-id{font-size:16px;font-weight:700;letter-spacing:1px;color:#1d1d1f;font-family:'SF Mono','Cascadia Code',monospace;}
+.vr-inv-cpy{display:inline-flex;align-items:center;gap:3px;padding:5px 10px;border:1px solid #e5e5e7;background:#fff;color:#007aff;border-radius:6px;cursor:pointer;font-size:10px;font-weight:500;font-family:inherit;white-space:nowrap;}
+.vr-inv-cpy:hover{background:#f0f7ff;border-color:#007aff;}
+.vr-inv-cpy-big{flex:1;justify-content:center;padding:7px 10px;font-size:11px;}
+.vr-inv-hl{padding:14px;background:linear-gradient(135deg,#f0f7ff,#fafbff);border-radius:12px;border:1.5px dashed #007aff;}
+.vr-inv-hl .vr-inv-lbl{color:#007aff;}
+.vr-inv-desc{font-size:11px;color:#6e6e73;margin:0 0 10px;line-height:1.5;}
+.vr-inv-big{font-size:32px;font-weight:800;letter-spacing:5px;color:#007aff;text-align:center;padding:8px 0 4px;font-family:'SF Mono','Cascadia Code',monospace;background:#fff;border-radius:8px;margin-bottom:10px;border:1px solid #e5e5e7;user-select:all;}
+.vr-inv-btns{display:flex;gap:6px;margin-bottom:8px;}
+.vr-inv-ref{width:100%;padding:6px;border:1px solid #e5e5e7;background:#fff;color:#6e6e73;border-radius:6px;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;gap:5px;font-family:inherit;}
+.vr-inv-ref:hover{background:#f2f2f7;}
+.vr-inv-steps{margin-top:6px;}
+.vr-inv-step{display:flex;gap:8px;padding:6px 0;font-size:11px;color:#6e6e73;line-height:1.5;}
+.vr-inv-num{width:20px;height:20px;background:#f2f2f7;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#007aff;flex-shrink:0;}
+.vr-inv-test{margin-top:14px;padding:12px;background:#f9f9fb;border-radius:10px;border:1px solid #e5e5e7;}
+.vr-inv-test-row{display:flex;gap:6px;}
+.vr-inv-test-inp{flex:1;padding:8px 10px;border:1px solid #e5e5e7;border-radius:7px;font-size:12px;color:#1d1d1f;background:#fff;outline:none;font-family:inherit;}
+.vr-inv-test-inp:focus{border-color:#007aff;}
+.vr-inv-test-btn{padding:7px 14px;border:none;background:#007aff;color:#fff;border-radius:7px;cursor:pointer;font-size:11px;font-weight:500;display:flex;align-items:center;gap:5px;font-family:inherit;white-space:nowrap;}
+.vr-inv-test-btn:hover{background:#0051d5;}
+.vr-inv-test-btn:disabled{opacity:0.4;cursor:not-allowed;}
 
 /* ========== MORE PANEL ========== */
-.vr-more-body{flex:1;padding:8px;}
-.vr-more-item{display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border:none;background:transparent;color:#1d1d1f;border-radius:10px;cursor:pointer;text-align:left;font-size:13px;transition:all 0.15s;}
+.vr-more-body{flex:1;padding:6px;}
+.vr-more-item{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:none;background:transparent;color:#1d1d1f;border-radius:8px;cursor:pointer;text-align:left;font-size:12px;font-family:inherit;}
 .vr-more-item:hover{background:#f9f9fb;}
-.vr-more-active{background:#f0f7ff!important;}
-.vr-more-icon{width:36px;height:36px;background:#f2f2f7;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#6e6e73;}
-.vr-more-text{display:flex;flex-direction:column;line-height:1.45;}
-.vr-more-text strong{font-size:13px;color:#1d1d1f;}
-.vr-more-text small{font-size:11px;color:#8e8e93;}
+.vr-more-on{background:#f0f7ff!important;}
+.vr-more-ico{width:32px;height:32px;background:#f2f2f7;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#6e6e73;}
+.vr-more-txt{display:flex;flex-direction:column;line-height:1.4;}
+.vr-more-txt strong{font-size:12px;color:#1d1d1f;}
+.vr-more-txt small{font-size:10px;color:#8e8e93;}
 
-/* ========== BOTTOM CONTROL BAR ========== */
-.vr-bar-wrap{display:flex;justify-content:center;padding:10px 0 14px;flex-shrink:0;z-index:20;background:#fff;border-top:1px solid #e5e5e7;}
-.vr-bar{display:flex;align-items:center;gap:4px;padding:4px 10px;background:#fff;border-radius:16px;}
-.vr-bar-group{display:flex;align-items:center;gap:4px;}
-.vr-bar-group::after{content:'';width:1px;height:24px;background:#e5e5e7;margin-left:6px;}
-.vr-bar-group:last-of-type::after{display:none;}
+/* ========== BOTTOM TOOLBAR (Tencent Meeting Style) ========== */
+.vr-bar-wrap{display:flex;justify-content:center;padding:8px 0 12px;flex-shrink:0;z-index:20;background:#fff;border-top:1px solid #e5e5e7;}
+.vr-bar{display:flex;align-items:center;gap:2px;padding:2px 12px;background:#fff;border-radius:14px;}
+.vr-bar-seg{display:flex;align-items:center;gap:2px;}
+.vr-bar-div{width:1px;height:24px;background:#e5e5e7;margin:0 6px;}
 
-.vr-bar-btn{position:relative;min-width:42px;height:42px;border:none;background:transparent;color:#6e6e73;border-radius:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:all 0.15s;padding:2px;}
+.vr-bar-btn{position:relative;min-width:50px;height:52px;border:none;background:transparent;color:#6e6e73;border-radius:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:all 0.15s;padding:2px;}
 .vr-bar-btn:hover{background:#f2f2f7;color:#1d1d1f;}
-.vr-bar-btn svg{width:18px;height:18px;}
-.vr-bar-lbl{font-size:8px;color:#8e8e93;line-height:1;font-weight:500;}
-.vr-bar-btn:hover .vr-bar-lbl{color:#1d1d1f;}
+.vr-bar-txt{font-size:8px;color:#8e8e93;line-height:1;font-weight:500;margin-top:1px;}
+.vr-bar-btn:hover .vr-bar-txt{color:#1d1d1f;}
 
-/* Off state - red */
+.vr-bar-btn-sm{width:38px;height:38px;border:none;background:transparent;color:#6e6e73;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.vr-bar-btn-sm:hover{background:#f2f2f7;color:#1d1d1f;}
+
 .vr-bar-off{color:#ff3b30!important;}
-.vr-bar-off:hover{background:#fff2f2!important;}
+.vr-bar-off:hover{background:#fff2f2!important;color:#e0352b!important;}
+.vr-bar-off .vr-bar-txt{color:#ff3b30!important;}
 
-/* On/active state - blue */
-.vr-bar-on{color:#007aff!important;background:#f0f7ff!important;}
-.vr-bar-on .vr-bar-lbl{color:#007aff!important;}
+.vr-bar-act{color:#007aff!important;background:#f0f7ff!important;}
+.vr-bar-act .vr-bar-txt{color:#007aff!important;}
 
-.vr-bar-badge{position:absolute;top:2px;right:4px;min-width:16px;height:16px;padding:0 4px;background:#ff3b30;border-radius:8px;font-size:9px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;line-height:1;}
+.vr-bar-badge{position:absolute;top:2px;right:4px;min-width:14px;height:14px;padding:0 3px;background:#ff3b30;border-radius:7px;font-size:8px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;line-height:1;}
 
 /* Emoji picker */
 .vr-bar-emoji-wrap{position:relative;}
-.vr-emoji-picker{position:absolute;bottom:48px;left:50%;transform:translateX(-50%);display:flex;gap:4px;padding:8px;background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.12);border:1px solid #e5e5e7;z-index:30;}
-.vr-emoji-btn{width:36px;height:36px;border:none;background:transparent;border-radius:8px;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
-.vr-emoji-btn:hover{background:#f2f2f7;transform:scale(1.15);}
+.vr-emoji-pop{position:absolute;bottom:48px;left:50%;transform:translateX(-50%);display:flex;gap:3px;padding:6px;background:#fff;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.12);border:1px solid #e5e5e7;z-index:30;}
+.vr-emoji-itm{width:32px;height:32px;border:none;background:transparent;border-radius:6px;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.vr-emoji-itm:hover{background:#f2f2f7;transform:scale(1.1);}
 
 /* End button */
-.vr-bar-end{min-width:44px;height:32px;border:none;background:#ff3b30;color:#fff;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;font-size:11px;font-weight:600;margin-left:6px;padding:0 12px;}
-.vr-bar-end:hover{background:#d70015;}
+.vr-bar-end{min-width:48px;height:36px;border:none;background:#ff3b30;color:#fff;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;font-size:12px;font-weight:600;margin-left:8px;padding:0 14px;font-family:inherit;}
+.vr-bar-end:hover{background:#d70015;transform:scale(1.02);}
 
-/* ========== RINGING OVERLAY ========== */
-.vr-ring-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);}
-.vr-ring-card{text-align:center;animation:vr-pop 0.3s ease;background:#fff;padding:40px 48px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.2);}
-@keyframes vr-pop{from{transform:scale(0.8);opacity:0}to{transform:scale(1);opacity:1}}
-.vr-ring-av{font-size:80px;display:block;margin-bottom:16px;}
-.vr-ring-card h2{color:#1d1d1f;margin:0 0 8px;font-size:22px;font-weight:600;}
-.vr-ring-card p{color:#8e8e93;margin:0 0 20px;font-size:14px;}
-.vr-ring-dots{display:flex;justify-content:center;gap:8px;margin-bottom:24px;}
-.vr-ring-dots span{width:8px;height:8px;background:#007aff;border-radius:50%;animation:vr-bounce 1.4s infinite;}
+/* ========== OVERLAYS (Guest Join / Ringing) ========== */
+.vr-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);}
+.vr-guest-card{text-align:center;animation:vr-pop 0.25s ease;background:#fff;padding:32px 40px;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,0.2);max-width:360px;width:90%;}
+.vr-guest-ico{font-size:44px;display:block;margin-bottom:10px;}
+.vr-guest-card h2{color:#1d1d1f;margin:0 0 4px;font-size:18px;font-weight:600;}
+.vr-guest-sub{font-size:12px;color:#8e8e93;margin:0 0 10px;}
+.vr-guest-sub strong{color:#007aff;letter-spacing:2px;}
+.vr-guest-desc{font-size:12px;color:#6e6e73;margin:0 0 14px;}
+.vr-guest-inp{width:100%;padding:10px 14px;border:2px solid #e5e5e7;border-radius:10px;font-size:15px;color:#1d1d1f;outline:none;text-align:center;box-sizing:border-box;font-family:inherit;}
+.vr-guest-inp:focus{border-color:#007aff;}
+.vr-guest-inp::placeholder{color:#c7c7cc;}
+.vr-guest-acts{display:flex;gap:8px;margin-top:14px;}
+.vr-guest-join{flex:1;padding:10px 0;border:none;background:#007aff;color:#fff;border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;}
+.vr-guest-join:hover{background:#0051d5;}
+.vr-guest-join:disabled{opacity:0.4;cursor:not-allowed;}
+.vr-guest-cancel{flex:1;padding:10px 0;border:1px solid #e5e5e7;background:#fff;color:#6e6e73;border-radius:10px;cursor:pointer;font-size:14px;font-weight:500;font-family:inherit;}
+.vr-guest-cancel:hover{background:#f2f2f7;}
+
+/* Ringing */
+.vr-ring-card{text-align:center;animation:vr-pop 0.25s ease;background:#fff;padding:36px 44px;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,0.2);}
+@keyframes vr-pop{from{transform:scale(0.85);opacity:0}to{transform:scale(1);opacity:1}}
+.vr-ring-av{font-size:72px;display:block;margin-bottom:12px;}
+.vr-ring-card h2{color:#1d1d1f;margin:0 0 6px;font-size:20px;font-weight:600;}
+.vr-ring-card p{color:#8e8e93;margin:0 0 16px;font-size:13px;}
+.vr-ring-dots{display:flex;justify-content:center;gap:6px;margin-bottom:20px;}
+.vr-ring-dots span{width:7px;height:7px;background:#007aff;border-radius:50%;animation:vr-bounce 1.4s infinite;}
 .vr-ring-dots span:nth-child(2){animation-delay:0.2s;}
 .vr-ring-dots span:nth-child(3){animation-delay:0.4s;}
 @keyframes vr-bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
-.vr-ring-cancel{width:52px;height:52px;border:none;background:#ff3b30;color:#fff;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;margin:0 auto;transition:all 0.15s;}
-.vr-ring-cancel:hover{background:#d70015;transform:scale(1.08);}
-
-/* ========== INVITE PANEL ========== */
-.vr-invite-body{flex:1;overflow-y:auto;padding:16px;}
-.vr-invite-section{margin-bottom:16px;}
-.vr-invite-label{font-size:11px;font-weight:600;color:#8e8e93;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 8px;display:flex;align-items:center;gap:4px;}
-.vr-invite-code-row{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#f9f9fb;border-radius:10px;border:1px solid #e5e5e7;}
-.vr-invite-id{font-size:18px;font-weight:700;letter-spacing:1px;color:#1d1d1f;font-family:'SF Mono','Cascadia Code','Fira Code',monospace;}
-.vr-invite-copy{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border:1px solid #e5e5e7;background:#fff;color:#007aff;border-radius:8px;cursor:pointer;font-size:11px;font-weight:500;transition:all 0.15s;font-family:inherit;white-space:nowrap;}
-.vr-invite-copy:hover{background:#f0f7ff;border-color:#007aff;}
-.vr-invite-copy-primary{flex:1;justify-content:center;padding:8px 12px;font-size:12px;}
-.vr-invite-highlight{padding:16px;background:linear-gradient(135deg,#f0f7ff,#fafbff);border-radius:14px;border:1.5px dashed #007aff;}
-.vr-invite-highlight .vr-invite-label{color:#007aff;}
-.vr-invite-desc{font-size:12px;color:#6e6e73;margin:0 0 12px;line-height:1.55;}
-.vr-invite-big-code{font-size:36px;font-weight:800;letter-spacing:6px;color:#007aff;text-align:center;padding:12px 0 4px;font-family:'SF Mono','Cascadia Code','Fira Code',monospace;background:#fff;border-radius:10px;margin-bottom:12px;border:1px solid #e5e5e7;user-select:all;}
-.vr-invite-btn-row{display:flex;gap:8px;margin-bottom:10px;}
-.vr-invite-refresh{width:100%;padding:8px;border:1px solid #e5e5e7;background:#fff;color:#6e6e73;border-radius:8px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.15s;font-family:inherit;}
-.vr-invite-refresh:hover{background:#f2f2f7;color:#1d1d1f;}
-.vr-invite-steps{margin-top:8px;}
-.vr-invite-step{display:flex;gap:10px;padding:8px 0;font-size:12px;color:#6e6e73;line-height:1.5;}
-.vr-invite-step-num{width:22px;height:22px;background:#f2f2f7;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#007aff;flex-shrink:0;}
-.vr-invite-test{margin-top:16px;padding:14px;background:#f9f9fb;border-radius:12px;border:1px solid #e5e5e7;}
-.vr-invite-test-row{display:flex;gap:8px;}
-.vr-invite-test-input{flex:1;padding:9px 12px;border:1px solid #e5e5e7;border-radius:8px;font-size:13px;color:#1d1d1f;background:#fff;outline:none;font-family:inherit;}
-.vr-invite-test-input:focus{border-color:#007aff;}
-.vr-invite-test-btn{padding:8px 16px;border:none;background:#007aff;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px;transition:all 0.15s;font-family:inherit;white-space:nowrap;}
-.vr-invite-test-btn:hover{background:#0051d5;}
-.vr-invite-test-btn:disabled{opacity:0.4;cursor:not-allowed;}
-
-/* ========== GUEST JOIN OVERLAY ========== */
-.vr-guest-card{text-align:center;animation:vr-pop 0.3s ease;background:#fff;padding:36px 44px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.2);max-width:380px;width:90%;}
-.vr-guest-icon{font-size:48px;display:block;margin-bottom:12px;}
-.vr-guest-card h2{color:#1d1d1f;margin:0 0 6px;font-size:20px;font-weight:600;}
-.vr-guest-room{font-size:13px;color:#8e8e93;margin:0 0 12px;}
-.vr-guest-room strong{color:#007aff;letter-spacing:2px;}
-.vr-guest-desc{font-size:13px;color:#6e6e73;margin:0 0 16px;line-height:1.5;}
-.vr-guest-input{width:100%;padding:12px 16px;border:2px solid #e5e5e7;border-radius:12px;font-size:16px;color:#1d1d1f;outline:none;text-align:center;box-sizing:border-box;transition:border 0.15s;font-family:inherit;}
-.vr-guest-input:focus{border-color:#007aff;}
-.vr-guest-input::placeholder{color:#c7c7cc;}
-.vr-guest-actions{display:flex;gap:10px;margin-top:16px;}
-.vr-guest-join{flex:1;padding:12px 0;border:none;background:#007aff;color:#fff;border-radius:12px;cursor:pointer;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.15s;font-family:inherit;}
-.vr-guest-join:hover{background:#0051d5;}
-.vr-guest-join:disabled{opacity:0.4;cursor:not-allowed;}
-.vr-guest-cancel{flex:1;padding:12px 0;border:1px solid #e5e5e7;background:#fff;color:#6e6e73;border-radius:12px;cursor:pointer;font-size:15px;font-weight:500;transition:all 0.15s;font-family:inherit;}
-.vr-guest-cancel:hover{background:#f2f2f7;}
+.vr-ring-cancel{width:48px;height:48px;border:none;background:#ff3b30;color:#fff;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;margin:0 auto;}
+.vr-ring-cancel:hover{background:#d70015;transform:scale(1.06);}
 
 /* ========== RESPONSIVE ========== */
 @media(max-width:768px){
   .vr-panel{position:fixed;inset:0;width:100%;z-index:50;}
-  .vr-bar{gap:2px;padding:4px 6px;}
-  .vr-bar-btn{min-width:38px;height:38px;}
-  .vr-bar-btn svg{width:16px;height:16px;}
-  .vr-bar-lbl{display:none;}
-  .vr-bar-group::after{margin-left:2px;}
-  .vr-bar-end{min-width:38px;height:28px;padding:0 8px;}
-  .vr-grid{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;}
-  .vr-grid-pip{grid-template-columns:repeat(2, 120px);grid-template-rows:repeat(2, 80px);}
+  .vr-bar{gap:0;padding:2px 4px;}
+  .vr-bar-btn{min-width:42px;height:46px;}
+  .vr-bar-txt{display:none;}
+  .vr-bar-div{margin:0 2px;}
+  .vr-bar-end{min-width:40px;height:32px;padding:0 10px;font-size:11px;margin-left:3px;}
+  .vr-grid{gap:4px;padding:4px;}
   .vr-speaker-strip{gap:4px;}
   .vr-tile-thumb{width:110px;height:70px;}
-  .vr-top-title{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .vr-tile{aspect-ratio:16/10;}
+  .vr-top-title{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;}
   .vr-hd-badge{display:none;}
-  .vr-spotlight-view{flex-direction:column;max-height:100%;}
-  .vr-tile-spotlight{flex:0 0 55%;margin:0 0 6px 0;}
-  .vr-spotlight-strip{flex-direction:row;width:100%;overflow-y:hidden;overflow-x:auto;gap:4px;padding:0 0 4px;flex:0 0 auto;max-height:120px;}
-  .vr-tile-spot{width:130px;flex-shrink:0;aspect-ratio:16/10;}
-  .vr-tile-label-min{padding:2px 4px;font-size:9px;}
+  .vr-spotlight-wrap{flex-direction:column;}
+  .vr-spotlight-main{flex:0 0 50%;margin:0 0 4px 0;}
+  .vr-spotlight-strip{flex-direction:row;width:100%;overflow-x:auto;overflow-y:hidden;gap:4px;max-height:110px;}
+  .vr-tile-side{width:140px;flex-shrink:0;}
 }
       `}</style>
     </div>
