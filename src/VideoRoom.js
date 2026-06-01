@@ -51,11 +51,19 @@ const fmtTime = s => {
 const statusDot = { active: '#34c759', away: '#ff9f0a', offline: '#8e8e93' };
 
 // ============== DATA ==============
-const SIM = [
-  { id:1, name:'AI Huihui', avatar:'👩', role:'Account Manager', speaking:false, videoOn:true, micOn:true, verified:true, status:'active' },
-  { id:2, name:'Wang Dapeng', avatar:'👨', role:'Technology Group GM', speaking:false, videoOn:true, micOn:true, verified:true, status:'active' },
-  { id:3, name:'Zhang Xiaoyu', avatar:'👦', role:'Product Designer', speaking:false, videoOn:true, micOn:false, verified:false, status:'active' },
-  { id:4, name:'Wang Xiaohong', avatar:'👩', role:'Sales Consultant', speaking:true, videoOn:true, micOn:true, verified:true, status:'active' },
+const CONTACTS = [
+  { id: 101, name: 'Emma Thompson', role: 'Student', email: 'emma.t@school.edu', subject: 'English', avatar: '👧', status: 'active', lastActive: 'Today' },
+  { id: 102, name: 'Lucas Chen', role: 'Student', email: 'lucas.c@school.edu', subject: 'Mathematics', avatar: '👦', status: 'active', lastActive: 'Yesterday' },
+  { id: 103, name: 'Sophia Martinez', role: 'Student', email: 'sophia.m@school.edu', subject: 'Science', avatar: '👧', status: 'away', lastActive: '2 days ago' },
+  { id: 104, name: 'James Wilson', role: 'Student', email: 'james.w@school.edu', subject: 'English', avatar: '👦', status: 'active', lastActive: 'Today' },
+  { id: 105, name: 'Olivia Brown', role: 'Student', email: 'olivia.b@school.edu', subject: 'Mathematics', avatar: '👧', status: 'offline', lastActive: '5 days ago' },
+  { id: 106, name: 'Mason Taylor', role: 'Student', email: 'mason.t@school.edu', subject: 'English', avatar: '👦', status: 'active', lastActive: 'Today' },
+  { id: 107, name: 'Isabella Anderson', role: 'Student', email: 'isabella.a@school.edu', subject: 'Science', avatar: '👧', status: 'away', lastActive: '1 day ago' },
+  { id: 108, name: 'Ethan Williams', role: 'Student', email: 'ethan.w@school.edu', subject: 'Mathematics', avatar: '👦', status: 'active', lastActive: 'Today' },
+  { id: 116, name: 'Dr. Sarah Mitchell', role: 'Teacher', email: 'sarah.m@school.edu', subject: 'English', avatar: '👩‍🏫', status: 'active', lastActive: 'Today' },
+  { id: 117, name: 'Ms. Emily Chen', role: 'Teacher', email: 'emily.c@school.edu', subject: 'Mathematics', avatar: '👩‍🏫', status: 'active', lastActive: 'Today' },
+  { id: 118, name: 'Dr. Robert Kim', role: 'Teacher', email: 'robert.k@school.edu', subject: 'Science', avatar: '👨‍🏫', status: 'away', lastActive: 'Yesterday' },
+  { id: 119, name: 'Prof. James Wilson', role: 'Teacher', email: 'james.w@school.edu', subject: 'English', avatar: '👨‍🏫', status: 'active', lastActive: 'Today' },
 ];
 
 const TX = [
@@ -104,10 +112,13 @@ export default function VideoRoom({ user, onLeave, classData }) {
   const [activePanel, setActivePanel] = useState(null);
   const [showTranslation, setShowTranslation] = useState(false);
 
-  // Members / Media
+  // Members / Media - start with ONLY the host
   const [members, setMembers] = useState([{
     id: 'me', name, avatar: av, role: 'Host', status: 'active', speaking: false, videoOn: videoEnabled, micOn: audioEnabled, isMe: true, verified: true
-  }, ...SIM]);
+  }]);
+  // Contacts (people you can invite)
+  const [contacts] = useState(CONTACTS);
+  const [contactSearch, setContactSearch] = useState('');
   const localVideoRef = useRef(null);
   const localStreamRef = useRef(null);
   const screenVideoRef = useRef(null);
@@ -115,11 +126,7 @@ export default function VideoRoom({ user, onLeave, classData }) {
 
   // Chat
   const [chatMsg, setChatMsg] = useState('');
-  const [chatMsgs, setChatMsgs] = useState([
-    { id: 1, sender: 'AI Huihui', avatar: '👩', text: 'Welcome everyone! The meeting minutes will be generated automatically.', time: '20:26', isMe: false },
-    { id: 2, sender: 'Wang Dapeng', avatar: '👨', text: 'Thanks! I can see the real-time summary on the side panel.', time: '20:26', isMe: false },
-    { id: 3, sender: 'You', avatar: av, text: 'Great feature! Ready to start.', time: '20:27', isMe: true },
-  ]);
+  const [chatMsgs, setChatMsgs] = useState([]);
   const chatEndRef = useRef(null);
 
   // Transcript
@@ -244,7 +251,7 @@ export default function VideoRoom({ user, onLeave, classData }) {
     onLeave?.();
   };
 
-  // ============== CALL A MEMBER ==============
+  // ============== CALL A CONTACT / MEMBER ==============
   const callMember = (member) => {
     if (member.isMe) return;
     setCallingMember(member);
@@ -252,8 +259,50 @@ export default function VideoRoom({ user, onLeave, classData }) {
     setTimeout(() => {
       setRinging(false);
       setCallingMember(null);
-      setMembers(prev => prev.map(m => m.id === member.id ? { ...m, status: 'active', inCall: true } : m));
+      // If not already in members, add them to the room
+      setMembers(prev => {
+        const exists = prev.find(m => m.id === member.id);
+        if (exists) {
+          return prev.map(m => m.id === member.id ? { ...m, status: 'active', inCall: true } : m);
+        }
+        return [...prev, {
+          id: member.id,
+          name: member.name,
+          avatar: member.avatar || '👤',
+          role: member.role || 'Participant',
+          subject: member.subject,
+          speaking: false,
+          videoOn: true,
+          micOn: true,
+          verified: !!member.verified,
+          status: 'active',
+          inCall: true,
+          isMe: false
+        }];
+      });
+      // Also add to chat
+      setChatMsgs(prev => [...prev, {
+        id: Date.now(),
+        sender: 'System',
+        avatar: '📞',
+        text: `${member.name} joined the call.`,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isMe: false,
+        isSystem: true
+      }]);
     }, 2500);
+  };
+
+  // Filter contacts not yet in the room
+  const availableContacts = contacts.filter(c => !members.some(m => m.id === c.id));
+  const filteredAvailable = availableContacts.filter(c => {
+    const q = contactSearch.toLowerCase();
+    return c.name.toLowerCase().includes(q) || (c.role || '').toLowerCase().includes(q) || (c.subject || '').toLowerCase().includes(q);
+  });
+
+  // Remove a participant
+  const removeMember = (memberId) => {
+    setMembers(prev => prev.filter(m => m.id !== memberId));
   };
 
   const getMemberTiles = () => {
@@ -456,6 +505,14 @@ export default function VideoRoom({ user, onLeave, classData }) {
 
           {/* HD Badge */}
           <div className="vr-hd-badge">HD ULTRA</div>
+
+          {/* Empty room label */}
+          {members.length <= 1 && (
+            <div className="vr-empty-room-label">
+              <span className="vr-empty-dot" />
+              <span>Waiting for participants · Invite from contacts to start the class</span>
+            </div>
+          )}
         </div>
 
         {/* --- Side Panel --- */}
@@ -476,6 +533,7 @@ export default function VideoRoom({ user, onLeave, classData }) {
                   <input placeholder="Search participants" />
                 </div>
                 <div className="vr-members-body">
+                  {/* Current participants */}
                   {members.map(m => (
                     <div key={m.id} className={`vr-member-row ${m.isMe ? 'vr-member-me' : ''}`}>
                       <div className="vr-member-av">
@@ -487,19 +545,53 @@ export default function VideoRoom({ user, onLeave, classData }) {
                           {m.isMe ? `${name}` : m.name}
                           {m.role === 'teacher' && <I.Crown size={10} style={{ color: '#ff9f0a', marginLeft: 4 }} />}
                         </span>
-                        <span className="vr-member-sub">{m.isMe ? 'Host' : m.role}</span>
+                        <span className="vr-member-sub">{m.isMe ? 'Host · Host' : (m.role || 'Participant')}{m.subject ? ` · ${m.subject}` : ''}</span>
                       </div>
                       <div className="vr-member-actions">
                         {m.micOn ? <I.Mic size={14} style={{ color: '#8e8e93' }} /> : <I.MicOff size={14} style={{ color: '#ff3b30' }} />}
                         {m.videoOn ? <I.Camera size={14} style={{ color: '#8e8e93' }} /> : <I.CameraOff size={14} style={{ color: '#8e8e93' }} />}
                         {!m.isMe && (
-                          <button className="vr-call-btn" onClick={() => callMember(m)} title="Call">
-                            <I.VideoCall size={14} />
+                          <button className="vr-remove-btn" onClick={() => removeMember(m.id)} title="Remove">
+                            <I.Close size={12} />
                           </button>
                         )}
                       </div>
                     </div>
                   ))}
+
+                  {/* Divider + Add from Contacts */}
+                  <div className="vr-members-divider">
+                    <span>Add from Contacts</span>
+                    <span className="vr-members-divider-count">{availableContacts.length} available</span>
+                  </div>
+                  <div className="vr-panel-search" style={{ marginTop: 0 }}>
+                    <I.Search size={14} />
+                    <input placeholder="Search contacts..." value={contactSearch} onChange={e => setContactSearch(e.target.value)} />
+                  </div>
+                  {filteredAvailable.length === 0 ? (
+                    <div className="vr-no-contacts">
+                      <span style={{ fontSize: 28, opacity: 0.4 }}>📋</span>
+                      <span style={{ fontSize: 12, color: '#8e8e93', marginTop: 6 }}>{contactSearch ? 'No contacts match your search' : 'All contacts are already in the call'}</span>
+                    </div>
+                  ) : (
+                    filteredAvailable.map(c => (
+                      <div key={c.id} className="vr-member-row">
+                        <div className="vr-member-av">
+                          <span>{c.avatar}</span>
+                          <span className="vr-status-dot" style={{ background: statusDot[c.status] || '#8e8e93' }} />
+                        </div>
+                        <div className="vr-member-info">
+                          <span className="vr-member-name">{c.name}</span>
+                          <span className="vr-member-sub">{c.role}{c.subject ? ` · ${c.subject}` : ''}</span>
+                        </div>
+                        <div className="vr-member-actions">
+                          <button className="vr-call-btn" onClick={() => callMember(c)} title="Call to join">
+                            <I.VideoCall size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </>
             )}
@@ -517,12 +609,12 @@ export default function VideoRoom({ user, onLeave, classData }) {
                 <div className="vr-chat-body">
                   <div className="vr-chat-msgs">
                     {chatMsgs.map(m => (
-                      <div key={m.id} className={`vr-msg ${m.isMe ? 'vr-msg-me' : ''}`}>
-                        <span className="vr-msg-av">{m.avatar}</span>
+                      <div key={m.id} className={`vr-msg ${m.isMe ? 'vr-msg-me' : ''} ${m.isSystem ? 'vr-msg-system' : ''}`}>
+                        {!m.isSystem && <span className="vr-msg-av">{m.avatar}</span>}
                         <div className="vr-msg-bub">
-                          <span className="vr-msg-sender">{m.sender}</span>
+                          {!m.isSystem && <span className="vr-msg-sender">{m.sender}</span>}
                           <span className={`vr-msg-txt ${m.isEmoji ? 'vr-msg-emoji' : ''}`}>{m.text}</span>
-                          <span className="vr-msg-time">{m.time}</span>
+                          {!m.isSystem && <span className="vr-msg-time">{m.time}</span>}
                         </div>
                       </div>
                     ))}
@@ -829,6 +921,13 @@ export default function VideoRoom({ user, onLeave, classData }) {
 .vr-member-actions{display:flex;align-items:center;gap:8px;}
 .vr-call-btn{width:28px;height:28px;border:none;background:#f0f7ff;color:#007aff;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
 .vr-call-btn:hover{background:#007aff;color:#fff;}
+.vr-remove-btn{width:24px;height:24px;border:none;background:transparent;color:#8e8e93;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.vr-remove-btn:hover{background:#ff3b30;color:#fff;}
+
+/* Members divider - Add from Contacts */
+.vr-members-divider{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 6px;font-size:11px;font-weight:600;color:#8e8e93;text-transform:uppercase;letter-spacing:0.5px;border-top:1px solid #f2f2f7;margin-top:6px;}
+.vr-members-divider-count{font-weight:400;color:#c7c7cc;text-transform:none;font-size:10px;}
+.vr-no-contacts{display:flex;flex-direction:column;align-items:center;padding:20px 16px;gap:4px;}
 
 /* ========== CHAT ========== */
 .vr-chat-body{flex:1;display:flex;flex-direction:column;overflow:hidden;}
@@ -843,6 +942,14 @@ export default function VideoRoom({ user, onLeave, classData }) {
 .vr-msg-txt{font-size:13px;color:#1d1d1f;line-height:1.45;word-break:break-word;}
 .vr-msg-me .vr-msg-txt{color:#fff;}
 .vr-msg-emoji{font-size:28px;line-height:1;}
+
+/* System message */
+.vr-msg-system{justify-content:center!important;padding:4px 0;}
+.vr-msg-system .vr-msg-bub{background:#f0f7ff;border-radius:10px;max-width:90%;text-align:center;padding:6px 14px;font-size:11px;color:#007aff;font-weight:500;}
+
+/* Empty room label */
+.vr-empty-room-label{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);padding:8px 20px;background:rgba(0,0,0,0.55);border-radius:20px;color:#fff;font-size:12px;backdrop-filter:blur(8px);display:flex;align-items:center;gap:8px;pointer-events:none;z-index:5;}
+.vr-empty-room-label .vr-empty-dot{width:7px;height:7px;background:#ff9f0a;border-radius:50%;animation:vr-pulse 1.5s infinite;}
 .vr-msg-time{font-size:10px;color:#c7c7cc;align-self:flex-end;margin-top:4px;}
 .vr-msg-me .vr-msg-time{color:rgba(255,255,255,0.5);}
 .vr-chat-input{display:flex;gap:8px;padding:10px 16px;border-top:1px solid #f2f2f7;background:#fff;}
