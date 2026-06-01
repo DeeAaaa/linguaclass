@@ -222,6 +222,58 @@ export default function VideoRoom({ user, onLeave, classData }) {
   const [activePanel, setActivePanel] = useState(null);
   const [showTranslation, setShowTranslation] = useState(false);
 
+  // ============== WHITEBOARD STATE ==============
+  const [showWhiteboard, setShowWhiteboard] = useState(false);
+  const [wbTool, setWbTool] = useState('pen'); // pen | eraser
+  const [wbColor, setWbColor] = useState('#1d1d1f');
+  const [wbBg, setWbBg] = useState('#ffffff'); // whiteboard default
+  const [wbLineWidth, setWbLineWidth] = useState(3);
+  const wbCanvasRef = useRef(null);
+  const wbCtxRef = useRef(null);
+  const wbDrawing = useRef(false);
+
+  // Whiteboard drawing logic
+  useEffect(() => {
+    if (!showWhiteboard) return;
+    const canvas = wbCanvasRef.current;
+    if (!canvas) return;
+    const parent = canvas.parentElement;
+    canvas.width = parent.clientWidth;
+    canvas.height = parent.clientHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = wbBg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    wbCtxRef.current = ctx;
+  }, [showWhiteboard, wbBg]);
+
+  const wbGetPos = (e) => {
+    const canvas = wbCanvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  };
+  const wbStart = (e) => { e.preventDefault(); wbDrawing.current = true; const p = wbGetPos(e); wbCtxRef.current?.beginPath(); wbCtxRef.current?.moveTo(p.x, p.y); };
+  const wbMove = (e) => {
+    e.preventDefault();
+    if (!wbDrawing.current) return;
+    const ctx = wbCtxRef.current; if (!ctx) return;
+    const p = wbGetPos(e);
+    ctx.lineWidth = wbTool === 'eraser' ? 20 : wbLineWidth;
+    ctx.strokeStyle = wbTool === 'eraser' ? wbBg : wbColor;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.lineTo(p.x, p.y); ctx.stroke();
+  };
+  const wbEnd = () => { wbDrawing.current = false; };
+  const wbClear = () => {
+    const canvas = wbCanvasRef.current; const ctx = wbCtxRef.current;
+    if (!canvas || !ctx) return;
+    ctx.fillStyle = wbBg; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  };
+  const wbToggleBg = () => setWbBg(bg => bg === '#ffffff' ? '#2c2c2e' : '#ffffff');
+  const WB_COLORS = ['#1d1d1f', '#ff3b30', '#ff9f0a', '#34c759', '#007aff', '#5856d6', '#af52de', '#ff2d55'];
+  const WB_SIZES = [1, 3, 5, 8];
+
   // DEMO members to match Tencent Meeting screenshots
   const DEMO_MEMBERS = [
     { id: 'demo-1', name: 'AI Huihui', avatar: '👩‍💼', role: 'Tencent Meeting Account Manager', status: 'active', speaking: true, videoOn: false, micOn: true, verified: true, isMe: false, subject: '' },
@@ -404,17 +456,105 @@ export default function VideoRoom({ user, onLeave, classData }) {
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMsgs]);
 
   // ============== ACTIONS ==============
-  const toggleVideo = () => {
-    const vt = localStreamRef.current?.getVideoTracks()[0];
-    if (!vt) return;
-    vt.enabled = !vt.enabled;
-    setVideoEnabled(vt.enabled);
-    setMembers(prev => prev.map(m => m.id === 'me' ? { ...m, videoOn: vt.enabled } : m));
-  };
+  const toggleVideo = useCallback(() => {
+    // 1) If we already have a local stream, toggle its video track
+    let vt = localStreamRef.current?.getVideoTracks()[0];
+    if (vt) {
+      const newState = !vt.enabled;
+      vt.enabled = newState;
+      setVideoEnabled(newState);
+      setMembers(prev => prev.map(m => m.id === 'me' ? { ...m, videoOn: newState } : m));
+      return;
+    }
+    // 2) No stream yet — attempt to acquire camera
+    (async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+        // Stop any existing tracks first
+        if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); }
+        localStreamRef.current = stream;
+        const videoTrack = stream.getVideoTracks()[0];
+        videoTrack.enabled = true;
+        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+        setVideoEnabled(true);
+        setMembers(prev => prev.map(m => m.id === 'me' ? { ...m, videoOn: true } : m));
+        // If there's an audio track too, enable it
+        const at = stream.getAudioTracks()[0];
+        if (at) { at.enabled = audioEnabled; }
+      } catch (e) {
+        console.log('Camera error on toggle:', e);
+        setVideoEnabled(false);
+        setMembers(prev => prev.map(m => m.id === 'me' ? { ...m, videoOn: false } : m));
+        // Show a subtle UI hint: camera is unavailable
+      }
+    })();
+  }, [audioEnabled]);
   const toggleAudio = () => {
     setAudioEnabled(!audioEnabled);
     setMembers(prev => prev.map(m => m.id === 'me' ? { ...m, micOn: !audioEnabled } : m));
   };
+
+  // ============== SPEECH TO TEXT (STT) ==============
+  const [isSTTActive, setIsSTTActive] = useState(false);
+  const sttRecognitionRef = useRef(null);
+
+  const toggleSTT = () => {
+    if (isSTTActive) {
+      sttRecognitionRef.current?.stop();
+      setIsSTTActive(false);
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Speech recognition is not supported in this browser. Use Chrome or Edge.');
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    recognition.onresult = (event) => {
+      let interim = '';
+      let final = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) final += transcript;
+        else interim += transcript;
+      }
+      // Show interim in chat input
+      if (final || interim) setChatMsg(prev => (prev || '') + final + (interim ? interim : ''));
+    };
+    recognition.onerror = (e) => {
+      if (e.error === 'no-speech' || e.error === 'aborted') return;
+      setIsSTTActive(false);
+    };
+    recognition.onend = () => { if (isSTTActive) recognition.start(); };
+    recognition.start();
+    sttRecognitionRef.current = recognition;
+    setIsSTTActive(true);
+  };
+
+  // ============== TEXT TO SPEECH (TTS) ==============
+  const [isTTSActive, setIsTTSActive] = useState(false);
+  const speakText = (text) => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.95;
+    utterance.onend = () => setIsTTSActive(false);
+    window.speechSynthesis.speak(utterance);
+    setIsTTSActive(true);
+  };
+  const toggleTTS = () => {
+    if (isTTSActive) { window.speechSynthesis?.cancel(); setIsTTSActive(false); return; }
+    // Read the latest transcript line
+    const lastLine = transcriptLines[transcriptLines.length - 1];
+    if (lastLine) speakText(lastLine.en);
+  };
+
+  // Cleanup STT on leave
+  useEffect(() => () => { sttRecognitionRef.current?.stop(); window.speechSynthesis?.cancel(); }, []);
 
   const toggleScreenShare = async () => {
     if (screenSharing) {
@@ -817,18 +957,48 @@ export default function VideoRoom({ user, onLeave, classData }) {
                   <button className="vr-panel-x" onClick={() => setActivePanel(null)}><I.Close size={14} /></button>
                 </div>
                 <div className="vr-inv-body">
+                  {/* Option 1 — Invite from Contacts */}
                   <div className="vr-inv-sect">
-                    <h4 className="vr-inv-lbl">Meeting ID</h4>
-                    <div className="vr-inv-row">
-                      <span className="vr-inv-id">{meetingId}</span>
-                      <button className="vr-inv-cpy" onClick={() => copyToClipboard(meetingId, 'id')}>
-                        {inviteCopied === 'id' ? <><I.Check size={12} /> Copied</> : <><I.Copy size={12} /> Copy ID</>}
-                      </button>
+                    <h4 className="vr-inv-lbl"><I.Members size={12} /> Option 1 — Invite from Contacts</h4>
+                    <p className="vr-inv-desc">Click a contact below to invite them into the room.</p>
+                    <div className="vr-panel-srch" style={{ margin: '0 0 6px', padding: '6px 10px' }}>
+                      <I.Search size={13} style={{ color: '#8e8e93' }} />
+                      <input placeholder="Search contacts..." value={contactSearch} onChange={e => setContactSearch(e.target.value)} style={{ fontSize: 11 }} />
                     </div>
+                    <div className="vr-inv-ct-list">
+                      {filteredAvailable.length === 0 ? (
+                        <div className="vr-no-cts">
+                          <span style={{ fontSize: 24, opacity: 0.4 }}>📋</span>
+                          <span style={{ fontSize: 11, color: '#8e8e93', marginTop: 4 }}>
+                            {contactSearch ? 'No contacts match' : contacts.length === 0 ? 'No contacts yet' : 'All contacts are already in the room'}
+                          </span>
+                        </div>
+                      ) : (
+                        filteredAvailable.slice(0, 6).map(c => (
+                          <div key={c.id} className="vr-inv-ct-row" onClick={() => callMember(c)}>
+                            <span className="vr-inv-ct-av">{c.avatar}</span>
+                            <div className="vr-inv-ct-info">
+                              <span className="vr-inv-ct-name">{c.name}</span>
+                              <span className="vr-inv-ct-sub">{c.role}{c.subject ? ` · ${c.subject}` : ''}</span>
+                            </div>
+                            <button className="vr-inv-ct-call" onClick={(e) => { e.stopPropagation(); callMember(c); }}>
+                              <I.VideoCall size={12} /> Invite
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    {filteredAvailable.length > 6 && (
+                      <button className="vr-inv-seeall" onClick={() => setActivePanel('members')}>See all contacts →</button>
+                    )}
                   </div>
+
+                  <div className="vr-inv-sep-or"><span>or</span></div>
+
+                  {/* Option 2 — By Code / Link */}
                   <div className="vr-inv-sect vr-inv-hl">
-                    <h4 className="vr-inv-lbl"><I.Lock size={13} /> One-Time Access Code</h4>
-                    <p className="vr-inv-desc">Share this 6-digit code. Anyone can join — no account needed.</p>
+                    <h4 className="vr-inv-lbl"><I.Lock size={13} /> Option 2 — Invite by Code</h4>
+                    <p className="vr-inv-desc">Share this 6-digit code or link. Anyone can join — no account needed.</p>
                     <div className="vr-inv-big">{inviteCode}</div>
                     <div className="vr-inv-btns">
                       <button className="vr-inv-cpy vr-inv-cpy-big" onClick={() => copyToClipboard(inviteCode, 'code')}>
@@ -840,15 +1010,16 @@ export default function VideoRoom({ user, onLeave, classData }) {
                     </div>
                     <button className="vr-inv-ref" onClick={regenerateCode}><I.Refresh size={12} /> Generate New Code</button>
                   </div>
+
                   <div className="vr-inv-steps">
                     <h4 className="vr-inv-lbl">How participants join</h4>
                     <div className="vr-inv-step"><span className="vr-inv-num">1</span>Share the <strong>code</strong> or <strong>link</strong> (WhatsApp, SMS, email)</div>
                     <div className="vr-inv-step"><span className="vr-inv-num">2</span>They open the link or enter code on the dashboard <strong>Join a Room</strong> box</div>
                     <div className="vr-inv-step"><span className="vr-inv-num">3</span>They enter their name and join instantly as a <strong>verified guest</strong></div>
                   </div>
+
                   <div className="vr-inv-test">
-                    <h4 className="vr-inv-lbl">Quick Test</h4>
-                    <p className="vr-inv-desc">Simulate a guest joining:</p>
+                    <h4 className="vr-inv-lbl">Quick Test — Simulate Guest</h4>
                     <div className="vr-inv-test-row">
                       <input placeholder="Guest name..." value={guestName} onChange={e => setGuestName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleGuestJoin()} className="vr-inv-test-inp" />
                       <button className="vr-inv-test-btn" onClick={handleGuestJoin} disabled={!guestName.trim()}><I.VideoCall size={14} /> Join as Guest</button>
@@ -911,6 +1082,12 @@ export default function VideoRoom({ user, onLeave, classData }) {
             <button className={`vr-bar-btn-sm ${handRaised ? 'vr-bar-act' : ''}`} onClick={() => setHandRaised(!handRaised)} title="Raise Hand">
               <I.Hand size={18} />
             </button>
+            <button className={`vr-bar-btn-sm ${isSTTActive ? 'vr-bar-act' : ''}`} onClick={toggleSTT} title={isSTTActive ? 'Stop speech-to-text' : 'Speech to Text'}>
+              <I.Caption size={18} style={isSTTActive ? { color: '#34c759' } : {}} />
+            </button>
+            <button className={`vr-bar-btn-sm ${isTTSActive ? 'vr-bar-act' : ''}`} onClick={toggleTTS} title={isTTSActive ? 'Stop TTS' : 'Text to Speech — Read latest transcript'}>
+              <I.Speaker size={18} style={isTTSActive ? { color: '#007aff' } : {}} />
+            </button>
           </div>
 
           <div className="vr-bar-div" />
@@ -923,7 +1100,7 @@ export default function VideoRoom({ user, onLeave, classData }) {
             </button>
             <button className={`vr-bar-btn ${!videoEnabled ? 'vr-bar-off' : ''}`} onClick={toggleVideo}>
               {videoEnabled ? <I.Camera size={20} /> : <I.CameraOff size={20} />}
-              <span className="vr-bar-txt">Stop Video</span>
+              <span className="vr-bar-txt">{videoEnabled ? 'Stop Video' : 'Start Video'}</span>
             </button>
             <button className={`vr-bar-btn ${screenSharing ? 'vr-bar-act' : ''}`} onClick={toggleScreenShare}>
               <I.Screen size={20} />
@@ -960,6 +1137,10 @@ export default function VideoRoom({ user, onLeave, classData }) {
               <I.Apps size={20} />
               <span className="vr-bar-txt">App</span>
             </button>
+            <button className={`vr-bar-btn ${showWhiteboard ? 'vr-bar-act' : ''}`} onClick={() => setShowWhiteboard(!showWhiteboard)}>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M3 3h18v14H3V3zm16 12V5H5v10h14zM3 21h18v-2H3v2z"/></svg>
+              <span className="vr-bar-txt">Board</span>
+            </button>
           </div>
 
           <div className="vr-bar-div" />
@@ -984,6 +1165,54 @@ export default function VideoRoom({ user, onLeave, classData }) {
               <button className="vr-guest-join" onClick={handleGuestJoin} disabled={!guestName.trim()}><I.VideoCall size={16} /> Join Room</button>
               <button className="vr-guest-cancel" onClick={() => { setGuestJoining(false); setGuestName(''); }}>Cancel</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== WHITEBOARD OVERLAY ========== */}
+      {showWhiteboard && (
+        <div className="vr-wb-overlay">
+          <div className="vr-wb-toolbar">
+            <button className={`vr-wb-tool ${wbTool === 'pen' ? 'vr-wb-active' : ''}`} onClick={() => setWbTool('pen')} title="Pen">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+            </button>
+            <button className={`vr-wb-tool ${wbTool === 'eraser' ? 'vr-wb-active' : ''}`} onClick={() => setWbTool('eraser')} title="Eraser">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53c-.78.78-1.92.78-2.7 0L9.3 20.53l-2.83 2.83H2.88l8.34-8.34-1.41-1.41-4.95 4.95-1.41-1.41 4.95-4.95L7 10.86 2.05 15.8c-.78.79-.78 2.05 0 2.84l4.95 4.94c.78.78 2.05.78 2.83 0l9.36-9.35c.78-.79.78-2.05 0-2.84l-2.95-2.99z"/></svg>
+            </button>
+            <div className="vr-wb-sep" />
+            {WB_COLORS.map(c => (
+              <button key={c} className="vr-wb-color" style={{ background: c, outline: wbColor === c && wbTool === 'pen' ? '2px solid #007aff' : 'none', outlineOffset: 2 }} onClick={() => { setWbColor(c); setWbTool('pen'); }} />
+            ))}
+            <div className="vr-wb-sep" />
+            {WB_SIZES.map(s => (
+              <button key={s} className={`vr-wb-sz ${wbLineWidth === s ? 'vr-wb-sz-act' : ''}`} onClick={() => setWbLineWidth(s)}>
+                <span style={{ width: s * 3, height: s * 3, borderRadius: '50%', background: '#1d1d1f' }} />
+              </button>
+            ))}
+            <div className="vr-wb-sep" />
+            <button className="vr-wb-tool" onClick={wbToggleBg} title={wbBg === '#ffffff' ? 'Switch to Blackboard' : 'Switch to Whiteboard'}>
+              {wbBg === '#ffffff' ? '◼' : '◻'}
+            </button>
+            <button className="vr-wb-tool" onClick={wbClear} title="Clear All">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            </button>
+            <div className="vr-wb-sep" />
+            <button className="vr-wb-tool vr-wb-close" onClick={() => setShowWhiteboard(false)} title="Close Whiteboard">
+              <I.Close size={16} />
+            </button>
+          </div>
+          <div className="vr-wb-canvas-wrap" style={{ background: wbBg }}>
+            <canvas
+              ref={wbCanvasRef}
+              className="vr-wb-canvas"
+              onMouseDown={wbStart}
+              onMouseMove={wbMove}
+              onMouseUp={wbEnd}
+              onMouseLeave={wbEnd}
+              onTouchStart={wbStart}
+              onTouchMove={wbMove}
+              onTouchEnd={wbEnd}
+            />
           </div>
         </div>
       )}
@@ -1229,6 +1458,20 @@ export default function VideoRoom({ user, onLeave, classData }) {
 .vr-inv-test-btn:hover{background:#0051d5;}
 .vr-inv-test-btn:disabled{opacity:0.4;cursor:not-allowed;}
 
+.vr-inv-ct-list{max-height:230px;overflow-y:auto;margin-bottom:4px;}
+.vr-inv-ct-row{display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-radius:8px;transition:all 0.12s;}
+.vr-inv-ct-row:hover{background:#f0f7ff;}
+.vr-inv-ct-av{font-size:24px;width:30px;text-align:center;flex-shrink:0;}
+.vr-inv-ct-info{flex:1;min-width:0;display:flex;flex-direction:column;}
+.vr-inv-ct-name{font-size:12px;font-weight:500;color:#1d1d1f;}
+.vr-inv-ct-sub{font-size:10px;color:#8e8e93;}
+.vr-inv-ct-call{display:flex;align-items:center;gap:4px;padding:5px 10px;border:1px solid #007aff;background:#fff;color:#007aff;border-radius:6px;cursor:pointer;font-size:10px;font-weight:500;font-family:inherit;white-space:nowrap;flex-shrink:0;}
+.vr-inv-ct-call:hover{background:#007aff;color:#fff;}
+.vr-inv-seeall{width:100%;padding:5px;border:none;background:transparent;color:#007aff;font-size:10px;cursor:pointer;text-align:center;font-family:inherit;}
+.vr-inv-seeall:hover{text-decoration:underline;}
+.vr-inv-sep-or{display:flex;align-items:center;gap:10px;margin:12px 0;color:#c7c7cc;font-size:10px;font-weight:500;}
+.vr-inv-sep-or::before,.vr-inv-sep-or::after{content:'';flex:1;height:1px;background:#e5e5e7;}
+
 /* ========== MORE PANEL ========== */
 .vr-more-body{flex:1;padding:6px;}
 .vr-more-item{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:none;background:transparent;color:#1d1d1f;border-radius:8px;cursor:pointer;text-align:left;font-size:12px;font-family:inherit;}
@@ -1303,6 +1546,23 @@ export default function VideoRoom({ user, onLeave, classData }) {
 @keyframes vr-bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
 .vr-ring-cancel{width:48px;height:48px;border:none;background:#ff3b30;color:#fff;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;margin:0 auto;}
 .vr-ring-cancel:hover{background:#d70015;transform:scale(1.06);}
+
+/* ========== WHITEBOARD ========== */
+.vr-wb-overlay{position:fixed;inset:0;z-index:250;display:flex;flex-direction:column;background:rgba(0,0,0,0.7);backdrop-filter:blur(2px);}
+.vr-wb-toolbar{display:flex;align-items:center;gap:4px;padding:6px 12px;background:#fff;border-bottom:1px solid #e5e5e7;flex-shrink:0;z-index:2;overflow-x:auto;}
+.vr-wb-tool{width:34px;height:34px;border:none;background:transparent;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6e6e73;transition:all 0.15s;font-size:14px;}
+.vr-wb-tool:hover{background:#f2f2f7;color:#1d1d1f;}
+.vr-wb-active{background:#f0f7ff!important;color:#007aff!important;}
+.vr-wb-sep{width:1px;height:20px;background:#e5e5e7;margin:0 4px;flex-shrink:0;}
+.vr-wb-color{width:22px;height:22px;border-radius:50%;border:1px solid rgba(0,0,0,0.12);cursor:pointer;flex-shrink:0;transition:transform 0.15s;}
+.vr-wb-color:hover{transform:scale(1.15);}
+.vr-wb-sz{width:28px;height:28px;border:none;background:transparent;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.vr-wb-sz:hover{background:#f2f2f7;}
+.vr-wb-sz-act{background:#f0f7ff!important;}
+.vr-wb-close{margin-left:auto;}
+.vr-wb-close:hover{background:#ff3b30!important;color:#fff!important;}
+.vr-wb-canvas-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:20px;}
+.vr-wb-canvas{border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.15);cursor:crosshair;max-width:100%;max-height:100%;}
 
 /* ========== RESPONSIVE ========== */
 @media(max-width:768px){
