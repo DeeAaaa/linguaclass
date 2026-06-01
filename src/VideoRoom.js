@@ -51,20 +51,82 @@ const fmtTime = s => {
 const statusDot = { active: '#34c759', away: '#ff9f0a', offline: '#8e8e93' };
 
 // ============== DATA ==============
-const CONTACTS = [
-  { id: 101, name: 'Emma Thompson', role: 'Student', email: 'emma.t@school.edu', subject: 'English', avatar: '👧', status: 'active', lastActive: 'Today' },
-  { id: 102, name: 'Lucas Chen', role: 'Student', email: 'lucas.c@school.edu', subject: 'Mathematics', avatar: '👦', status: 'active', lastActive: 'Yesterday' },
-  { id: 103, name: 'Sophia Martinez', role: 'Student', email: 'sophia.m@school.edu', subject: 'Science', avatar: '👧', status: 'away', lastActive: '2 days ago' },
-  { id: 104, name: 'James Wilson', role: 'Student', email: 'james.w@school.edu', subject: 'English', avatar: '👦', status: 'active', lastActive: 'Today' },
-  { id: 105, name: 'Olivia Brown', role: 'Student', email: 'olivia.b@school.edu', subject: 'Mathematics', avatar: '👧', status: 'offline', lastActive: '5 days ago' },
-  { id: 106, name: 'Mason Taylor', role: 'Student', email: 'mason.t@school.edu', subject: 'English', avatar: '👦', status: 'active', lastActive: 'Today' },
-  { id: 107, name: 'Isabella Anderson', role: 'Student', email: 'isabella.a@school.edu', subject: 'Science', avatar: '👧', status: 'away', lastActive: '1 day ago' },
-  { id: 108, name: 'Ethan Williams', role: 'Student', email: 'ethan.w@school.edu', subject: 'Mathematics', avatar: '👦', status: 'active', lastActive: 'Today' },
-  { id: 116, name: 'Dr. Sarah Mitchell', role: 'Teacher', email: 'sarah.m@school.edu', subject: 'English', avatar: '👩‍🏫', status: 'active', lastActive: 'Today' },
-  { id: 117, name: 'Ms. Emily Chen', role: 'Teacher', email: 'emily.c@school.edu', subject: 'Mathematics', avatar: '👩‍🏫', status: 'active', lastActive: 'Today' },
-  { id: 118, name: 'Dr. Robert Kim', role: 'Teacher', email: 'robert.k@school.edu', subject: 'Science', avatar: '👨‍🏫', status: 'away', lastActive: 'Yesterday' },
-  { id: 119, name: 'Prof. James Wilson', role: 'Teacher', email: 'james.w@school.edu', subject: 'English', avatar: '👨‍🏫', status: 'active', lastActive: 'Today' },
-];
+// Load contacts from registered family accounts + teachers + students in localStorage
+function loadContactsFromLocalStorage() {
+  const contacts = [];
+  const addedIds = new Set();
+
+  // 1) Family accounts (parents + children)
+  try {
+    const families = JSON.parse(localStorage.getItem('classroom_family_accounts') || '[]');
+    for (const f of families) {
+      const parentId = `family-${f.id}-parent`;
+      if (!addedIds.has(parentId)) {
+        contacts.push({ id: parentId, name: f.parentName || 'Parent', role: 'Parent', email: f.parentEmail || '', avatar: '👨‍👩‍👧', status: 'active', source: 'family' });
+        addedIds.add(parentId);
+      }
+      if (Array.isArray(f.children)) {
+        f.children.forEach((child, idx) => {
+          const cid = `family-${f.id}-child-${idx}`;
+          if (!addedIds.has(cid)) {
+            contacts.push({ id: cid, name: child.name || 'Child', role: 'Student', email: f.parentEmail || '', subject: child.subject || '', avatar: '👦', status: 'active', source: 'family' });
+            addedIds.add(cid);
+          }
+        });
+      }
+    }
+  } catch (_) {}
+
+  // 2) Managed teachers
+  try {
+    const teachers = JSON.parse(localStorage.getItem('linguaclass_teachers') || '[]');
+    for (const t of teachers) {
+      const tid = `teacher-${t.id}`;
+      if (!addedIds.has(tid) && t.name) {
+        contacts.push({ id: tid, name: t.name, role: 'Teacher', email: t.email || '', subject: t.subject || '', avatar: '👩‍🏫', status: t.status === 'inactive' ? 'offline' : 'active', source: 'teacher' });
+        addedIds.add(tid);
+      }
+    }
+  } catch (_) {}
+
+  // 3) Registered students (from admin panel)
+  try {
+    const students = JSON.parse(localStorage.getItem('linguaclass_students') || '[]');
+    for (const s of students) {
+      const sid = `student-${s.id}`;
+      if (!addedIds.has(sid) && s.name) {
+        contacts.push({ id: sid, name: s.name, role: 'Student', email: s.parentEmail || '', subject: s.subject || '', avatar: s.avatar || '👦', status: 'active', source: 'student' });
+        addedIds.add(sid);
+      }
+    }
+  } catch (_) {}
+
+  // 4) Manually added video-room contacts (persisted)
+  try {
+    const vr = JSON.parse(localStorage.getItem('video_room_contacts') || '[]');
+    for (const c of vr) {
+      if (!addedIds.has(c.id)) {
+        contacts.push({ ...c, source: 'manual' });
+        addedIds.add(c.id);
+      }
+    }
+  } catch (_) {}
+
+  // 5) Seed: if absolutely empty, show just 2 so the panel isn't blank
+  if (contacts.length === 0) {
+    contacts.push(
+      { id: 'seed-demo-student', name: 'Student Demo', role: 'Student', email: '', subject: 'English', avatar: '👧', status: 'active', source: 'seed' },
+      { id: 'seed-demo-teacher', name: 'Teacher Demo', role: 'Teacher', email: '', subject: 'Mathematics', avatar: '👩‍🏫', status: 'active', source: 'seed' }
+    );
+  }
+
+  return contacts;
+}
+
+function persistVideoRoomContacts(contacts) {
+  const manual = contacts.filter(c => c.source === 'manual');
+  localStorage.setItem('video_room_contacts', JSON.stringify(manual));
+}
 
 const TX = [
   { en:"Good morning everyone, let's get started with today's agenda.", zh:'大家早上好，让我们开始今天的议程。', speaker:'AI Huihui' },
@@ -116,9 +178,11 @@ export default function VideoRoom({ user, onLeave, classData }) {
   const [members, setMembers] = useState([{
     id: 'me', name, avatar: av, role: 'Host', status: 'active', speaking: false, videoOn: videoEnabled, micOn: audioEnabled, isMe: true, verified: true
   }]);
-  // Contacts (people you can invite)
-  const [contacts] = useState(CONTACTS);
+  // Contacts (people you can invite) — loaded from real registered data
+  const [contacts, setContacts] = useState(loadContactsFromLocalStorage);
   const [contactSearch, setContactSearch] = useState('');
+  const [showAddContactForm, setShowAddContactForm] = useState(false);
+  const [newContact, setNewContact] = useState({ name: '', role: 'Student', email: '', subject: '' });
   const localVideoRef = useRef(null);
   const localStreamRef = useRef(null);
   const screenVideoRef = useRef(null);
@@ -303,6 +367,33 @@ export default function VideoRoom({ user, onLeave, classData }) {
   // Remove a participant
   const removeMember = (memberId) => {
     setMembers(prev => prev.filter(m => m.id !== memberId));
+  };
+
+  // ============== CONTACT MANAGEMENT ==============
+  const AVATAR_MAP = { Student: '👦', Teacher: '👩‍🏫', Parent: '👨‍👩‍👧' };
+  const addContact = () => {
+    const name = (newContact.name || '').trim();
+    if (!name) return;
+    const c = {
+      id: `manual-${Date.now()}`,
+      name,
+      role: newContact.role || 'Student',
+      email: (newContact.email || '').trim(),
+      subject: (newContact.subject || '').trim(),
+      avatar: AVATAR_MAP[newContact.role] || '👤',
+      status: 'active',
+      source: 'manual'
+    };
+    const updated = [c, ...contacts];
+    setContacts(updated);
+    persistVideoRoomContacts(updated);
+    setNewContact({ name: '', role: 'Student', email: '', subject: '' });
+    setShowAddContactForm(false);
+  };
+  const removeContact = (contactId) => {
+    const updated = contacts.filter(c => c.id !== contactId);
+    setContacts(updated);
+    persistVideoRoomContacts(updated);
   };
 
   const getMemberTiles = () => {
@@ -567,7 +658,29 @@ export default function VideoRoom({ user, onLeave, classData }) {
                   <div className="vr-panel-search" style={{ marginTop: 0 }}>
                     <I.Search size={14} />
                     <input placeholder="Search contacts..." value={contactSearch} onChange={e => setContactSearch(e.target.value)} />
+                    <button className="vr-add-contact-btn" onClick={() => setShowAddContactForm(!showAddContactForm)} title="Add contact" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#007aff', padding: 2 }}>
+                      <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    </button>
                   </div>
+
+                  {/* Add Contact Form */}
+                  {showAddContactForm && (
+                    <div className="vr-add-contact-form">
+                      <input placeholder="Name *" value={newContact.name} onChange={e => setNewContact({ ...newContact, name: e.target.value })} />
+                      <select value={newContact.role} onChange={e => setNewContact({ ...newContact, role: e.target.value })}>
+                        <option value="Student">Student</option>
+                        <option value="Teacher">Teacher</option>
+                        <option value="Parent">Parent</option>
+                      </select>
+                      <input placeholder="Email (optional)" value={newContact.email} onChange={e => setNewContact({ ...newContact, email: e.target.value })} />
+                      <input placeholder="Subject (optional)" value={newContact.subject} onChange={e => setNewContact({ ...newContact, subject: e.target.value })} />
+                      <div className="vr-add-contact-actions">
+                        <button className="vr-add-contact-save" onClick={addContact}>Add Contact</button>
+                        <button className="vr-add-contact-cancel" onClick={() => { setShowAddContactForm(false); setNewContact({ name: '', role: 'Student', email: '', subject: '' }); }}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
+
                   {filteredAvailable.length === 0 ? (
                     <div className="vr-no-contacts">
                       <span style={{ fontSize: 28, opacity: 0.4 }}>📋</span>
@@ -582,12 +695,17 @@ export default function VideoRoom({ user, onLeave, classData }) {
                         </div>
                         <div className="vr-member-info">
                           <span className="vr-member-name">{c.name}</span>
-                          <span className="vr-member-sub">{c.role}{c.subject ? ` · ${c.subject}` : ''}</span>
+                          <span className="vr-member-sub">{c.role}{c.subject ? ` · ${c.subject}` : ''}{c.source === 'manual' ? ' · Added by you' : ''}</span>
                         </div>
                         <div className="vr-member-actions">
                           <button className="vr-call-btn" onClick={() => callMember(c)} title="Call to join">
                             <I.VideoCall size={14} />
                           </button>
+                          {c.source === 'manual' && (
+                            <button className="vr-remove-btn" onClick={() => removeContact(c.id)} title="Remove contact">
+                              <I.Close size={12} />
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))
@@ -928,6 +1046,17 @@ export default function VideoRoom({ user, onLeave, classData }) {
 .vr-members-divider{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 6px;font-size:11px;font-weight:600;color:#8e8e93;text-transform:uppercase;letter-spacing:0.5px;border-top:1px solid #f2f2f7;margin-top:6px;}
 .vr-members-divider-count{font-weight:400;color:#c7c7cc;text-transform:none;font-size:10px;}
 .vr-no-contacts{display:flex;flex-direction:column;align-items:center;padding:20px 16px;gap:4px;}
+
+/* Add Contact Form */
+.vr-add-contact-form{display:flex;flex-direction:column;gap:8px;padding:8px 16px 12px;background:#fafafa;border-bottom:1px solid #f2f2f7;margin:0;}
+.vr-add-contact-form input,.vr-add-contact-form select{padding:8px 10px;border:1px solid #e5e5e7;border-radius:8px;font-size:12px;color:#1d1d1f;background:#fff;outline:none;font-family:inherit;}
+.vr-add-contact-form input:focus,.vr-add-contact-form select:focus{border-color:#007aff;}
+.vr-add-contact-form select{cursor:pointer;}
+.vr-add-contact-actions{display:flex;gap:8px;}
+.vr-add-contact-save{flex:1;padding:7px 0;border:none;background:#007aff;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;transition:background 0.15s;}
+.vr-add-contact-save:hover{background:#0051d5;}
+.vr-add-contact-cancel{flex:1;padding:7px 0;border:1px solid #e5e5e7;background:#fff;color:#6e6e73;border-radius:8px;cursor:pointer;font-size:12px;transition:all 0.15s;}
+.vr-add-contact-cancel:hover{background:#f2f2f7;}
 
 /* ========== CHAT ========== */
 .vr-chat-body{flex:1;display:flex;flex-direction:column;overflow:hidden;}
