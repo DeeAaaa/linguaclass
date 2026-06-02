@@ -1,4 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import * as AgoraSvc from './agora';
+import { supabase } from './supabase';
 
 // ============== INLINE SVG ICONS ==============
 const Svg = ({ children, d, size = 20, style, ...rest }) => (
@@ -479,6 +481,9 @@ export default function VideoRoom({ user, onLeave, classData }) {
   const localStreamRef = useRef(null);
   const screenVideoRef = useRef(null);
   const [screenStream, setScreenStream] = useState(null);
+  const remotePlayerRefs = useRef({}); // Agora remote video players: { uid: DOM element }
+  const [agoraReady, setAgoraReady] = useState(false);
+  const [agoraRemoteUsers, setAgoraRemoteUsers] = useState([]);
 
   // Chat
   const [chatMsg, setChatMsg] = useState('');
@@ -577,46 +582,87 @@ export default function VideoRoom({ user, onLeave, classData }) {
     return () => clearInterval(t);
   }, []);
 
-  // ============== CAMERA: always acquire stream on mount ==============
+  // ============== AGORA INIT + CAMERA SETUP ==============
   useEffect(() => {
+    let cleanupAgora = null;
     (async () => {
+      // Try Agora first — join a real-time video channel
+      const channel = `room_${meetingId}`;
+      const uid = String(Date.now()).slice(-8);
+      const joined = await AgoraSvc.joinAgoraRoom(channel, uid);
+
+      if (joined) {
+        const tracks = await AgoraSvc.createLocalTracks(false, false);
+        if (tracks) {
+          await AgoraSvc.publishLocalTracks();
+          AgoraSvc.initAgoraCallbacks({
+            onRemoteUserPublished: (user, mediaType) => {
+              setAgoraRemoteUsers(prev => {
+                const exists = prev.find(u => u.uid === user.uid);
+                if (exists) return prev.map(u => u.uid === user.uid ? { ...u, [mediaType==='video'?'hasVideo':'hasAudio']: true } : u);
+                return [...prev, { uid: user.uid, user, hasVideo: mediaType==='video', hasAudio: mediaType==='audio', name: `User ${user.uid}`, avatar: '👤' }];
+              });
+            },
+            onRemoteUserUnpublished: (user, mediaType) => {
+              setAgoraRemoteUsers(prev => prev.map(u => u.uid === user.uid ? { ...u, [mediaType==='video'?'hasVideo':'hasAudio']: false } : u));
+            },
+            onRemoteUserLeft: (user) => {
+              setAgoraRemoteUsers(prev => prev.filter(u => u.uid !== user.uid));
+              setMembers(prev => prev.filter(m => m.id !== `agora-${user.uid}`));
+              setChatMsgs(prev => [...prev, { id: Date.now(), sender: 'System', avatar: '🌐', text: `User left the room.`, time: new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}), isMe: false, isSystem: true }]);
+            },
+            onUserJoined: (user) => {
+              setMembers(prev => {
+                if (prev.find(m => m.id === `agora-${user.uid}`)) return prev;
+                return [...prev, { id: `agora-${user.uid}`, name: `User ${user.uid}`, avatar: '👤', role: 'Participant', subject: '', speaking: false, videoOn: true, micOn: true, verified: true, isMe: false, inCall: true, source: 'agora', agoraUid: user.uid }];
+              });
+              setChatMsgs(prev => [...prev, { id: Date.now(), sender: 'System', avatar: '🌐', text: `User ${user.uid} joined via Agora.`, time: new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}), isMe: false, isSystem: true }]);
+            },
+          });
+          setAgoraReady(true);
+        }
+      }
+
+      // Always get local camera stream for preview fallback
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: true });
-        // Stop any old tracks
         if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop());
         localStreamRef.current = stream;
-        // Start with tracks disabled (camera off, mic off)
         stream.getVideoTracks().forEach(t => { t.enabled = false; });
         stream.getAudioTracks().forEach(t => { t.enabled = false; });
-        // Attach to video element if it exists (it may not yet)
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
       } catch (e) {
         console.log('Camera error:', e);
         setVideoEnabled(false);
         setMembers(prev => prev.map(m => m.id === 'me' ? { ...m, videoOn: false } : m));
       }
-    })();
-    return () => { if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; } };
-  }, []);
 
-  // Attach stream to <video> once the element appears and video is toggled on
+      cleanupAgora = () => { AgoraSvc.leaveAgoraRoom(); };
+    })();
+
+    return () => {
+      if (cleanupAgora) cleanupAgora();
+      if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
+    };
+  }, [meetingId]);
+
+  // Attach stream to <video> when video toggled on
   useEffect(() => {
     if (videoEnabled && localStreamRef.current && localVideoRef.current) {
       localVideoRef.current.srcObject = localStreamRef.current;
     }
-  }, [videoEnabled]);
+    // Agora: sync local video
+    if (agoraReady) AgoraSvc.toggleLocalVideo(videoEnabled);
+  }, [videoEnabled, agoraReady]);
 
-  // Sync video track enabled ↔ React state
+  // Sync audio enabled
   useEffect(() => {
-    const vt = localStreamRef.current?.getVideoTracks()[0];
-    if (vt) vt.enabled = videoEnabled;
-  }, [videoEnabled]);
-
-  // Sync audio track enabled ↔ React state
-  useEffect(() => {
-    const at = localStreamRef.current?.getAudioTracks()[0];
-    if (at) at.enabled = audioEnabled;
-  }, [audioEnabled]);
+    if (agoraReady) AgoraSvc.toggleLocalAudio(audioEnabled);
+    else {
+      const at = localStreamRef.current?.getAudioTracks()[0];
+      if (at) at.enabled = audioEnabled;
+    }
+  }, [audioEnabled, agoraReady]);
 
   // ============== TRANSCRIPT SIMULATION ==============
   useEffect(() => {
@@ -643,21 +689,14 @@ export default function VideoRoom({ user, onLeave, classData }) {
 
   // ============== ACTIONS ==============
   const toggleVideo = () => {
-    const vt = localStreamRef.current?.getVideoTracks()[0];
-    if (!vt) {
-      // No camera available — stay off
-      setVideoEnabled(false);
-      setMembers(prev => prev.map(m => m.id === 'me' ? { ...m, videoOn: false } : m));
-      return;
-    }
-    const newState = !vt.enabled;
-    vt.enabled = newState;
+    const newState = !videoEnabled;
     setVideoEnabled(newState);
     setMembers(prev => prev.map(m => m.id === 'me' ? { ...m, videoOn: newState } : m));
   };
   const toggleAudio = () => {
-    setAudioEnabled(!audioEnabled);
-    setMembers(prev => prev.map(m => m.id === 'me' ? { ...m, micOn: !audioEnabled } : m));
+    const newState = !audioEnabled;
+    setAudioEnabled(newState);
+    setMembers(prev => prev.map(m => m.id === 'me' ? { ...m, micOn: newState } : m));
   };
 
   // ============== SPEECH TO TEXT (STT) ==============
@@ -724,11 +763,16 @@ export default function VideoRoom({ user, onLeave, classData }) {
 
   const toggleScreenShare = async () => {
     if (screenSharing) {
+      if (agoraReady) { try { await AgoraSvc.stopScreenShare(); } catch(e){} }
       screenStream?.getTracks().forEach(t => t.stop());
       setScreenStream(null);
       setScreenSharing(false);
     } else {
       try {
+        if (agoraReady) {
+          const track = await AgoraSvc.startScreenShare(() => { setScreenSharing(false); setScreenStream(null); });
+          if (track) { setScreenSharing(true); return; }
+        }
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         setScreenStream(stream);
         if (screenVideoRef.current) screenVideoRef.current.srcObject = stream;
@@ -738,26 +782,77 @@ export default function VideoRoom({ user, onLeave, classData }) {
     }
   };
 
+  const saveChatToSupabase = useCallback(async (msg) => {
+    try {
+      await supabase.from('chat_messages').insert({
+        room_id: meetingId,
+        user_name: user?.name || 'User',
+        user_avatar: _av,
+        text: msg.text,
+        is_system: msg.isSystem || false,
+        is_emoji: msg.isEmoji || false,
+      });
+    } catch (e) { /* offline — message stays local */ }
+  }, [meetingId, user, _av]);
+
+  // Load chat messages from Supabase on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase.from('chat_messages')
+          .select('*').eq('room_id', meetingId)
+          .order('created_at', { ascending: true }).limit(200);
+        if (data && data.length > 0) {
+          const msgs = data.map(r => ({
+            id: r.id, sender: r.user_name, avatar: r.user_avatar || '👤',
+            text: r.text, time: r.created_at ? new Date(r.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '',
+            isMe: r.user_name === (user?.name || 'You'), isSystem: r.is_system, isEmoji: r.is_emoji,
+          }));
+          setChatMsgs(prev => [...msgs, ...prev]);
+        }
+      } catch (e) {}
+    })();
+  }, [meetingId, user]);
+
   const sendChat = () => {
     if (!chatMsg.trim()) return;
     const msg = { id: Date.now(), sender: 'You', avatar: _av, text: chatMsg.trim(), time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isMe: true, isSystem: false };
     setChatMsgs(prev => [...prev, msg]);
+    saveChatToSupabase(msg);
     setChatMsg('');
   };
 
   const sendEmoji = (emoji) => {
     const msg = { id: Date.now(), sender: 'You', avatar: _av, text: emoji, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isMe: true, isEmoji: true, isSystem: false };
     setChatMsgs(prev => [...prev, msg]);
+    saveChatToSupabase(msg);
     setShowEmojiPicker(false);
   };
 
   const togglePanel = (p) => setActivePanel(prev => prev === p ? null : p);
 
   const handleLeave = () => {
+    if (agoraReady) { try { AgoraSvc.leaveAgoraRoom(); } catch(e){} }
     localStreamRef.current?.getTracks().forEach(t => t.stop());
     screenStream?.getTracks().forEach(t => t.stop());
     onLeave?.();
   };
+
+  // ============== AGORA REMOTE USER SYNC ==============
+  useEffect(() => {
+    if (!agoraReady) return;
+    agoraRemoteUsers.forEach(ru => {
+      setMembers(prev => {
+        if (prev.find(m => m.id === `agora-${ru.uid}`)) return prev;
+        return [...prev, {
+          id: `agora-${ru.uid}`, name: ru.name || `User ${ru.uid}`, avatar: '👤',
+          role: 'Participant', subject: '', speaking: false,
+          videoOn: ru.hasVideo, micOn: ru.hasAudio, verified: true,
+          isMe: false, inCall: true, source: 'agora', agoraUid: ru.uid,
+        }];
+      });
+    });
+  }, [agoraReady, agoraRemoteUsers]);
 
   const callMember = (member) => {
     if (member.isMe) return;
