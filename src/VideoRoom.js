@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 // ============== INLINE SVG ICONS ==============
 const Svg = ({ children, d, size = 20, style, ...rest }) => (
@@ -18,6 +18,7 @@ const I = {
   Close: (p) => <Svg {...p} d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>,
   ChevronDown: (p) => <Svg {...p} d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"/>,
   ChevronUp: (p) => <Svg {...p} d="M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z"/>,
+  ChevronLeft: (p) => <Svg {...p} d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>,
   Speaker: (p) => <Svg {...p} d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>,
   Caption: (p) => <Svg {...p} d="M19 4H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-9 13H7v-2h3v2zm0-3H7v-1h3v1zm0-3H7V9h3v2zm4.68 6h-2.16l-.84-2h-1.68l-.84 2h-2.16L10.22 7h2.56l1.9 7zM14 11.73L13.06 9h-.12L12 11.73V13h2v-1.27z"/>,
   Record: (p) => <Svg {...p}><circle cx="12" cy="12" r="6"/></Svg>,
@@ -44,6 +45,7 @@ const I = {
   Security: (p) => <Svg {...p} d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>,
   Refresh: (p) => <Svg {...p} d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>,
   Lock: (p) => <Svg {...p} d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2z"/>,
+  Add: (p) => <Svg {...p} d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>,
 };
 
 // ============== HELPERS ==============
@@ -114,6 +116,20 @@ function loadContactsFromLocalStorage() {
       }
     }
   } catch (_) {}
+
+  // 5) Demo participants (available to invite, not auto-joined)
+  const DEMO_CONTACTS = [
+    { id: 'demo-1', name: 'AI Huihui', role: 'Account Manager', avatar: '👩‍💼', subject: '', source: 'demo' },
+    { id: 'demo-2', name: 'Wang Dapeng', role: 'Procurement Manager', avatar: '👨‍💼', subject: '', source: 'demo' },
+    { id: 'demo-3', name: 'Wang Xiaohong', role: 'Sales Consultant', avatar: '👩‍💻', subject: 'Sunshine Technology Group', source: 'demo' },
+    { id: 'demo-4', name: 'Zhang Xiaoyu', role: 'Marketing Lead', avatar: '👨‍🎓', subject: '', source: 'demo' },
+  ];
+  for (const c of DEMO_CONTACTS) {
+    if (!addedIds.has(c.id) && !removedIds.has(c.id)) {
+      contacts.push({ ...c, status: 'active' });
+      addedIds.add(c.id);
+    }
+  }
 
   return contacts;
 }
@@ -217,22 +233,55 @@ export default function VideoRoom({ user, onLeave, classData }) {
   const [pinnedMember, setPinnedMember] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
+  const [showContactsPopover, setShowContactsPopover] = useState(false);
+  const [contactPopoverSearch, setContactPopoverSearch] = useState('');
+  const [contactAddName, setContactAddName] = useState('');
+  const [contactAddRole, setContactAddRole] = useState('Student');
+  const [contactAddEmail, setContactAddEmail] = useState('');
+  const contactPopoverRef = useRef(null);
 
   // Side panels
   const [activePanel, setActivePanel] = useState(null);
   const [showTranslation, setShowTranslation] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteModalTab, setInviteModalTab] = useState('choose'); // choose | contacts | code
 
   // ============== WHITEBOARD STATE ==============
   const [showWhiteboard, setShowWhiteboard] = useState(false);
-  const [wbTool, setWbTool] = useState('pen'); // pen | eraser
+  const [wbTool, setWbTool] = useState('pen'); // pen | eraser | rect | circle | line | text
   const [wbColor, setWbColor] = useState('#1d1d1f');
-  const [wbBg, setWbBg] = useState('#ffffff'); // whiteboard default
+  const [wbBg, setWbBg] = useState('#ffffff');
   const [wbLineWidth, setWbLineWidth] = useState(3);
+  const [wbEraserSize, setWbEraserSize] = useState(20); // small=10, medium=20, large=40
+  const [wbShowText, setWbShowText] = useState(null);
+  const [wbTextInput, setWbTextInput] = useState('');
   const wbCanvasRef = useRef(null);
   const wbCtxRef = useRef(null);
   const wbDrawing = useRef(false);
+  const wbShapeStart = useRef(null);
+  const wbLastPos = useRef(null);
+  const wbSnapshot = useRef(null);
+  const wbUndoStack = useRef([]);
+  const WB_UNDO_MAX = 30;
 
-  // Whiteboard drawing logic
+  // Push current canvas state to undo stack
+  const wbPushUndo = () => {
+    const canvas = wbCanvasRef.current;
+    if (!canvas) return;
+    const data = wbCtxRef.current.getImageData(0, 0, canvas.width, canvas.height);
+    wbUndoStack.current.push(data);
+    if (wbUndoStack.current.length > WB_UNDO_MAX) wbUndoStack.current.shift();
+  };
+
+  const wbUndo = () => {
+    const canvas = wbCanvasRef.current;
+    const ctx = wbCtxRef.current;
+    if (!canvas || !ctx || wbUndoStack.current.length === 0) return;
+    const data = wbUndoStack.current.pop();
+    ctx.putImageData(data, 0, 0);
+  };
+
+  // Init canvas on open / background change
   useEffect(() => {
     if (!showWhiteboard) return;
     const canvas = wbCanvasRef.current;
@@ -244,6 +293,7 @@ export default function VideoRoom({ user, onLeave, classData }) {
     ctx.fillStyle = wbBg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     wbCtxRef.current = ctx;
+    wbUndoStack.current = [];
   }, [showWhiteboard, wbBg]);
 
   const wbGetPos = (e) => {
@@ -253,39 +303,171 @@ export default function VideoRoom({ user, onLeave, classData }) {
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     return { x: clientX - rect.left, y: clientY - rect.top };
   };
-  const wbStart = (e) => { e.preventDefault(); wbDrawing.current = true; const p = wbGetPos(e); wbCtxRef.current?.beginPath(); wbCtxRef.current?.moveTo(p.x, p.y); };
+
+  const wbApplyStyle = (ctx) => {
+    ctx.lineWidth = wbTool === 'eraser' ? wbEraserSize : wbLineWidth;
+    ctx.strokeStyle = wbTool === 'eraser' ? wbBg : wbColor;
+    ctx.fillStyle = wbColor;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+  };
+
+  // Draw a shape from start→end (rect, circle, line)
+  const wbDrawShape = (start, end) => {
+    const ctx = wbCtxRef.current;
+    if (!ctx) return;
+    wbApplyStyle(ctx);
+    const x1 = start.x, y1 = start.y, x2 = end.x, y2 = end.y;
+    if (wbTool === 'rect') {
+      ctx.beginPath();
+      ctx.rect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+      ctx.stroke();
+    } else if (wbTool === 'circle') {
+      const rx = Math.abs(x2 - x1) / 2, ry = Math.abs(y2 - y1) / 2;
+      const cx = Math.min(x1, x2) + rx, cy = Math.min(y1, y2) + ry;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (wbTool === 'line') {
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+  };
+
+  const wbStart = (e) => {
+    e.preventDefault();
+    wbDrawing.current = true;
+    const p = wbGetPos(e);
+
+    if (wbTool === 'text') {
+      setWbShowText({ x: p.x, y: p.y });
+      setWbTextInput('');
+      wbDrawing.current = false;
+      return;
+    }
+
+    if (['rect', 'circle', 'line'].includes(wbTool)) {
+      wbShapeStart.current = p;
+      wbLastPos.current = p;
+      const canvas = wbCanvasRef.current;
+      if (canvas) wbSnapshot.current = wbCtxRef.current.getImageData(0, 0, canvas.width, canvas.height);
+      return;
+    }
+
+    // Pen / Eraser freehand
+    wbPushUndo();
+    const ctx = wbCtxRef.current;
+    ctx?.beginPath();
+    ctx?.moveTo(p.x, p.y);
+  };
+
   const wbMove = (e) => {
     e.preventDefault();
     if (!wbDrawing.current) return;
-    const ctx = wbCtxRef.current; if (!ctx) return;
+    const ctx = wbCtxRef.current;
+    if (!ctx) return;
     const p = wbGetPos(e);
-    ctx.lineWidth = wbTool === 'eraser' ? 20 : wbLineWidth;
-    ctx.strokeStyle = wbTool === 'eraser' ? wbBg : wbColor;
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.lineTo(p.x, p.y); ctx.stroke();
+    wbLastPos.current = p;
+
+    // Shape preview: restore snapshot, draw preview shape
+    if (['rect', 'circle', 'line'].includes(wbTool) && wbShapeStart.current && wbSnapshot.current) {
+      const canvas = wbCanvasRef.current;
+      if (canvas) ctx.putImageData(wbSnapshot.current, 0, 0);
+      wbDrawShape(wbShapeStart.current, p);
+      return;
+    }
+
+    // Freehand
+    wbApplyStyle(ctx);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
   };
-  const wbEnd = () => { wbDrawing.current = false; };
+
+  const wbEnd = () => {
+    if (!wbDrawing.current) { wbDrawing.current = false; return; }
+    wbDrawing.current = false;
+
+    // Finalize shape drawing
+    if (['rect', 'circle', 'line'].includes(wbTool) && wbShapeStart.current && wbSnapshot.current) {
+      const canvas = wbCanvasRef.current;
+      const ctx = wbCtxRef.current;
+      if (canvas && ctx) {
+        ctx.putImageData(wbSnapshot.current, 0, 0);
+        wbPushUndo();
+        wbDrawShape(wbShapeStart.current, wbLastPos.current);
+      }
+      wbShapeStart.current = null;
+      wbSnapshot.current = null;
+      wbLastPos.current = null;
+    }
+  };
+
+  // Text tool: commit typed text to canvas
+  const wbCommitText = () => {
+    if (!wbShowText || !wbTextInput.trim()) { setWbShowText(null); return; }
+    const ctx = wbCtxRef.current;
+    if (!ctx) { setWbShowText(null); return; }
+    wbPushUndo();
+    const fontSize = Math.max(14, wbLineWidth * 5);
+    ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif`;
+    ctx.fillStyle = wbColor;
+    ctx.fillText(wbTextInput, wbShowText.x, wbShowText.y);
+    setWbShowText(null);
+    setWbTextInput('');
+  };
+
   const wbClear = () => {
-    const canvas = wbCanvasRef.current; const ctx = wbCtxRef.current;
+    const canvas = wbCanvasRef.current;
+    const ctx = wbCtxRef.current;
     if (!canvas || !ctx) return;
-    ctx.fillStyle = wbBg; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    wbPushUndo();
+    ctx.fillStyle = wbBg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
   };
+
   const wbToggleBg = () => setWbBg(bg => bg === '#ffffff' ? '#2c2c2e' : '#ffffff');
+
   const WB_COLORS = ['#1d1d1f', '#ff3b30', '#ff9f0a', '#34c759', '#007aff', '#5856d6', '#af52de', '#ff2d55'];
   const WB_SIZES = [1, 3, 5, 8];
-
-  // DEMO members to match Tencent Meeting screenshots
-  const DEMO_MEMBERS = [
-    { id: 'demo-1', name: 'AI Huihui', avatar: '👩‍💼', role: 'Tencent Meeting Account Manager', status: 'active', speaking: true, videoOn: false, micOn: true, verified: true, isMe: false, subject: '' },
-    { id: 'demo-2', name: 'Wang Dapeng', avatar: '👨‍💼', role: 'Procurement Manager', status: 'active', speaking: false, videoOn: false, micOn: true, verified: false, isMe: false, subject: '' },
-    { id: 'demo-3', name: 'Wang Xiaohong', avatar: '👩‍💻', role: 'Sales Consultant', status: 'active', speaking: false, videoOn: false, micOn: false, verified: true, isMe: false, subject: 'Sunshine Technology Group' },
-    { id: 'demo-4', name: 'Zhang Xiaoyu', avatar: '👨‍🎓', role: 'Marketing Lead', status: 'active', speaking: false, videoOn: false, micOn: true, verified: false, isMe: false, subject: '' },
+  const WB_ERASER_SIZES = [
+    { sz: 8, label: 'S' },
+    { sz: 20, label: 'M' },
+    { sz: 40, label: 'L' },
   ];
 
-  // Start with host + demo members so the room looks populated
+  // Keyboard shortcuts (Ctrl+Z = undo)
+  useEffect(() => {
+    if (!showWhiteboard) return;
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); wbUndo(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showWhiteboard]);
+
+  // Resize canvas on window resize while whiteboard is open
+  useEffect(() => {
+    if (!showWhiteboard) return;
+    const onResize = () => {
+      const canvas = wbCanvasRef.current;
+      if (!canvas) return;
+      const parent = canvas.parentElement;
+      canvas.width = parent.clientWidth;
+      canvas.height = parent.clientHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = wbBg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      wbCtxRef.current = ctx;
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [showWhiteboard, wbBg]);
+
+  // Start with host only — others join via invite
   const [members, setMembers] = useState(() => [
     { id: 'me', name: _name, avatar: _av, role: 'Host', status: 'active', speaking: false, videoOn: false, micOn: false, isMe: true, verified: true, subject: '' },
-    ...DEMO_MEMBERS,
   ]);
 
   // Contacts
@@ -395,17 +577,18 @@ export default function VideoRoom({ user, onLeave, classData }) {
     return () => clearInterval(t);
   }, []);
 
-  // ============== CAMERA ==============
+  // ============== CAMERA: always acquire stream on mount ==============
   useEffect(() => {
-    const video = localVideoRef.current;
-    if (!video) return;
     (async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: true });
+        // Stop any old tracks
         if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop());
         localStreamRef.current = stream;
+        // Start with tracks disabled (camera off, mic off)
         stream.getVideoTracks().forEach(t => { t.enabled = false; });
         stream.getAudioTracks().forEach(t => { t.enabled = false; });
+        // Attach to video element if it exists (it may not yet)
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
       } catch (e) {
         console.log('Camera error:', e);
@@ -416,17 +599,20 @@ export default function VideoRoom({ user, onLeave, classData }) {
     return () => { if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; } };
   }, []);
 
+  // Attach stream to <video> once the element appears and video is toggled on
   useEffect(() => {
     if (videoEnabled && localStreamRef.current && localVideoRef.current) {
       localVideoRef.current.srcObject = localStreamRef.current;
     }
   }, [videoEnabled]);
 
+  // Sync video track enabled ↔ React state
   useEffect(() => {
     const vt = localStreamRef.current?.getVideoTracks()[0];
     if (vt) vt.enabled = videoEnabled;
   }, [videoEnabled]);
 
+  // Sync audio track enabled ↔ React state
   useEffect(() => {
     const at = localStreamRef.current?.getAudioTracks()[0];
     if (at) at.enabled = audioEnabled;
@@ -456,39 +642,19 @@ export default function VideoRoom({ user, onLeave, classData }) {
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMsgs]);
 
   // ============== ACTIONS ==============
-  const toggleVideo = useCallback(() => {
-    // 1) If we already have a local stream, toggle its video track
-    let vt = localStreamRef.current?.getVideoTracks()[0];
-    if (vt) {
-      const newState = !vt.enabled;
-      vt.enabled = newState;
-      setVideoEnabled(newState);
-      setMembers(prev => prev.map(m => m.id === 'me' ? { ...m, videoOn: newState } : m));
+  const toggleVideo = () => {
+    const vt = localStreamRef.current?.getVideoTracks()[0];
+    if (!vt) {
+      // No camera available — stay off
+      setVideoEnabled(false);
+      setMembers(prev => prev.map(m => m.id === 'me' ? { ...m, videoOn: false } : m));
       return;
     }
-    // 2) No stream yet — attempt to acquire camera
-    (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
-        // Stop any existing tracks first
-        if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); }
-        localStreamRef.current = stream;
-        const videoTrack = stream.getVideoTracks()[0];
-        videoTrack.enabled = true;
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-        setVideoEnabled(true);
-        setMembers(prev => prev.map(m => m.id === 'me' ? { ...m, videoOn: true } : m));
-        // If there's an audio track too, enable it
-        const at = stream.getAudioTracks()[0];
-        if (at) { at.enabled = audioEnabled; }
-      } catch (e) {
-        console.log('Camera error on toggle:', e);
-        setVideoEnabled(false);
-        setMembers(prev => prev.map(m => m.id === 'me' ? { ...m, videoOn: false } : m));
-        // Show a subtle UI hint: camera is unavailable
-      }
-    })();
-  }, [audioEnabled]);
+    const newState = !vt.enabled;
+    vt.enabled = newState;
+    setVideoEnabled(newState);
+    setMembers(prev => prev.map(m => m.id === 'me' ? { ...m, videoOn: newState } : m));
+  };
   const toggleAudio = () => {
     setAudioEnabled(!audioEnabled);
     setMembers(prev => prev.map(m => m.id === 'me' ? { ...m, micOn: !audioEnabled } : m));
@@ -702,6 +868,7 @@ export default function VideoRoom({ user, onLeave, classData }) {
               </div>
             )}
           </div>
+
           <button className="vr-top-btn">
             <I.Crown size={13} />
             <span>Host Tools</span>
@@ -733,7 +900,7 @@ export default function VideoRoom({ user, onLeave, classData }) {
             <div className="vr-grid-wrap">
               <div className="vr-grid" style={{
                 gridTemplateColumns: `repeat(${getGridCols(gridCount)}, 1fr)`,
-                maxWidth: gridCount <= 2 ? 900 : gridCount <= 4 ? 1100 : 1300,
+                maxWidth: gridCount <= 2 ? 1400 : gridCount <= 4 ? 1600 : 1800,
               }}>
                 {members.map(m => (
                   <VideoTile
@@ -949,86 +1116,6 @@ export default function VideoRoom({ user, onLeave, classData }) {
               </>
             )}
 
-            {/* Invite Panel */}
-            {activePanel === 'invite' && (
-              <>
-                <div className="vr-panel-hd">
-                  <div className="vr-panel-ttl"><I.Invite size={16} /> Invite to Room</div>
-                  <button className="vr-panel-x" onClick={() => setActivePanel(null)}><I.Close size={14} /></button>
-                </div>
-                <div className="vr-inv-body">
-                  {/* Option 1 — Invite from Contacts */}
-                  <div className="vr-inv-sect">
-                    <h4 className="vr-inv-lbl"><I.Members size={12} /> Option 1 — Invite from Contacts</h4>
-                    <p className="vr-inv-desc">Click a contact below to invite them into the room.</p>
-                    <div className="vr-panel-srch" style={{ margin: '0 0 6px', padding: '6px 10px' }}>
-                      <I.Search size={13} style={{ color: '#8e8e93' }} />
-                      <input placeholder="Search contacts..." value={contactSearch} onChange={e => setContactSearch(e.target.value)} style={{ fontSize: 11 }} />
-                    </div>
-                    <div className="vr-inv-ct-list">
-                      {filteredAvailable.length === 0 ? (
-                        <div className="vr-no-cts">
-                          <span style={{ fontSize: 24, opacity: 0.4 }}>📋</span>
-                          <span style={{ fontSize: 11, color: '#8e8e93', marginTop: 4 }}>
-                            {contactSearch ? 'No contacts match' : contacts.length === 0 ? 'No contacts yet' : 'All contacts are already in the room'}
-                          </span>
-                        </div>
-                      ) : (
-                        filteredAvailable.slice(0, 6).map(c => (
-                          <div key={c.id} className="vr-inv-ct-row" onClick={() => callMember(c)}>
-                            <span className="vr-inv-ct-av">{c.avatar}</span>
-                            <div className="vr-inv-ct-info">
-                              <span className="vr-inv-ct-name">{c.name}</span>
-                              <span className="vr-inv-ct-sub">{c.role}{c.subject ? ` · ${c.subject}` : ''}</span>
-                            </div>
-                            <button className="vr-inv-ct-call" onClick={(e) => { e.stopPropagation(); callMember(c); }}>
-                              <I.VideoCall size={12} /> Invite
-                            </button>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                    {filteredAvailable.length > 6 && (
-                      <button className="vr-inv-seeall" onClick={() => setActivePanel('members')}>See all contacts →</button>
-                    )}
-                  </div>
-
-                  <div className="vr-inv-sep-or"><span>or</span></div>
-
-                  {/* Option 2 — By Code / Link */}
-                  <div className="vr-inv-sect vr-inv-hl">
-                    <h4 className="vr-inv-lbl"><I.Lock size={13} /> Option 2 — Invite by Code</h4>
-                    <p className="vr-inv-desc">Share this 6-digit code or link. Anyone can join — no account needed.</p>
-                    <div className="vr-inv-big">{inviteCode}</div>
-                    <div className="vr-inv-btns">
-                      <button className="vr-inv-cpy vr-inv-cpy-big" onClick={() => copyToClipboard(inviteCode, 'code')}>
-                        {inviteCopied === 'code' ? <><I.Check size={12} /> Copied!</> : <><I.Copy size={12} /> Copy Code</>}
-                      </button>
-                      <button className="vr-inv-cpy vr-inv-cpy-big" onClick={() => copyToClipboard(inviteLink, 'link')}>
-                        {inviteCopied === 'link' ? <><I.Check size={12} /> Copied!</> : <><I.Share size={12} /> Copy Link</>}
-                      </button>
-                    </div>
-                    <button className="vr-inv-ref" onClick={regenerateCode}><I.Refresh size={12} /> Generate New Code</button>
-                  </div>
-
-                  <div className="vr-inv-steps">
-                    <h4 className="vr-inv-lbl">How participants join</h4>
-                    <div className="vr-inv-step"><span className="vr-inv-num">1</span>Share the <strong>code</strong> or <strong>link</strong> (WhatsApp, SMS, email)</div>
-                    <div className="vr-inv-step"><span className="vr-inv-num">2</span>They open the link or enter code on the dashboard <strong>Join a Room</strong> box</div>
-                    <div className="vr-inv-step"><span className="vr-inv-num">3</span>They enter their name and join instantly as a <strong>verified guest</strong></div>
-                  </div>
-
-                  <div className="vr-inv-test">
-                    <h4 className="vr-inv-lbl">Quick Test — Simulate Guest</h4>
-                    <div className="vr-inv-test-row">
-                      <input placeholder="Guest name..." value={guestName} onChange={e => setGuestName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleGuestJoin()} className="vr-inv-test-inp" />
-                      <button className="vr-inv-test-btn" onClick={handleGuestJoin} disabled={!guestName.trim()}><I.VideoCall size={14} /> Join as Guest</button>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-
             {/* More Panel */}
             {activePanel === 'more' && (
               <>
@@ -1053,7 +1140,7 @@ export default function VideoRoom({ user, onLeave, classData }) {
                     <span className="vr-more-ico"><I.Translate size={20} /></span>
                     <div className="vr-more-txt"><strong>Translation</strong><small>{showTranslation ? 'Chinese → English' : 'English → Chinese'}</small></div>
                   </button>
-                  <button className="vr-more-item" onClick={() => togglePanel('invite')}>
+                  <button className="vr-more-item" onClick={() => { setShowInviteModal(true); setInviteModalTab('choose'); }}>
                     <span className="vr-more-ico"><I.Invite size={20} /></span>
                     <div className="vr-more-txt"><strong>Invite</strong><small>Share room code & link</small></div>
                   </button>
@@ -1106,7 +1193,7 @@ export default function VideoRoom({ user, onLeave, classData }) {
               <I.Screen size={20} />
               <span className="vr-bar-txt">Share Screen</span>
             </button>
-            <button className="vr-bar-btn" onClick={() => togglePanel('invite')}>
+            <button className="vr-bar-btn" onClick={() => { setShowInviteModal(true); setInviteModalTab('choose'); }}>
               <I.Invite size={20} />
               <span className="vr-bar-txt">Invite</span>
             </button>
@@ -1169,42 +1256,188 @@ export default function VideoRoom({ user, onLeave, classData }) {
         </div>
       )}
 
+      {/* ========== INVITE MODAL (centered) ========== */}
+      {showInviteModal && (
+        <div className="vr-overlay" onClick={() => { setShowInviteModal(false); setInviteModalTab('choose'); }}>
+          <div className="vr-inv-modal" onClick={e => e.stopPropagation()}>
+            <div className="vr-inv-modal-hd">
+              <h2><I.Invite size={20} /> Invite to Room</h2>
+              <button className="vr-panel-x" onClick={() => { setShowInviteModal(false); setInviteModalTab('choose'); }}><I.Close size={16} /></button>
+            </div>
+
+            {/* CHOOSE screen — two big cards */}
+            {inviteModalTab === 'choose' && (
+              <div className="vr-inv-modal-choose">
+                <p className="vr-inv-modal-sub">How would you like to invite?</p>
+                <div className="vr-inv-modal-cards">
+                  <div className="vr-inv-modal-card" onClick={() => setInviteModalTab('contacts')}>
+                    <span className="vr-inv-modal-card-ico">👥</span>
+                    <span className="vr-inv-modal-card-ttl">From Contacts</span>
+                    <span className="vr-inv-modal-card-dsc">Add people from your contact list or create new contacts.</span>
+                  </div>
+                  <div className="vr-inv-modal-card" onClick={() => setInviteModalTab('code')}>
+                    <span className="vr-inv-modal-card-ico">🔗</span>
+                    <span className="vr-inv-modal-card-ttl">Invitation Code</span>
+                    <span className="vr-inv-modal-card-dsc">Share a 6-digit code or link. Anyone can join without an account.</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* CONTACTS screen */}
+            {inviteModalTab === 'contacts' && (
+              <div className="vr-inv-modal-inner">
+                <button className="vr-inv-modal-back" onClick={() => setInviteModalTab('choose')}><I.ChevronLeft size={14} /> Back</button>
+                <h4 className="vr-inv-lbl" style={{ fontSize: 12, margin: '8px 0' }}><I.Members size={13} /> From Contacts</h4>
+                <div className="vr-panel-srch" style={{ margin: '0 0 6px', padding: '6px 10px' }}>
+                  <I.Search size={13} style={{ color: '#8e8e93' }} />
+                  <input placeholder="Search contacts..." value={contactSearch} onChange={e => setContactSearch(e.target.value)} style={{ fontSize: 11 }} />
+                </div>
+                <div className="vr-inv-modal-list">
+                  {filteredAvailable.length === 0 ? (
+                    <div className="vr-no-cts" style={{ padding: 14 }}>
+                      <span style={{ fontSize: 18, opacity: 0.4 }}>📋</span>
+                      <span style={{ fontSize: 10, color: '#8e8e93', marginTop: 4 }}>
+                        {contactSearch ? 'No contacts match' : contacts.length === 0 ? 'No contacts yet' : 'All contacts are already in the room'}
+                      </span>
+                    </div>
+                  ) : (
+                    filteredAvailable.map(c => (
+                      <div key={c.id} className="vr-inv-ct-row">
+                        <span className="vr-inv-ct-av">{c.avatar}</span>
+                        <div className="vr-inv-ct-info">
+                          <span className="vr-inv-ct-name">{c.name}</span>
+                          <span className="vr-inv-ct-sub">{c.role}{c.subject ? ` · ${c.subject}` : ''}</span>
+                        </div>
+                        <div className="vr-inv-ct-acts">
+                          <button className="vr-inv-ct-call" onClick={(e) => { e.stopPropagation(); callMember(c); }} title="Invite to room">
+                            <I.VideoCall size={10} />
+                          </button>
+                          <button className="vr-inv-ct-rm" onClick={(e) => { e.stopPropagation(); removeContact(c.id); }} title="Remove contact">
+                            <I.Close size={10} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="vr-inv-add" style={{ padding: '8px 0 0' }}>
+                  <input className="vr-inv-add-inp" placeholder="Name" value={contactAddName} onChange={e => setContactAddName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const n = contactAddName.trim(); if (!n) return; const c = { id: `manual-${Date.now()}`, name: n, role: contactAddRole || 'Student', email: '', subject: '', avatar: ({ Student: '👦', Teacher: '👩‍🏫', Parent: '👨‍👩‍👧' }[contactAddRole] || '👤'), status: 'active', source: 'manual' }; const updated = [c, ...contacts]; setContacts(updated); persistVideoRoomContacts(updated); setContactAddName(''); } }} />
+                  <select className="vr-inv-add-sel" value={contactAddRole} onChange={e => setContactAddRole(e.target.value)}>
+                    <option value="Student">Student</option>
+                    <option value="Teacher">Teacher</option>
+                    <option value="Parent">Parent</option>
+                  </select>
+                  <button className="vr-inv-add-btn" title="Add" onClick={() => { const n = contactAddName.trim(); if (!n) return; const c = { id: `manual-${Date.now()}`, name: n, role: contactAddRole || 'Student', email: '', subject: '', avatar: ({ Student: '👦', Teacher: '👩‍🏫', Parent: '👨‍👩‍👧' }[contactAddRole] || '👤'), status: 'active', source: 'manual' }; const updated = [c, ...contacts]; setContacts(updated); persistVideoRoomContacts(updated); setContactAddName(''); }}><I.Add size={12} /></button>
+                </div>
+              </div>
+            )}
+
+            {/* CODE screen */}
+            {inviteModalTab === 'code' && (
+              <div className="vr-inv-modal-inner">
+                <button className="vr-inv-modal-back" onClick={() => setInviteModalTab('choose')}><I.ChevronLeft size={14} /> Back</button>
+                <div className="vr-inv-sect vr-inv-hl" style={{ marginTop: 8 }}>
+                  <h4 className="vr-inv-lbl"><I.Lock size={13} /> Invitation Code</h4>
+                  <p className="vr-inv-desc">Share this 6-digit code or link. Anyone can join — no account needed.</p>
+                  <div className="vr-inv-big">{inviteCode}</div>
+                  <div className="vr-inv-btns">
+                    <button className="vr-inv-cpy vr-inv-cpy-big" onClick={() => copyToClipboard(inviteCode, 'code')}>
+                      {inviteCopied === 'code' ? <><I.Check size={12} /> Copied!</> : <><I.Copy size={12} /> Copy Code</>}
+                    </button>
+                    <button className="vr-inv-cpy vr-inv-cpy-big" onClick={() => copyToClipboard(inviteLink, 'link')}>
+                      {inviteCopied === 'link' ? <><I.Check size={12} /> Copied!</> : <><I.Share size={12} /> Copy Link</>}
+                    </button>
+                  </div>
+                  <button className="vr-inv-ref" onClick={regenerateCode}><I.Refresh size={12} /> Generate New Code</button>
+                </div>
+                <div className="vr-inv-steps">
+                  <h4 className="vr-inv-lbl">How participants join</h4>
+                  <div className="vr-inv-step"><span className="vr-inv-num">1</span>Share the <strong>code</strong> or <strong>link</strong> (WhatsApp, SMS, email)</div>
+                  <div className="vr-inv-step"><span className="vr-inv-num">2</span>They open the link or enter code on the dashboard <strong>Join a Room</strong> box</div>
+                  <div className="vr-inv-step"><span className="vr-inv-num">3</span>They enter their name and join instantly as a <strong>verified guest</strong></div>
+                </div>
+                <div className="vr-inv-test">
+                  <h4 className="vr-inv-lbl">Quick Test — Simulate Guest</h4>
+                  <div className="vr-inv-test-row">
+                    <input placeholder="Guest name..." value={guestName} onChange={e => setGuestName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleGuestJoin()} className="vr-inv-test-inp" />
+                    <button className="vr-inv-test-btn" onClick={handleGuestJoin} disabled={!guestName.trim()}><I.VideoCall size={14} /> Join as Guest</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ========== WHITEBOARD OVERLAY ========== */}
       {showWhiteboard && (
         <div className="vr-wb-overlay">
           <div className="vr-wb-toolbar">
+            {/* Drawing tools */}
             <button className={`vr-wb-tool ${wbTool === 'pen' ? 'vr-wb-active' : ''}`} onClick={() => setWbTool('pen')} title="Pen">
               <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
             </button>
             <button className={`vr-wb-tool ${wbTool === 'eraser' ? 'vr-wb-active' : ''}`} onClick={() => setWbTool('eraser')} title="Eraser">
               <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53c-.78.78-1.92.78-2.7 0L9.3 20.53l-2.83 2.83H2.88l8.34-8.34-1.41-1.41-4.95 4.95-1.41-1.41 4.95-4.95L7 10.86 2.05 15.8c-.78.79-.78 2.05 0 2.84l4.95 4.94c.78.78 2.05.78 2.83 0l9.36-9.35c.78-.79.78-2.05 0-2.84l-2.95-2.99z"/></svg>
             </button>
-            <div className="vr-wb-sep" />
-            {WB_COLORS.map(c => (
-              <button key={c} className="vr-wb-color" style={{ background: c, outline: wbColor === c && wbTool === 'pen' ? '2px solid #007aff' : 'none', outlineOffset: 2 }} onClick={() => { setWbColor(c); setWbTool('pen'); }} />
+            {/* Eraser size options */}
+            {wbTool === 'eraser' && WB_ERASER_SIZES.map(es => (
+              <button key={es.sz} className={`vr-wb-tool vr-wb-esz ${wbEraserSize === es.sz ? 'vr-wb-active' : ''}`}
+                onClick={() => setWbEraserSize(es.sz)} title={`Eraser ${es.label}`}
+                style={{ fontSize: 11, fontWeight: 600 }}>{es.label}</button>
             ))}
             <div className="vr-wb-sep" />
+            {/* Shape tools */}
+            <button className={`vr-wb-tool ${wbTool === 'rect' ? 'vr-wb-active' : ''}`} onClick={() => setWbTool('rect')} title="Rectangle">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="1"/></svg>
+            </button>
+            <button className={`vr-wb-tool ${wbTool === 'circle' ? 'vr-wb-active' : ''}`} onClick={() => setWbTool('circle')} title="Circle">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><circle cx="12" cy="12" r="9"/></svg>
+            </button>
+            <button className={`vr-wb-tool ${wbTool === 'line' ? 'vr-wb-active' : ''}`} onClick={() => setWbTool('line')} title="Line">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><line x1="5" y1="19" x2="19" y2="5"/></svg>
+            </button>
+            <button className={`vr-wb-tool ${wbTool === 'text' ? 'vr-wb-active' : ''}`} onClick={() => setWbTool('text')} title="Text">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M5 4v3h5.5v12h3V7H19V4H5z"/></svg>
+            </button>
+            <div className="vr-wb-sep" />
+            {/* Undo */}
+            <button className="vr-wb-tool" onClick={wbUndo} title="Undo (Ctrl+Z)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            </button>
+            <div className="vr-wb-sep" />
+            {/* Colors */}
+            {WB_COLORS.map(c => (
+              <button key={c} className="vr-wb-color" style={{ background: c, outline: wbColor === c && wbTool !== 'eraser' ? '2px solid #007aff' : 'none', outlineOffset: 2 }} onClick={() => { setWbColor(c); if (wbTool === 'eraser') setWbTool('pen'); }} />
+            ))}
+            <div className="vr-wb-sep" />
+            {/* Sizes */}
             {WB_SIZES.map(s => (
               <button key={s} className={`vr-wb-sz ${wbLineWidth === s ? 'vr-wb-sz-act' : ''}`} onClick={() => setWbLineWidth(s)}>
-                <span style={{ width: s * 3, height: s * 3, borderRadius: '50%', background: '#1d1d1f' }} />
+                <span style={{ width: s * 3, height: s * 3, borderRadius: '50%', background: wbColor }} />
               </button>
             ))}
             <div className="vr-wb-sep" />
+            {/* BG toggle */}
             <button className="vr-wb-tool" onClick={wbToggleBg} title={wbBg === '#ffffff' ? 'Switch to Blackboard' : 'Switch to Whiteboard'}>
               {wbBg === '#ffffff' ? '◼' : '◻'}
             </button>
+            {/* Clear */}
             <button className="vr-wb-tool" onClick={wbClear} title="Clear All">
               <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
             </button>
             <div className="vr-wb-sep" />
+            {/* Close */}
             <button className="vr-wb-tool vr-wb-close" onClick={() => setShowWhiteboard(false)} title="Close Whiteboard">
               <I.Close size={16} />
             </button>
           </div>
-          <div className="vr-wb-canvas-wrap" style={{ background: wbBg }}>
+          <div className="vr-wb-canvas-wrap" style={{ background: wbBg, position: 'relative' }}>
             <canvas
               ref={wbCanvasRef}
               className="vr-wb-canvas"
+              style={{ cursor: wbTool === 'text' ? 'text' : wbTool === 'eraser' ? 'cell' : 'crosshair' }}
               onMouseDown={wbStart}
               onMouseMove={wbMove}
               onMouseUp={wbEnd}
@@ -1213,6 +1446,29 @@ export default function VideoRoom({ user, onLeave, classData }) {
               onTouchMove={wbMove}
               onTouchEnd={wbEnd}
             />
+            {/* Text input overlay */}
+            {wbShowText && (
+              <div style={{
+                position: 'absolute', left: wbShowText.x, top: wbShowText.y - 10,
+                zIndex: 5, display: 'flex', gap: 4, alignItems: 'center',
+              }}>
+                <input
+                  autoFocus
+                  value={wbTextInput}
+                  onChange={e => setWbTextInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') wbCommitText(); if (e.key === 'Escape') setWbShowText(null); }}
+                  onBlur={wbCommitText}
+                  className="vr-wb-textinp"
+                  style={{
+                    border: `2px solid ${wbColor}`, borderRadius: 4, padding: '2px 6px',
+                    fontSize: Math.max(14, wbLineWidth * 5), fontFamily: '-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif',
+                    background: 'rgba(255,255,255,0.92)', outline: 'none', color: wbColor,
+                    minWidth: 80, maxWidth: 400,
+                  }}
+                  placeholder="Type text..."
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1262,6 +1518,38 @@ export default function VideoRoom({ user, onLeave, classData }) {
 .vr-layout-item:hover{background:#f2f2f7;}
 .vr-layout-active{background:#f0f7ff;color:#007aff;font-weight:500;}
 
+/* ========== CONTACTS POPOVER (TOP RIGHT) ========== */
+.vr-ctpop-wrap{position:relative;}
+.vr-ctpop-drop{position:absolute;top:100%;right:0;margin-top:4px;width:320px;max-height:420px;background:#fff;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.15);border:1px solid #e5e5e7;z-index:55;display:flex;flex-direction:column;overflow:hidden;animation:vr-fade 0.15s;}
+.vr-ctpop-codebar{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f0f7ff;border-bottom:1px solid #e5e5e7;}
+.vr-ctpop-codeinfo{display:flex;align-items:center;gap:6px;}
+.vr-ctpop-codelbl{font-size:10px;color:#007aff;font-weight:600;display:flex;align-items:center;gap:3px;}
+.vr-ctpop-codeval{font-size:16px;font-weight:700;color:#1d1d1f;letter-spacing:2px;}
+.vr-ctpop-copybtn{display:flex;align-items:center;gap:4px;padding:4px 10px;border:1px solid #007aff;background:#fff;color:#007aff;border-radius:5px;cursor:pointer;font-size:10px;font-weight:500;white-space:nowrap;transition:all 0.15s;}
+.vr-ctpop-copybtn:hover{background:#007aff;color:#fff;}
+.vr-ctpop-srch{display:flex;align-items:center;gap:6px;padding:6px 12px;border-bottom:1px solid #f2f2f7;}
+.vr-ctpop-srch input{flex:1;border:none;background:transparent;font-size:11px;color:#1d1d1f;outline:none;}
+.vr-ctpop-srch input::placeholder{color:#c7c7cc;}
+.vr-ctpop-list{flex:1;overflow-y:auto;padding:4px 0;max-height:240px;}
+.vr-ctpop-row{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:default;transition:background 0.12s;}
+.vr-ctpop-row:hover{background:#f9f9fb;}
+.vr-ctpop-av{font-size:22px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.vr-ctpop-info{flex:1;min-width:0;display:flex;flex-direction:column;}
+.vr-ctpop-name{font-size:12px;font-weight:500;color:#1d1d1f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vr-ctpop-sub{font-size:10px;color:#8e8e93;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vr-ctpop-acts{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+.vr-ctpop-call{width:26px;height:26px;border:none;background:#f0f7ff;color:#007aff;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.vr-ctpop-call:hover{background:#007aff;color:#fff;}
+.vr-ctpop-rm{width:22px;height:22px;border:none;background:transparent;color:#c7c7cc;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.vr-ctpop-rm:hover{background:#ff3b30;color:#fff;}
+.vr-ctpop-addbar{display:flex;gap:4px;padding:8px 12px;border-top:1px solid #f2f2f7;background:#fafafa;}
+.vr-ctpop-addinp{flex:1;padding:6px 8px;border:1px solid #e5e5e7;border-radius:6px;font-size:11px;color:#1d1d1f;background:#fff;outline:none;font-family:inherit;min-width:0;}
+.vr-ctpop-addinp:focus{border-color:#007aff;}
+.vr-ctpop-addsel{padding:6px 4px;border:1px solid #e5e5e7;border-radius:6px;font-size:10px;color:#1d1d1f;background:#fff;outline:none;cursor:pointer;font-family:inherit;width:80px;}
+.vr-ctpop-addsel:focus{border-color:#007aff;}
+.vr-ctpop-addbtn{width:32px;height:32px;border:none;background:#007aff;color:#fff;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;}
+.vr-ctpop-addbtn:hover{background:#0051d5;}
+
 /* ========== BODY ========== */
 .vr-body{flex:1;display:flex;overflow:hidden;position:relative;}
 .vr-video-zone{flex:1;position:relative;display:flex;align-items:center;justify-content:center;padding:8px;transition:margin-right 0.25s;overflow:hidden;}
@@ -1276,16 +1564,16 @@ export default function VideoRoom({ user, onLeave, classData }) {
 .vr-grid{display:grid;gap:8px;width:100%;max-height:100%;aspect-ratio:16/10;padding:8px;align-content:center;}
 
 /* Grid responsive for 1 person */
-.vr-grid:has(.vr-tile:only-child){grid-template-columns:1fr!important;grid-template-rows:1fr!important;max-width:900px;}
+.vr-grid:has(.vr-tile:only-child){grid-template-columns:1fr!important;grid-template-rows:1fr!important;max-width:1400px;}
 
 /* ========== SPEAKER VIEW ========== */
-.vr-speaker-wrap{display:flex;flex-direction:column;height:100%;width:100%;max-width:1100px;}
+.vr-speaker-wrap{display:flex;flex-direction:column;height:100%;width:100%;max-width:1400px;}
 .vr-speaker-main{flex:1;min-height:0;border-radius:12px;position:relative;background:#e8eaed;margin-bottom:6px;overflow:hidden;}
 .vr-speaker-strip{display:flex;gap:6px;justify-content:center;flex-shrink:0;padding:0 4px;overflow-x:auto;}
 .vr-unpin-btn{position:absolute;top:10px;right:10px;z-index:6;background:rgba(0,0,0,0.5);border:none;color:#fff;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:10px;backdrop-filter:blur(4px);}
 
 /* ========== SPOTLIGHT VIEW ========== */
-.vr-spotlight-wrap{display:flex;gap:6px;height:100%;width:100%;max-width:1200px;max-height:640px;}
+.vr-spotlight-wrap{display:flex;gap:6px;height:100%;width:100%;max-width:1600px;max-height:800px;}
 .vr-spotlight-main{flex:1;min-width:0;border-radius:12px;background:#e8eaed;position:relative;overflow:hidden;margin-right:2px;}
 .vr-spotlight-strip{display:flex;flex-direction:column;gap:4px;width:180px;flex-shrink:0;overflow-y:auto;}
 
@@ -1432,7 +1720,6 @@ export default function VideoRoom({ user, onLeave, classData }) {
 .vr-ai-bot-btn:hover{background:#007aff;color:#fff;}
 
 /* ========== INVITE PANEL ========== */
-.vr-inv-body{flex:1;overflow-y:auto;padding:14px;}
 .vr-inv-sect{margin-bottom:14px;}
 .vr-inv-lbl{font-size:10px;font-weight:600;color:#8e8e93;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 6px;display:flex;align-items:center;gap:3px;}
 .vr-inv-row{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f9f9fb;border-radius:8px;border:1px solid #e5e5e7;}
@@ -1459,18 +1746,44 @@ export default function VideoRoom({ user, onLeave, classData }) {
 .vr-inv-test-btn:disabled{opacity:0.4;cursor:not-allowed;}
 
 .vr-inv-ct-list{max-height:230px;overflow-y:auto;margin-bottom:4px;}
-.vr-inv-ct-row{display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-radius:8px;transition:all 0.12s;}
+.vr-inv-ct-row{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;transition:all 0.12s;}
 .vr-inv-ct-row:hover{background:#f0f7ff;}
 .vr-inv-ct-av{font-size:24px;width:30px;text-align:center;flex-shrink:0;}
 .vr-inv-ct-info{flex:1;min-width:0;display:flex;flex-direction:column;}
 .vr-inv-ct-name{font-size:12px;font-weight:500;color:#1d1d1f;}
 .vr-inv-ct-sub{font-size:10px;color:#8e8e93;}
-.vr-inv-ct-call{display:flex;align-items:center;gap:4px;padding:5px 10px;border:1px solid #007aff;background:#fff;color:#007aff;border-radius:6px;cursor:pointer;font-size:10px;font-weight:500;font-family:inherit;white-space:nowrap;flex-shrink:0;}
+.vr-inv-ct-acts{display:flex;align-items:center;gap:2px;flex-shrink:0;}
+.vr-inv-ct-call{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid #007aff;background:#fff;color:#007aff;border-radius:5px;cursor:pointer;flex-shrink:0;transition:all 0.15s;}
 .vr-inv-ct-call:hover{background:#007aff;color:#fff;}
+.vr-inv-ct-rm{display:flex;align-items:center;justify-content:center;width:18px;height:18px;border:none;background:transparent;color:#8e8e93;border-radius:4px;cursor:pointer;flex-shrink:0;transition:all 0.15s;}
+.vr-inv-ct-rm:hover{background:#ff3b30;color:#fff;}
+.vr-inv-add{display:flex;gap:2px;padding:4px 0;align-items:center;}
+.vr-inv-add-inp{flex:1;min-width:0;padding:4px 6px;border:1px solid #e5e5e7;border-radius:5px;font-size:9px;color:#1d1d1f;background:#fff;outline:none;font-family:inherit;}
+.vr-inv-add-inp:focus{border-color:#007aff;}
+.vr-inv-add-sel{padding:4px 2px;border:1px solid #e5e5e7;border-radius:5px;font-size:9px;color:#1d1d1f;background:#fff;cursor:pointer;outline:none;font-family:inherit;}
+.vr-inv-add-btn{width:24px;height:24px;border:none;background:#007aff;color:#fff;border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;}
+.vr-inv-add-btn:hover{background:#0051d5;}
 .vr-inv-seeall{width:100%;padding:5px;border:none;background:transparent;color:#007aff;font-size:10px;cursor:pointer;text-align:center;font-family:inherit;}
+
+/* ========== INVITE MODAL (centered popup) ========== */
+.vr-inv-modal{background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.3);width:480px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;animation:vr-modal-in 0.2s ease;}
+@keyframes vr-modal-in{from{transform:scale(0.92);opacity:0}to{transform:scale(1);opacity:1}}
+.vr-inv-modal-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #f2f2f7;}
+.vr-inv-modal-hd h2{font-size:17px;font-weight:600;color:#1d1d1f;margin:0;display:flex;align-items:center;gap:8px;}
+.vr-inv-modal-choose{padding:24px 20px;}
+.vr-inv-modal-sub{font-size:13px;color:#6e6e73;margin:0 0 20px;text-align:center;}
+.vr-inv-modal-cards{display:flex;gap:14px;}
+.vr-inv-modal-card{flex:1;padding:24px 16px;border:2px solid #e5e5e7;border-radius:14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;transition:all 0.18s;background:#fff;}
+.vr-inv-modal-card:hover{border-color:#007aff;box-shadow:0 6px 20px rgba(0,122,255,0.15);transform:translateY(-2px);}
+.vr-inv-modal-card-ico{font-size:44px;line-height:1;}
+.vr-inv-modal-card-ttl{font-size:15px;font-weight:600;color:#1d1d1f;}
+.vr-inv-modal-card-dsc{font-size:11px;color:#8e8e93;line-height:1.5;}
+.vr-inv-modal-inner{padding:12px 20px 20px;overflow-y:auto;flex:1;}
+.vr-inv-modal-back{display:inline-flex;align-items:center;gap:4px;padding:5px 8px;border:none;background:transparent;color:#007aff;font-size:12px;cursor:pointer;font-family:inherit;border-radius:6px;font-weight:500;}
+.vr-inv-modal-back:hover{background:#f0f7ff;}
+.vr-inv-modal-list{max-height:260px;overflow-y:auto;margin-bottom:4px;}
+.vr-inv-modal-list .vr-inv-ct-row{padding:7px 10px;}
 .vr-inv-seeall:hover{text-decoration:underline;}
-.vr-inv-sep-or{display:flex;align-items:center;gap:10px;margin:12px 0;color:#c7c7cc;font-size:10px;font-weight:500;}
-.vr-inv-sep-or::before,.vr-inv-sep-or::after{content:'';flex:1;height:1px;background:#e5e5e7;}
 
 /* ========== MORE PANEL ========== */
 .vr-more-body{flex:1;padding:6px;}
@@ -1483,18 +1796,18 @@ export default function VideoRoom({ user, onLeave, classData }) {
 .vr-more-txt small{font-size:10px;color:#8e8e93;}
 
 /* ========== BOTTOM TOOLBAR (Tencent Meeting Style) ========== */
-.vr-bar-wrap{display:flex;justify-content:center;padding:8px 0 12px;flex-shrink:0;z-index:20;background:#fff;border-top:1px solid #e5e5e7;}
+.vr-bar-wrap{display:flex;justify-content:center;padding:3px 0 5px;flex-shrink:0;z-index:20;background:#fff;border-top:1px solid #e5e5e7;}
 .vr-bar{display:flex;align-items:center;gap:2px;padding:2px 12px;background:#fff;border-radius:14px;}
 .vr-bar-seg{display:flex;align-items:center;gap:2px;}
-.vr-bar-div{width:1px;height:24px;background:#e5e5e7;margin:0 6px;}
+.vr-bar-div{width:1px;height:20px;background:#e5e5e7;margin:0 6px;}
 
-.vr-bar-btn{position:relative;min-width:50px;height:52px;border:none;background:transparent;color:#6e6e73;border-radius:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:all 0.15s;padding:2px;}
-.vr-bar-btn:hover{background:#f2f2f7;color:#1d1d1f;}
-.vr-bar-txt{font-size:8px;color:#8e8e93;line-height:1;font-weight:500;margin-top:1px;}
-.vr-bar-btn:hover .vr-bar-txt{color:#1d1d1f;}
+.vr-bar-btn{position:relative;min-width:50px;height:40px;border:none;background:transparent;color:#000;border-radius:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:all 0.15s;padding:2px;}
+.vr-bar-btn:hover{background:#f2f2f7;color:#000;}
+.vr-bar-txt{font-size:8px;color:#1d1d1f;line-height:1;font-weight:500;margin-top:1px;}
+.vr-bar-btn:hover .vr-bar-txt{color:#000;}
 
-.vr-bar-btn-sm{width:38px;height:38px;border:none;background:transparent;color:#6e6e73;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
-.vr-bar-btn-sm:hover{background:#f2f2f7;color:#1d1d1f;}
+.vr-bar-btn-sm{width:38px;height:30px;border:none;background:transparent;color:#000;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.vr-bar-btn-sm:hover{background:#f2f2f7;color:#000;}
 
 .vr-bar-off{color:#ff3b30!important;}
 .vr-bar-off:hover{background:#fff2f2!important;color:#e0352b!important;}
@@ -1512,7 +1825,7 @@ export default function VideoRoom({ user, onLeave, classData }) {
 .vr-emoji-itm:hover{background:#f2f2f7;transform:scale(1.1);}
 
 /* End button */
-.vr-bar-end{min-width:48px;height:36px;border:none;background:#ff3b30;color:#fff;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;font-size:12px;font-weight:600;margin-left:8px;padding:0 14px;font-family:inherit;}
+.vr-bar-end{min-width:48px;height:30px;border:none;background:#ff3b30;color:#fff;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;font-size:12px;font-weight:600;margin-left:8px;padding:0 14px;font-family:inherit;}
 .vr-bar-end:hover{background:#d70015;transform:scale(1.02);}
 
 /* ========== OVERLAYS (Guest Join / Ringing) ========== */
@@ -1562,16 +1875,19 @@ export default function VideoRoom({ user, onLeave, classData }) {
 .vr-wb-close{margin-left:auto;}
 .vr-wb-close:hover{background:#ff3b30!important;color:#fff!important;}
 .vr-wb-canvas-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:20px;}
-.vr-wb-canvas{border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.15);cursor:crosshair;max-width:100%;max-height:100%;}
+.vr-wb-canvas{border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.15);max-width:100%;max-height:100%;}
+.vr-wb-esz{min-width:26px!important;width:auto!important;height:26px!important;font-size:10px!important;font-weight:600!important;border-radius:5px!important;}
+.vr-wb-textinp{box-shadow:0 2px 8px rgba(0,0,0,0.12);}
+.vr-wb-textinp:focus{box-shadow:0 2px 12px rgba(0,122,255,0.25);}
 
 /* ========== RESPONSIVE ========== */
 @media(max-width:768px){
   .vr-panel{position:fixed;inset:0;width:100%;z-index:50;}
   .vr-bar{gap:0;padding:2px 4px;}
-  .vr-bar-btn{min-width:42px;height:46px;}
+  .vr-bar-btn{min-width:42px;height:36px;}
   .vr-bar-txt{display:none;}
   .vr-bar-div{margin:0 2px;}
-  .vr-bar-end{min-width:40px;height:32px;padding:0 10px;font-size:11px;margin-left:3px;}
+  .vr-bar-end{min-width:36px;height:26px;padding:0 10px;font-size:11px;margin-left:3px;}
   .vr-grid{gap:4px;padding:4px;}
   .vr-speaker-strip{gap:4px;}
   .vr-tile-thumb{width:110px;height:70px;}
