@@ -399,6 +399,20 @@ function getStudentsByParentEmail(parentEmail) {
   );
 }
 
+// Helper for Dashboard: get parent's children (used inline in JSX)
+function getMyChildrenDashboard() {
+  const userData = (() => { try { return JSON.parse(localStorage.getItem('classroom_user') || 'null'); } catch { return null; } })();
+  if (!userData || userData.role !== 'parent') return [];
+  const all = getAllStudents();
+  const email = (userData.email || '').toLowerCase();
+  const pid = userData.parentId;
+  return all.filter(s => {
+    if (pid && s.parentId === pid) return true;
+    if (email && s.parentEmail && s.parentEmail.toLowerCase() === email) return true;
+    return false;
+  });
+}
+
 // ============================================
 // ADMIN MASTER CREDENTIALS
 // ============================================
@@ -885,6 +899,7 @@ function AppLayout({ children, user, onLogout, onLogin, currentPage, setCurrentP
         { id: 'dashboard', icon: Icons.Dashboard, label: t('navDashboard') },
         { id: 'calendar', icon: Icons.Calendar, label: t('navCalendar') },
         { id: 'files', icon: Icons.Files, label: t('navFiles') },
+        { id: 'studentrecords', icon: Icons.StudentRecords, label: t('navStudentRecords') },
       ]
     : isTeacherUser
     ? [
@@ -1452,6 +1467,78 @@ function DashboardPage({ user, setCurrentPage }) {
           </div>
         </div>
       )}
+
+      {/* ===== PARENT: My Children Progress ===== */}
+      {user?.role === 'parent' && (() => {
+        const myKids = getMyChildrenDashboard();
+        return (
+          <section className="my-children-dashboard-section">
+            <div className="section-header-row">
+              <h2><span>👨‍👩‍👧</span> {t('myChildren') || "My Children's Progress"}</h2>
+              <button className="btn-admin-section-edit" onClick={() => setCurrentPage?.('studentrecords')}>
+                <Icons.StudentRecords /> {t('viewAll') || 'View All'}
+              </button>
+            </div>
+            {myKids.length > 0 ? (
+              <div className="my-children-cards-grid">
+                {myKids.map(kid => {
+                  const progressPct = Math.round((kid.usedHours / kid.totalHours) * 100);
+                  const daysPct = Math.round((kid.daysAttended / kid.totalDays) * 100);
+                  return (
+                    <div key={kid.id} className="my-child-dash-card">
+                      <div className="child-dash-header">
+                        <div className="child-avatar">{kid.avatar}</div>
+                        <div>
+                          <h3>{kid.name}</h3>
+                          <span className="child-grade-badge">{kid.grade}</span>
+                          <span className={`subject-badge ${kid.subject?.toLowerCase()}`}>{kid.subject}</span>
+                        </div>
+                        <span className={`status-badge ${kid.completionStatus}`}>
+                          {kid.completionStatus === 'completed' ? <Icons.Check /> : <Icons.Clock />}
+                          {kid.completionStatus}
+                        </span>
+                      </div>
+                      <div className="child-dash-stats">
+                        <div className="child-stat">
+                          <span className="child-stat-num">{kid.usedHours}h</span>
+                          <span className="child-stat-denom">/ {kid.totalHours}h</span>
+                          <div className="child-progress-bar">
+                            <div className="child-progress-fill" style={{ width: `${progressPct}%` }}></div>
+                          </div>
+                          <span className="child-stat-label">Hours</span>
+                        </div>
+                        <div className="child-stat">
+                          <span className="child-stat-num">{kid.daysAttended}</span>
+                          <span className="child-stat-denom">/ {kid.totalDays}</span>
+                          <div className="child-progress-bar">
+                            <div className="child-progress-fill" style={{ width: `${daysPct}%` }}></div>
+                          </div>
+                          <span className="child-stat-label">Days</span>
+                        </div>
+                        <div className="child-stat">
+                          <span className={`child-payment-status ${kid.paymentStatus}`}>
+                            {kid.paymentStatus === 'paid' ? '✓ Paid' : '⚠ Pending'}
+                          </span>
+                          <span className="child-payment-amount">${kid.paymentAmount}</span>
+                        </div>
+                      </div>
+                      <div className="child-dash-footer">
+                        <span className="child-teacher"><Icons.User /> {kid.teacher}</span>
+                        {kid.scheduleDay && <span className="child-schedule">{kid.scheduleDay} {kid.scheduleTime}</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="my-children-empty">
+                <p>No children linked to your account yet.</p>
+                <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Contact your administrator to link your children to your parent account.</p>
+              </div>
+            )}
+          </section>
+        );
+      })()}
 
       {/* Subjects */}
       <section className="subjects-section">

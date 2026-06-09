@@ -6315,6 +6315,165 @@ input::placeholder {
   box-shadow: 0 4px 20px rgba(34, 197, 94, 0.15);
 }
 
+/* ======== PARENT DASHBOARD: My Children Section ======== */
+.my-children-dashboard-section {
+  margin: 0 2rem 2rem;
+}
+
+.my-children-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+  margin-top: 1rem;
+}
+
+.my-child-dash-card {
+  background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+  border: 1px solid #86efac;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.08);
+  transition: box-shadow 0.2s;
+}
+
+.my-child-dash-card:hover {
+  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.15);
+}
+
+.child-dash-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.child-dash-header .child-avatar {
+  font-size: 2rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.child-dash-header h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #166534;
+  margin: 0 0 4px;
+}
+
+.child-dash-header .child-grade-badge {
+  background: #dbeafe;
+  color: #1d4ed8;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.child-dash-header .subject-badge {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.child-dash-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.child-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.child-stat-num {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #15803d;
+}
+
+.child-stat-denom {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.child-progress-bar {
+  height: 6px;
+  background: #dcfce7;
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 4px 0 2px;
+}
+
+.child-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.child-stat-label {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.child-payment-status {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.child-payment-status.paid {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.child-payment-status.pending {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.child-payment-amount {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #166534;
+}
+
+.child-dash-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid #bbf7d0;
+  padding-top: 10px;
+}
+
+.child-teacher,
+.child-schedule {
+  font-size: 0.78rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.my-children-empty {
+  text-align: center;
+  padding: 2rem;
+  color: #64748b;
+  background: #f0fdf4;
+  border-radius: 12px;
+  border: 1px dashed #86efac;
+}
+
 /* ============ PARENT VIEW: Find Your Child (no children linked) ============ */
 .find-child-section {
   margin-bottom: 2rem;

@@ -30,6 +30,11 @@ if ('serviceWorker' in navigator) {
 // ============================================
 let deferredPrompt = null;
 let installBannerShown = false;
+const isPWA = window.matchMedia && (
+  window.matchMedia('(display-mode: standalone)').matches ||
+  window.navigator.standalone ||
+  localStorage.getItem('pwa_installed') === 'true'
+);
 
 // Expose PWA status globally so React components can read it
 window.__pwaInstallable = false;
@@ -97,11 +102,6 @@ window.addEventListener('show-generic-install-guide', () => {
     setTimeout(() => guideEl.querySelector('.install-guides')?.classList.remove('highlight-pulse'), 2000);
   }
 });
-
-// Check if user already dismissed or installed
-const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
-              window.navigator.standalone ||
-              localStorage.getItem('pwa_installed') === 'true';
 
 function showInstallBanner() {
   if (installBannerShown || isPWA) return;
