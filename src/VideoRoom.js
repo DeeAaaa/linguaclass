@@ -46,35 +46,13 @@ export default function VideoRoom({ user, onLeave }) {
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
 
   // ==================== PER-TILE VIDEO REFS (avoids sharing one ref across tiles) ====================
-  const tileVideoRefs = useRef({});
-
-  // Helper: attach stream to a specific tile's video element
-  const attachStreamToTile = useCallback((tileKey, stream) => {
-    const el = tileVideoRefs.current[tileKey];
-    if (el && stream) {
-      el.srcObject = stream;
-    }
-  }, []);
-
-  // ==================== ATTACH LOCAL VIDEO STREAM ====================
-  const localStream = useRef(getLocalStream());
-
-  useEffect(() => {
-    const stream = localStream.current;
-    // Attach to all local tiles
-    Object.entries(tileVideoRefs.current).forEach(([key, el]) => {
-      if (key.startsWith('local') && el && stream) {
-        el.srcObject = stream;
-      }
-    });
-    nativeStreamRef.current = stream;
-  }, [stage, layoutMode]);
+  // We attach stream directly in each ref callback so it's always in sync
 
   // ==================== ACTIVE SPEAKER DETECTION ====================
   useEffect(() => {
     if (layoutMode !== 'speaker') return;
     const interval = setInterval(() => {
-      const stream = localStream.current;
+      const stream = getLocalStream();
       if (stream) {
         const audioTracks = stream.getAudioTracks();
         if (audioTracks.length > 0 && audioTracks[0].enabled) {
@@ -493,7 +471,7 @@ export default function VideoRoom({ user, onLeave }) {
               <div className={'vr-grid ' + (participants.length <= 1 ? '' : participants.length === 2 ? 'vr-grid-2' : participants.length === 3 ? 'vr-grid-3-main' : participants.length === 4 ? 'vr-grid-4' : 'vr-grid-many')}>
                 {/* LOCAL */}
                 <div className={'vr-tile ' + (activeSpeakerUid === localUidRef.current ? 'vr-tile-spk' : '') + (!camOn ? 'vr-tile-bg' : '')}>
-                  {camOn && <video key="local-grid" ref={el => { tileVideoRefs.current['local-grid'] = el; }} autoPlay muted playsInline />}
+                  {camOn && <video key="local-grid" ref={el => { if (el) { el.srcObject = getLocalStream(); } }} autoPlay muted playsInline />}
                   {!camOn && <div className="vr-tile-bg"><div className="vr-tile-emoji">{(displayName || 'You')[0].toUpperCase()}</div></div>}
                   <div className="vr-tile-label">
                     <div className="vr-tile-label-name">{displayName} (You){screenOn && ' · Sharing'}</div>
@@ -526,7 +504,7 @@ export default function VideoRoom({ user, onLeave }) {
                   return (
                     <div className={'vr-tile vr-tile-main ' + (activeSpeakerUid === speaker.uid ? 'vr-tile-spk' : '')}>
                       {speaker.isHost ? (
-                        <video key="local-speaker-main" ref={el => { tileVideoRefs.current['local-speaker-main'] = el; }} autoPlay muted playsInline />
+                        <video key="local-speaker-main" ref={el => { if (el) { el.srcObject = getLocalStream(); } }} autoPlay muted playsInline />
                       ) : speaker.remoteStream ? (
                         <RemoteVideo stream={speaker.remoteStream} />
                       ) : null}
@@ -546,7 +524,7 @@ export default function VideoRoom({ user, onLeave }) {
                     title={p.name}
                   >
                     {p.isHost ? (
-                      <video key={'local-strip-' + i} ref={el => { tileVideoRefs.current['local-strip-' + i] = el; }} autoPlay muted playsInline />
+                      <video key={'local-strip-' + i} ref={el => { if (el) { el.srcObject = getLocalStream(); } }} autoPlay muted playsInline />
                     ) : p.remoteStream ? (
                       <RemoteVideo stream={p.remoteStream} />
                     ) : null}
@@ -570,7 +548,7 @@ export default function VideoRoom({ user, onLeave }) {
                   return (
                     <div className={'vr-tile vr-tile-main ' + (!pinned.hasVideo && !pinned.isHost ? 'vr-tile-bg' : '')}>
                       {pinned.isHost ? (
-                        <video key="local-spotlight-main" ref={el => { tileVideoRefs.current['local-spotlight-main'] = el; }} autoPlay muted playsInline />
+                        <video key="local-spotlight-main" ref={el => { if (el) { el.srcObject = getLocalStream(); } }} autoPlay muted playsInline />
                       ) : pinned.remoteStream ? (
                         <RemoteVideo stream={pinned.remoteStream} />
                       ) : null}
@@ -588,7 +566,7 @@ export default function VideoRoom({ user, onLeave }) {
                     onClick={() => setActiveSpeakerUid(p.uid)}
                   >
                     {p.isHost ? (
-                      <video key={'local-spot-' + i} ref={el => { tileVideoRefs.current['local-spot-' + i] = el; }} autoPlay muted playsInline />
+                      <video key={'local-spot-' + i} ref={el => { if (el) { el.srcObject = getLocalStream(); } }} autoPlay muted playsInline />
                     ) : p.remoteStream ? (
                       <RemoteVideo stream={p.remoteStream} />
                     ) : null}
