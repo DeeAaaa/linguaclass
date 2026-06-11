@@ -12,6 +12,7 @@ import {
 } from './webrtcClient';
 import { joinSignalingRoom } from './signaling';
 import { fetchContacts, saveContacts } from './supabase';
+import { getWeLang, setWeLang, translateText, bcpToDeepl, translateLangs } from './translate';
 
 
 
@@ -42,7 +43,13 @@ export default function VideoRoom({ user, onLeave }) {
   const [activeSpeakerUid, setActiveSpeakerUid] = useState(null);
 
   // ==================== LAYOUT MODE ====================
-  const [layoutMode, setLayoutMode] = useState('speaker'); // 'grid' | 'speaker' | 'spotlight'
+  const [layoutMode, setLayoutMode] = useState('auto'); // 'auto' | 'grid' | 'speaker' | 'spotlight'
+  const [pinnedUid, setPinnedUid] = useState(null); // user can pin a participant
+
+  // Auto-select best layout based on participant count
+  const effectiveMode = layoutMode === 'auto'
+    ? (participants.length === 1 ? 'solo' : participants.length === 2 ? 'duo' : 'spotlight')
+    : layoutMode;
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
 
   // ==================== PER-TILE VIDEO REFS (avoids sharing one ref across tiles) ====================
@@ -81,12 +88,12 @@ export default function VideoRoom({ user, onLeave }) {
   const transcriptScrollRef = useRef(null);
 
   // ==================== TRANSLATION ====================
-  const [translations, setTranslations] = useState([]);
-  const [translateFrom, setTranslateFrom] = useState('en');
-  const [translateTo, setTranslateTo] = useState('es');
-  const [isTranslating, setIsTranslating] = useState(false);
+  const [translations, setTranslations] = useState([]);       // side-panel translation log
+  const [liveTranslations, setLiveTranslations] = useState({}); // uid -> {text, translated, lang, time, speaker}
+  const [weLang, setWeLangState] = useState(getWeLang);         // user's preferred "we language"
   const [translateQueue, setTranslateQueue] = useState([]);
   const translateLock = useRef(false);
+  const liveTransTimeoutRef = useRef(null);
 
   // ==================== CONTACTS ====================
   const [appContacts, setAppContacts] = useState([]);
@@ -102,7 +109,6 @@ export default function VideoRoom({ user, onLeave }) {
   const [wbTool, setWbTool] = useState('pen'); // 'pen' | 'eraser'
   const [wbColor, setWbColor] = useState('#ffffff');
   const [wbSize, setWbSize] = useState(3);
-  const wbCanvasRef = useRef(null); // ref to canvas for direct drawing
 
   // Draw all strokes onto a canvas context
   const redrawCanvas = useCallback((strokes) => {
@@ -286,6 +292,10 @@ export default function VideoRoom({ user, onLeave }) {
           if (data.type === 'wb-clear' && data.userId !== uid) {
             setWbStrokes([]);
           }
+          // Handle incoming transcript from another speaker
+          if (data.type === 'transcript-original' && data.userId !== uid) {
+            handleIncomingTranscript(data);
+          }
         }
       });
 
@@ -344,6 +354,59 @@ export default function VideoRoom({ user, onLeave }) {
     setChatInput('');
   }, [chatInput, displayName]);
 
+  // ==================== LIVE TRANSLATION (DeepL) ====================
+  const weLangRef = useRef(weLang);
+  useEffect(() => { weLangRef.current = weLang; }, [weLang]);
+
+  const handleIncomingTranscript = useCallback(async (data) => {
+    const { text, speaker, lang, userId } = data;
+    const srcLang = bcpToDeepl(lang);
+    const tgtLang = weLangRef.current;
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // Show original text immediately in live overlay
+    setLiveTranslations(prev => ({
+      ...prev,
+      [userId]: { text, translated: null, lang, speaker, time: timeStr }
+    }));
+
+    // Clear overlay after 6 seconds of silence
+    if (liveTransTimeoutRef.current) clearTimeout(liveTransTimeoutRef.current);
+    liveTransTimeoutRef.current = setTimeout(() => {
+      setLiveTranslations(prev => {
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
+    }, 6000);
+
+    // Add to side-panel transcript log
+    const entry = { id: Date.now(), text, speaker, time: timeStr, lang };
+    setTranscripts(prev => [...prev, entry]);
+
+    // Translate to user's we_lang if different from source
+    if (srcLang !== tgtLang) {
+      const translated = await translateText(text, tgtLang, lang);
+      if (translated) {
+        setLiveTranslations(prev => ({
+          ...prev,
+          [userId]: { ...prev[userId], translated }
+        }));
+        setTranslations(prev => [...prev, { ...entry, translated, to: tgtLang }]);
+      }
+    } else {
+      // Same language — just show in translation panel too
+      setTranslations(prev => [...prev, { ...entry, translated: null, to: tgtLang }]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // stable — uses weLangRef
+
+  // Change we_lang and persist
+  const changeWeLang = useCallback((code) => {
+    setWeLang(code);
+    setWeLangState(code);
+  }, []);
+
   // ==================== TRANSCRIPTION ====================
   const startTranscription = useCallback(() => {
     if (!SpeechRecognition) { alert('Speech recognition is not supported in this browser.'); return; }
@@ -354,16 +417,26 @@ export default function VideoRoom({ user, onLeave }) {
 
     rec.onresult = (event) => {
       let final = '';
-      let interim = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const t = event.results[i][0].transcript;
         if (event.results[i].isFinal) final += t + ' ';
-        else interim += t;
       }
       if (final.trim()) {
-        const entry = { id: Date.now(), text: final.trim(), speaker: displayName, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), lang: transcriptLang };
+        const text = final.trim();
+        const entry = { id: Date.now(), text, speaker: displayName, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), lang: transcriptLang };
         setTranscripts(prev => [...prev, entry]);
-        setTranslateQueue(prev => [...prev, entry]);
+
+        // Broadcast original transcript to room so everyone can translate it
+        if (signalingRef.current) {
+          signalingRef.current.send({
+            type: 'transcript-original',
+            userId: localUidRef.current,
+            speaker: displayName,
+            text,
+            lang: transcriptLang,
+            roomId
+          });
+        }
       }
     };
 
@@ -373,7 +446,7 @@ export default function VideoRoom({ user, onLeave }) {
     recognitionRef.current = rec;
     rec.start();
     setIsTranscribing(true);
-  }, [transcriptLang, displayName, isTranscribing]);
+  }, [transcriptLang, displayName, isTranscribing, roomId]);
 
   const stopTranscription = useCallback(() => {
     if (recognitionRef.current) {
@@ -383,30 +456,27 @@ export default function VideoRoom({ user, onLeave }) {
     setIsTranscribing(false);
   }, []);
 
-  // ==================== TRANSLATION ====================
+  // ==================== TRANSLATION (manual, single-pair) ====================
   useEffect(() => {
     async function processQueue() {
       if (translateLock.current || translateQueue.length === 0) return;
       translateLock.current = true;
       const item = translateQueue[0];
       try {
-        const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(item.text)}&langpair=${translateFrom}|${translateTo}`);
-        const data = await res.json();
-        const translated = data?.responseData?.translatedText || item.text;
-        setTranslations(prev => [...prev, { ...item, translated, to: translateTo }]);
+        const translated = await translateText(item.text, weLang, item.lang);
+        setTranslations(prev => [...prev, { ...item, translated: translated || '[No translation]', to: weLang }]);
         setTranslateQueue(prev => prev.slice(1));
       } catch (e) {
-        setTranslations(prev => [...prev, { ...item, translated: '[Translation failed]', to: translateTo }]);
+        setTranslations(prev => [...prev, { ...item, translated: '[Translation failed]', to: weLang }]);
         setTranslateQueue(prev => prev.slice(1));
       }
       translateLock.current = false;
     }
     processQueue();
-  }, [translateQueue, translateFrom, translateTo]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [translateQueue, weLang]);
 
   // ==================== CONTACTS INTEGRATION ====================
-  const unknownParticipants = participants.filter(p => !p.isHost && !appContacts.some(c => c.name === p.name || c.email === p.name));
-
   const openRegisterModal = (participant) => {
     setRegisterTarget(participant);
     setRegisterForm({ name: participant.name || '', email: '', role: 'Student', phone: '', subject: '' });
@@ -456,6 +526,21 @@ export default function VideoRoom({ user, onLeave }) {
 
   // ==================== RENDER HELPERS ====================
   const togglePanel = (name) => setActivePanel(p => p === name ? null : name);
+
+  // Live translated caption overlay for a participant
+  const LiveCaption = ({ uid }) => {
+    const cap = liveTranslations[uid];
+    if (!cap) return null;
+    return (
+      <div className="vr-live-caption">
+        {cap.translated && (
+          <div className="vr-live-caption-trans">{cap.translated}</div>
+        )}
+        {cap.translated && <div className="vr-live-caption-sep">·</div>}
+        <div className="vr-live-caption-orig">{cap.text}</div>
+      </div>
+    );
+  };
 
   const langOptions = [
     { code: 'en-US', label: 'English' },
@@ -535,18 +620,18 @@ export default function VideoRoom({ user, onLeave }) {
           {/* LAYOUT TOGGLE */}
           <div className="vr-layout-wrap" style={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}>
             <button className="vr-layout-btn" onClick={() => setShowLayoutMenu(m => !m)}>
-              {layoutMode === 'grid' ? '⊞ Grid' : layoutMode === 'speaker' ? '🎤 Speaker' : '⭐ Spotlight'}
+              {layoutMode === 'auto' ? '✨ Auto' : layoutMode === 'grid' ? '⊞ Grid' : layoutMode === 'speaker' ? '🎤 Speaker' : '⭐ Spotlight'}
             </button>
             {showLayoutMenu && (
               <div className="vr-layout-dropdown">
                 {[
+                  { key: 'auto', label: '✨ Auto', desc: 'Smart — adapts to # of people' },
                   { key: 'grid', label: '⊞ Grid', desc: 'All visible' },
-                  { key: 'speaker', label: '🎤 Speaker', desc: 'Active speaker center' },
-                  { key: 'spotlight', label: '⭐ Spotlight', desc: 'Pin one person' },
+                  { key: 'spotlight', label: '⭐ Spotlight', desc: 'Click thumbnails to pin' },
                 ].map(m => (
                   <div key={m.key}
                     className={'vr-layout-item ' + (layoutMode === m.key ? 'vr-layout-active' : '')}
-                    onClick={() => { setLayoutMode(m.key); setShowLayoutMenu(false); }}
+                    onClick={() => { setLayoutMode(m.key); setShowLayoutMenu(false); setPinnedUid(null); }}
                   >
                     {m.label} <span style={{ color: '#8e8e93', fontSize: 10, marginLeft: 'auto' }}>{m.desc}</span>
                   </div>
@@ -555,96 +640,73 @@ export default function VideoRoom({ user, onLeave }) {
             )}
           </div>
 
-          {/* GRID LAYOUT */}
-          {layoutMode === 'grid' && (
-            <div className="vr-grid-wrap">
-              <div className={'vr-grid ' + (participants.length <= 1 ? '' : participants.length === 2 ? 'vr-grid-2' : participants.length === 3 ? 'vr-grid-3-main' : participants.length === 4 ? 'vr-grid-4' : 'vr-grid-many')}>
-                {/* LOCAL */}
-                <div className={'vr-tile ' + (activeSpeakerUid === localUidRef.current ? 'vr-tile-spk' : '') + (!camOn ? 'vr-tile-bg' : '')}>
-                  {camOn && <video key="local-grid" ref={el => { if (el) { el.srcObject = getLocalStream(); } }} autoPlay muted playsInline />}
-                  {!camOn && <div className="vr-tile-bg"><div className="vr-tile-emoji">{(displayName || 'You')[0].toUpperCase()}</div></div>}
-                  <div className="vr-tile-label">
-                    <div className="vr-tile-label-name">{displayName} (You){screenOn && ' · Sharing'}</div>
-                    <div className="vr-tile-label-mic">{!micOn && '🔇'}</div>
-                  </div>
+          {/* SMART VIDEO LAYOUT — adapts to participant count */}
+          {effectiveMode === 'solo' && (
+            /* 1 person: compact single tile */
+            <div className="vr-solo-wrap">
+              <div className={'vr-tile vr-tile-solo ' + (!camOn ? 'vr-tile-bg' : '')}>
+                {camOn ? (
+                  <video key="local-solo" ref={el => { if (el) { el.srcObject = getLocalStream(); } }} autoPlay muted playsInline />
+                ) : (
+                  <div className="vr-tile-bg"><div className="vr-tile-emoji vr-tile-emoji-lg">{(displayName || 'Y')[0].toUpperCase()}</div></div>
+                )}
+                <div className="vr-tile-label vr-tile-label-solo">
+                  <div className="vr-tile-label-name">{displayName}{screenOn ? ' · Sharing' : ''}{!micOn ? ' 🔇' : ''}</div>
                 </div>
-                {/* REMOTE */}
-                {participants.filter(p => !p.isHost).map(p => (
-                  <div key={p.uid} className={'vr-tile ' + (activeSpeakerUid === p.uid ? 'vr-tile-spk' : '') + (!p.hasVideo ? 'vr-tile-bg' : '')}>
-                    {p.remoteStream && <RemoteVideo stream={p.remoteStream} />}
-                    {!p.hasVideo && <div className="vr-tile-bg"><div className="vr-tile-emoji">{(p.name || 'G')[0].toUpperCase()}</div></div>}
-                    <div className="vr-tile-label">
-                      <div className="vr-tile-label-name">{p.name}</div>
-                    </div>
-                  </div>
-                ))}
+                <LiveCaption uid={localUidRef.current} />
               </div>
             </div>
           )}
 
-          {/* SPEAKER LAYOUT — active speaker big center */}
-          {layoutMode === 'speaker' && (
-            <div className="vr-speaker-wrap">
-              <div className="vr-speaker-main">
-                {(() => {
-                  const speaker = participants.find(p => p.uid === activeSpeakerUid) ||
-                    participants.find(p => !p.isHost) ||
-                    participants.find(p => p.isHost);
-                  if (!speaker) return null;
-                  return (
-                    <div className={'vr-tile vr-tile-main ' + (activeSpeakerUid === speaker.uid ? 'vr-tile-spk' : '')}>
-                      {speaker.isHost ? (
-                        <video key="local-speaker-main" ref={el => { if (el) { el.srcObject = getLocalStream(); } }} autoPlay muted playsInline />
-                      ) : speaker.remoteStream ? (
-                        <RemoteVideo stream={speaker.remoteStream} />
-                      ) : null}
-                      <div className="vr-tile-label">
-                        <div className="vr-tile-label-name">{speaker.name}{speaker.isHost ? ' (You)' : ''}{!speaker.hasVideo && ' 📷'}</div>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-              {/* Strip of all participants */}
-              <div className="vr-speaker-strip">
-                {participants.map((p, i) => (
-                  <div key={p.uid}
-                    className={'vr-tile vr-tile-thumb ' + (activeSpeakerUid === p.uid ? 'vr-tile-spk' : '')}
-                    onClick={() => setActiveSpeakerUid(p.uid)}
-                    title={p.name}
-                  >
-                    {p.isHost ? (
-                      <video key={'local-strip-' + i} ref={el => { if (el) { el.srcObject = getLocalStream(); } }} autoPlay muted playsInline />
-                    ) : p.remoteStream ? (
-                      <RemoteVideo stream={p.remoteStream} />
-                    ) : null}
-                    {!p.hasVideo && p.isHost && <div className="vr-tile-bg"><div className="vr-tile-emoji" style={{ fontSize: '28px' }}>{(p.name || '?')[0].toUpperCase()}</div></div>}
-                    <div className="vr-tile-label">
-                      <div className="vr-tile-label-name">{p.name}</div>
-                    </div>
+          {effectiveMode === 'duo' && (
+            /* 2 people: equal side-by-side tiles */
+            <div className="vr-duo-wrap">
+              {participants.map((p, i) => (
+                <div key={p.uid}
+                  className={'vr-tile vr-tile-duo ' + (activeSpeakerUid === p.uid ? 'vr-tile-spk' : '')}
+                  onClick={() => setActiveSpeakerUid(p.uid)}
+                >
+                  {p.isHost ? (
+                    camOn ? (
+                      <video key={'local-duo-'+i} ref={el => { if (el) { el.srcObject = getLocalStream(); } }} autoPlay muted playsInline />
+                    ) : (
+                      <div className="vr-tile-bg"><div className="vr-tile-emoji vr-tile-emoji-lg">{(p.name||'Y')[0].toUpperCase()}</div></div>
+                    )
+                  ) : p.remoteStream ? (
+                    <RemoteVideo stream={p.remoteStream} />
+                  ) : (
+                    <div className="vr-tile-bg"><div className="vr-tile-emoji vr-tile-emoji-lg">{(p.name||'?')[0].toUpperCase()}</div></div>
+                  )}
+                  <div className="vr-tile-label">
+                    <div className="vr-tile-label-name">{p.name}{p.isHost ? ' (You)' : ''}{!micOn && p.isHost ? ' 🔇' : ''}</div>
                   </div>
-                ))}
-              </div>
+                  <LiveCaption uid={p.uid} />
+                </div>
+              ))}
             </div>
           )}
 
-          {/* SPOTLIGHT LAYOUT — pinned + thumbnail strip */}
-          {layoutMode === 'spotlight' && (
+          {effectiveMode === 'spotlight' && (
+            /* 3+ people: spotlight + thumbnail strip */
             <div className="vr-spotlight-wrap">
               <div className="vr-spotlight-main">
                 {(() => {
-                  const pinned = participants.find(p => p.uid === activeSpeakerUid) || participants.find(p => !p.isHost) || participants.find(p => p.isHost);
-                  if (!pinned) return null;
+                  const main = participants.find(p => p.uid === (pinnedUid || activeSpeakerUid))
+                    || participants.find(p => !p.isHost)
+                    || participants[0];
+                  if (!main) return null;
                   return (
-                    <div className={'vr-tile vr-tile-main ' + (!pinned.hasVideo && !pinned.isHost ? 'vr-tile-bg' : '')}>
-                      {pinned.isHost ? (
-                        <video key="local-spotlight-main" ref={el => { if (el) { el.srcObject = getLocalStream(); } }} autoPlay muted playsInline />
-                      ) : pinned.remoteStream ? (
-                        <RemoteVideo stream={pinned.remoteStream} />
-                      ) : null}
+                    <div className={'vr-tile vr-tile-main ' + (activeSpeakerUid === main.uid ? 'vr-tile-spk' : '')}
+                      onClick={() => setPinnedUid(main.uid)} title="Click to pin this speaker">
+                      {main.isHost ? (
+                        camOn ? <video key="local-spot-main" ref={el => { if (el) { el.srcObject = getLocalStream(); } }} autoPlay muted playsInline /> : <div className="vr-tile-bg"><div className="vr-tile-emoji vr-tile-emoji-lg">{(main.name||'Y')[0].toUpperCase()}</div></div>
+                      ) : main.remoteStream ? (
+                        <RemoteVideo stream={main.remoteStream} />
+                      ) : <div className="vr-tile-bg"><div className="vr-tile-emoji vr-tile-emoji-lg">{(main.name||'?')[0].toUpperCase()}</div></div>}
                       <div className="vr-tile-label">
-                        <div className="vr-tile-label-name">{pinned.name}{pinned.isHost ? ' (You)' : ''}{!pinned.hasVideo && ' 📷'}</div>
+                        <div className="vr-tile-label-name">{main.name}{main.isHost ? ' (You)' : ''}{!micOn && main.isHost ? ' 🔇' : ''}</div>
                       </div>
+                      <LiveCaption uid={main.uid} />
                     </div>
                   );
                 })()}
@@ -652,18 +714,41 @@ export default function VideoRoom({ user, onLeave }) {
               <div className="vr-spotlight-strip">
                 {participants.map((p, i) => (
                   <div key={p.uid}
-                    className={'vr-tile vr-tile-thumb ' + (activeSpeakerUid === p.uid ? 'vr-tile-spk' : '')}
-                    onClick={() => setActiveSpeakerUid(p.uid)}
+                    className={'vr-tile vr-tile-thumb ' + (activeSpeakerUid === p.uid ? 'vr-tile-spk' : '') + (pinnedUid === p.uid ? ' vr-tile-pinned' : '')}
+                    onClick={() => { setPinnedUid(p.uid); setActiveSpeakerUid(p.uid); }}
+                    title={p.name + (pinnedUid === p.uid ? ' (pinned)' : '')}
                   >
                     {p.isHost ? (
-                      <video key={'local-spot-' + i} ref={el => { if (el) { el.srcObject = getLocalStream(); } }} autoPlay muted playsInline />
+                      camOn ? <video key={'local-spot-'+i} ref={el => { if (el) { el.srcObject = getLocalStream(); } }} autoPlay muted playsInline /> : <div className="vr-tile-bg"><div className="vr-tile-emoji">{(p.name||'?')[0].toUpperCase()}</div></div>
                     ) : p.remoteStream ? (
                       <RemoteVideo stream={p.remoteStream} />
-                    ) : null}
-                    {!p.hasVideo && p.isHost && <div className="vr-tile-bg"><div className="vr-tile-emoji" style={{ fontSize: '20px' }}>{(p.name || '?')[0].toUpperCase()}</div></div>}
+                    ) : <div className="vr-tile-bg"><div className="vr-tile-emoji">{(p.name||'?')[0].toUpperCase()}</div></div>}
+                    {!p.hasVideo && p.isHost && <div className="vr-tile-bg"><div className="vr-tile-emoji">{(p.name||'?')[0].toUpperCase()}</div></div>}
                     <div className="vr-tile-label">
-                      <div className="vr-tile-label-name">{p.name}</div>
+                      <div className="vr-tile-label-name">{p.name}{pinnedUid === p.uid ? ' ★' : ''}</div>
                     </div>
+                    <LiveCaption uid={p.uid} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {effectiveMode === 'grid' && (
+            /* Manual grid layout */
+            <div className="vr-grid-wrap">
+              <div className={'vr-grid vr-grid-' + (participants.length <= 2 ? 'few' : 'many')}>
+                {participants.map((p, i) => (
+                  <div key={p.uid} className={'vr-tile ' + (activeSpeakerUid === p.uid ? 'vr-tile-spk' : '')}>
+                    {p.isHost ? (
+                      camOn ? <video key={'local-grid-'+i} ref={el => { if (el) { el.srcObject = getLocalStream(); } }} autoPlay muted playsInline /> : <div className="vr-tile-bg"><div className="vr-tile-emoji">{(p.name||'?')[0].toUpperCase()}</div></div>
+                    ) : p.remoteStream ? (
+                      <RemoteVideo stream={p.remoteStream} />
+                    ) : <div className="vr-tile-bg"><div className="vr-tile-emoji">{(p.name||'?')[0].toUpperCase()}</div></div>}
+                    <div className="vr-tile-label">
+                      <div className="vr-tile-label-name">{p.name}{p.isHost ? ' (You)' : ''}</div>
+                    </div>
+                    <LiveCaption uid={p.uid} />
                   </div>
                 ))}
               </div>
@@ -746,24 +831,47 @@ export default function VideoRoom({ user, onLeave }) {
             {activePanel === 'translate' && (
               <div className="vr-panel-inner">
                 <div className="vr-panel-header">
-                  <h4>Translation</h4>
+                  <h4>🌐 Live Translation</h4>
                   <div className="vr-panel-tools">
-                    <select value={translateFrom} onChange={e => setTranslateFrom(e.target.value)}>{translateLangs.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
-                    <span>→</span>
-                    <select value={translateTo} onChange={e => setTranslateTo(e.target.value)}>{translateLangs.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
+                    <span style={{ fontSize: 11, color: '#8e8e93', marginRight: 4 }}>I speak:</span>
+                    <select value={transcriptLang} onChange={e => setTranscriptLang(e.target.value)} style={{ fontSize: 12 }}>
+                      {langOptions.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+                    </select>
                   </div>
                   <button onClick={() => setActivePanel(null)}>✕</button>
+                </div>
+                <div className="vr-panel-tools" style={{ padding: '0 12px 8px', borderBottom: '1px solid #333' }}>
+                  <span style={{ fontSize: 11, color: '#8e8e93' }}>Translate to (my "we" language):</span>
+                  <select value={weLang} onChange={e => changeWeLang(e.target.value)} style={{ fontSize: 12, marginLeft: 4 }}>
+                    {translateLangs.map(l => <option key={l.code} value={l.code}>{l.flag} {l.label}</option>)}
+                  </select>
+                  {isTranscribing && (
+                    <span style={{ fontSize: 11, color: '#34c759', marginLeft: 8 }}>🎙 Live</span>
+                  )}
                 </div>
                 <div className="vr-panel-scroll">
                   {translations.map((t, i) => (
                     <div key={i} className="vr-ai-item">
-                      <div className="vr-ai-text">{t.text}</div>
-                      <div className="vr-tran-tm">↓</div>
-                      <div className="vr-tran-txt">{t.translated}</div>
-                      <div className="vr-tran-tm">{t.speaker} · {t.time}</div>
+                      <div className="vr-tran-orig-row">
+                        <span className="vr-tran-spk">{t.speaker}</span>
+                        <span className="vr-tran-lang">{bcpToDeepl(t.lang)}</span>
+                      </div>
+                      <div className="vr-ai-text" style={{ fontSize: 13 }}>{t.text}</div>
+                      {t.translated && (
+                        <>
+                          <div className="vr-tran-tm">→ {t.to}</div>
+                          <div className="vr-tran-txt">{t.translated}</div>
+                        </>
+                      )}
+                      <div className="vr-tran-tm">{t.time}</div>
                     </div>
                   ))}
-                  {translations.length === 0 && <div className="vr-no-cts">Start transcription to see translations</div>}
+                  {translations.length === 0 && (
+                    <div className="vr-no-cts">
+                      <div>🎙 Press <strong>Transcript</strong> to start speaking.</div>
+                      <div style={{ marginTop: 8, fontSize: 11, color: '#666' }}>Your speech will be transcribed and translated to each participant's chosen language in real time.</div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -873,6 +981,10 @@ export default function VideoRoom({ user, onLeave }) {
         <button onClick={() => togglePanel('translate')} className={'vr-bar-btn ' + (activePanel === 'translate' ? 'vr-bar-btn-active' : '')} title="Translation">
           <span className="vr-bar-btn-icon">🌐</span>
           <span className="vr-bar-btn-label">Translate</span>
+        </button>
+        <button className="vr-bar-btn" title={'Your we-language: ' + (translateLangs.find(l => l.code === weLang)?.label || weLang)} onClick={() => togglePanel('translate')}>
+          <span className="vr-bar-btn-icon">🌍</span>
+          <span className="vr-bar-btn-label">{translateLangs.find(l => l.code === weLang)?.flag || '🌍'}</span>
         </button>
         <button onClick={() => togglePanel('contacts')} className={'vr-bar-btn ' + (activePanel === 'contacts' ? 'vr-bar-btn-active' : '')} title="Contacts">
           <span className="vr-bar-btn-icon">📇</span>

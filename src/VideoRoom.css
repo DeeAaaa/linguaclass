@@ -350,7 +350,88 @@
 .whiteboard-close{position:absolute;top:16px;right:16px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border:none;background:rgba(255,255,255,0.1);color:#fff;border-radius:50%;cursor:pointer;z-index:60;transition:all 0.2s;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
 .whiteboard-close:hover{background:rgba(255,59,48,0.8);transform:scale(1.1);}
 
-/* ========== RESPONSIVE ========== */
+/* ========== SMART LAYOUTS ========== */
+
+/* SOLO: 1 person — compact centered tile */
+.vr-solo-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 16px;
+}
+.vr-tile-solo {
+  width: 100%;
+  max-width: 520px;
+  aspect-ratio: 16/10;
+  border-radius: 16px;
+  max-height: 100%;
+}
+.vr-tile-emoji-lg {
+  font-size: 64px !important;
+}
+.vr-tile-label-solo {
+  bottom: 14px !important;
+  left: 14px !important;
+  right: 14px !important;
+  font-size: 14px !important;
+}
+
+/* DUO: 2 people — equal side-by-side */
+.vr-duo-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+  align-items: stretch;
+}
+.vr-tile-duo {
+  border-radius: 14px;
+  aspect-ratio: auto;
+  min-height: 0;
+}
+.vr-tile-pinned {
+  outline: 2px solid #007aff !important;
+  outline-offset: -2px;
+}
+
+/* Grid fallback */
+.vr-grid-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+}
+.vr-grid {
+  align-items: stretch;
+}
+.vr-grid-few {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  max-width: 900px;
+  align-items: stretch;
+}
+.vr-grid-few .vr-tile {
+  aspect-ratio: 16/10;
+}
+.vr-grid-many {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  width: 100%;
+  align-items: stretch;
+}
+.vr-grid-many .vr-tile {
+  aspect-ratio: 16/10;
+}
+
+/* Responsive overrides */
 @media(max-width:768px){
   .vr-panel{position:fixed;inset:0;width:100%;z-index:50;}
   .vr-bar{gap:2px;padding:4px 6px;}
@@ -370,4 +451,58 @@
   .vr-spotlight-strip{flex-direction:row;width:100%;overflow-y:hidden;overflow-x:auto;gap:4px;padding:0 0 4px;flex:0 0 auto;max-height:120px;}
   .vr-tile-spot{width:130px;flex-shrink:0;aspect-ratio:16/10;}
   .vr-tile-label-min{padding:2px 4px;font-size:9px;}
+}
+
+/* ========== LIVE TRANSLATED CAPTION OVERLAY ========== */
+.vr-live-caption {
+  position: absolute;
+  bottom: 40px;
+  left: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.72);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: vr-cap-in 0.2s ease-out;
+  z-index: 5;
+  pointer-events: none;
+}
+@keyframes vr-cap-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.vr-live-caption-trans {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffd60a;
+  line-height: 1.3;
+}
+.vr-live-caption-sep {
+  font-size: 10px;
+  color: #666;
+  margin: 1px 0;
+}
+.vr-live-caption-orig {
+  font-size: 12px;
+  color: rgba(255,255,255,0.65);
+  line-height: 1.3;
+  font-style: italic;
+}
+
+/* Translation panel lang tag */
+.vr-tran-lang {
+  font-size: 10px;
+  background: #333;
+  color: #aaa;
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.vr-tran-orig-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
 }
