@@ -817,21 +817,32 @@
     font-size: 28px !important;
     line-height: 1 !important;
   }
-  /* Shrink the whole subjects section on mobile */
+  /* Shrink the whole subjects section on mobile - 25% of current size */
   .subjects-section {
-    padding: 0.5rem !important;
+    padding: 0.4rem !important;
   }
   .subjects-grid {
-    gap: 0.4rem !important;
+    gap: 0.3rem !important;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
   }
   .subject-card {
-    padding: 0.4rem 0.5rem !important;
-    gap: 0.3rem !important;
+    padding: 0.35rem 0.5rem !important;
+    gap: 0.25rem !important;
     border-radius: 8px !important;
+    min-height: auto !important;
+  }
+  .subject-icon-bg {
+    height: 28px !important;
+    width: 28px !important;
+    flex-shrink: 0 !important;
+  }
+  .subject-icon {
+    font-size: 0.9rem !important;
   }
   .subject-info h3 {
-    font-size: 0.7rem !important;
+    font-size: 0.65rem !important;
     margin: 0 !important;
+    line-height: 1.2 !important;
   }
   .subject-info p {
     display: none !important;
@@ -861,5 +872,77 @@
   }
   .hero-content p {
     font-size: 0.85rem !important;
+  }
+}
+
+
+/* ============================================
+   MOBILE: dashboard responsive improvements
+   ============================================ */
+@media (max-width: 768px) {
+  /* Hero: remove stats column, center text */
+  .hero-content-wrapper {
+    grid-template-columns: 1fr !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+  .hero-stats {
+    display: none !important;
+  }
+  .hero-text {
+    width: 100% !important;
+  }
+  .hero-actions {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+  .btn-hero-primary,
+  .btn-hero-secondary {
+    width: 100% !important;
+    justify-content: center !important;
+    font-size: 0.85rem !important;
+    padding: 0.5rem 1rem !important;
+  }
+
+  /* Dashboard sections: tighter spacing */
+  section {
+    padding: 0.75rem !important;
+  }
+  .section-header-row h2 {
+    font-size: 1rem !important;
+  }
+
+  /* Featured content: single column on mobile */
+  .featured-grid,
+  .reading-grid,
+  .video-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .featured-card {
+    min-height: auto !important;
+  }
+
+  /* Student records, files: full width */
+  .records-table-wrapper,
+  .files-grid {
+    overflow-x: auto !important;
+  }
+  table {
+    font-size: 0.75rem !important;
+  }
+
+  /* Calendar: compact cells */
+  .calendar-day {
+    min-height: 60px !important;
+    font-size: 0.7rem !important;
+    padding: 0.25rem !important;
+  }
+
+  /* Bottom tabs: adequate spacing */
+  .bottom-tabs {
+    padding: 0.5rem !important;
+  }
+  .bottom-tab-label {
+    font-size: 0.65rem !important;
   }
 }

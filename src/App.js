@@ -1373,30 +1373,6 @@ function DashboardPage({ user, setCurrentPage }) {
               <h1>Welcome to the Classroom</h1>
               <p className="hero-subtitle">Study languages <strong>online</strong> or <strong>in person</strong> — your learning journey begins here.</p>
             </div>
-            <div className="hero-stats">
-              <div className="stat-card">
-                <div className="stat-icon">📚</div>
-                <div className="stat-info">
-                  <span className="stat-number">50+</span>
-                  <span className="stat-label">Courses</span>
-                </div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-icon">👩‍🏫</div>
-                <div className="stat-info">
-                  <span className="stat-number">20+</span>
-                  <span className="stat-label">Teachers</span>
-                </div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-icon">🌍</div>
-                <div className="stat-info">
-                  <span className="stat-number">1000+</span>
-                  <span className="stat-label">Students</span>
-                </div>
-              </div>
-            </div>
-
           </div>
         </div>
       ) : (
@@ -1419,29 +1395,6 @@ function DashboardPage({ user, setCurrentPage }) {
                 <button className="btn-hero-secondary">
                   <Icons.Play /> {t('watchTutorial')}
                 </button>
-              </div>
-            </div>
-            <div className="hero-stats">
-              <div className="stat-card">
-                <div className="stat-icon">📚</div>
-                <div className="stat-info">
-                  <span className="stat-number">12</span>
-                  <span className="stat-label">{t('classesCompleted')}</span>
-                </div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-icon">⏱️</div>
-                <div className="stat-info">
-                  <span className="stat-number">24{t('hoursAbbr')}</span>
-                  <span className="stat-label">{t('learningTime')}</span>
-                </div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-icon">🏆</div>
-                <div className="stat-info">
-                  <span className="stat-number">3</span>
-                  <span className="stat-label">{t('achievements')}</span>
-                </div>
               </div>
             </div>
           </div>
