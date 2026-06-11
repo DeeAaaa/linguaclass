@@ -97,9 +97,120 @@ export default function VideoRoom({ user, onLeave }) {
 
   // ==================== WHITEBOARD ====================
   const canvasRef = useRef(null);
-  const [drawing, setDrawing] = useState(false);
-  const drawColor = useRef('#ffffff');
-  const drawSize = useRef(3);
+  const [wbStrokes, setWbStrokes] = useState([]); // all strokes drawn by anyone
+  const wbCurrentStroke = useRef(null); // stroke being drawn right now
+  const [wbTool, setWbTool] = useState('pen'); // 'pen' | 'eraser'
+  const [wbColor, setWbColor] = useState('#ffffff');
+  const [wbSize, setWbSize] = useState(3);
+  const wbCanvasRef = useRef(null); // ref to canvas for direct drawing
+
+  // Draw all strokes onto a canvas context
+  const redrawCanvas = useCallback((strokes) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (const stroke of strokes) {
+      if (!stroke.points || stroke.points.length < 2) continue;
+      ctx.beginPath();
+      ctx.strokeStyle = stroke.tool === 'eraser' ? '#1a1a2e' : stroke.color;
+      ctx.lineWidth = stroke.tool === 'eraser' ? stroke.size * 3 : stroke.size;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+      }
+      ctx.stroke();
+    }
+  }, []);
+
+  // When strokes change (new one received), redraw
+  useEffect(() => {
+    redrawCanvas(wbStrokes);
+  }, [wbStrokes, redrawCanvas]);
+
+  const getCanvasPos = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: (clientX - rect.left) * (canvas.width / rect.width),
+      y: (clientY - rect.top) * (canvas.height / rect.height)
+    };
+  };
+
+  const wbStart = (e) => {
+    e.preventDefault();
+    const p = getCanvasPos(e);
+    wbCurrentStroke.current = {
+      userId: localUidRef.current,
+      color: wbColor,
+      size: wbSize,
+      tool: wbTool,
+      points: [p]
+    };
+  };
+
+  const wbMove = (e) => {
+    e.preventDefault();
+    if (!wbCurrentStroke.current) return;
+    const p = getCanvasPos(e);
+    wbCurrentStroke.current.points.push(p);
+    // Live preview on canvas
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const pts = wbCurrentStroke.current.points;
+    if (pts.length < 2) return;
+    ctx.beginPath();
+    ctx.strokeStyle = wbTool === 'eraser' ? '#1a1a2e' : wbColor;
+    ctx.lineWidth = wbTool === 'eraser' ? wbSize * 3 : wbSize;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.moveTo(pts[pts.length - 2].x, pts[pts.length - 2].y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+  };
+
+  const wbEnd = (e) => {
+    e.preventDefault();
+    if (!wbCurrentStroke.current || wbCurrentStroke.current.points.length < 2) {
+      wbCurrentStroke.current = null;
+      return;
+    }
+    const completed = wbCurrentStroke.current;
+    wbCurrentStroke.current = null;
+
+    // Add to local strokes
+    setWbStrokes(prev => {
+      const next = [...prev, completed];
+      return next;
+    });
+
+    // Broadcast to all participants
+    if (signalingRef.current) {
+      signalingRef.current.send(JSON.stringify({
+        type: 'wb-stroke',
+        stroke: completed,
+        roomId
+      }));
+    }
+  };
+
+
+  const wbClearAll = () => {
+    setWbStrokes([]);
+    if (signalingRef.current) {
+      signalingRef.current.send(JSON.stringify({ type: 'wb-clear', userId: localUidRef.current, roomId }));
+    }
+  };
+
+  const wbColorPresets = ['#ffffff', '#ff4444', '#44ff44', '#4488ff', '#ffff44', '#ff44ff', '#44ffff', '#ff8800'];
 
   // ==================== AUTO JOIN ====================
   useEffect(() => {
@@ -168,6 +279,12 @@ export default function VideoRoom({ user, onLeave }) {
           if (data.type === 'chat') {
             setMessages(prev => [...prev, { ...data, id: Date.now() + Math.random() }]);
             if (activePanel !== 'chat') setUnreadChat(u => u + 1);
+          }
+          if (data.type === 'wb-stroke' && data.stroke && data.stroke.userId !== uid) {
+            setWbStrokes(prev => [...prev, data.stroke]);
+          }
+          if (data.type === 'wb-clear' && data.userId !== uid) {
+            setWbStrokes([]);
           }
         }
       });
@@ -325,33 +442,6 @@ export default function VideoRoom({ user, onLeave }) {
     };
     setMessages(prev => [...prev, msg]);
     if (signalingRef.current) signalingRef.current.send(JSON.stringify(msg));
-  };
-
-  // ==================== WHITEBOARD ====================
-  const getCanvasPos = (e) => {
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-  };
-  const wbStart = (e) => {
-    const ctx = canvasRef.current.getContext('2d');
-    const p = getCanvasPos(e);
-    ctx.beginPath(); ctx.moveTo(p.x, p.y);
-    setDrawing(true);
-  };
-  const wbMove = (e) => {
-    if (!drawing) return;
-    const ctx = canvasRef.current.getContext('2d');
-    const p = getCanvasPos(e);
-    ctx.strokeStyle = drawColor.current;
-    ctx.lineWidth = drawSize.current;
-    ctx.lineCap = 'round';
-    ctx.lineTo(p.x, p.y); ctx.stroke();
-  };
-  const wbEnd = () => setDrawing(false);
-  const wbClear = () => {
-    const c = canvasRef.current;
-    if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
   };
 
   // ==================== LEAVE ====================
@@ -716,21 +806,38 @@ export default function VideoRoom({ user, onLeave }) {
             {activePanel === 'whiteboard' && (
               <div className="vr-panel-inner">
                 <div className="vr-panel-header">
-                  <h4>Whiteboard</h4>
-                  <div className="vr-panel-tools">
-                    <input type="color" defaultValue="#ffffff" onChange={e => drawColor.current = e.target.value} />
-                    <select defaultValue="3" onChange={e => drawSize.current = parseInt(e.target.value)}>
-                      <option value="2">Thin</option>
-                      <option value="3">Normal</option>
-                      <option value="5">Thick</option>
-                      <option value="8">Bold</option>
-                    </select>
-                    <button onClick={wbClear}>Clear</button>
-                  </div>
+                  <h4>🎨 Whiteboard</h4>
                   <button onClick={() => setActivePanel(null)}>✕</button>
                 </div>
-                <canvas ref={canvasRef} width={380} height={380} className="vr-screen-vid"
-                  onMouseDown={wbStart} onMouseMove={wbMove} onMouseUp={wbEnd} onMouseLeave={wbEnd} />
+                <div className="wb-toolbar">
+                  <div className="wb-tool-group">
+                    <button className={'wb-btn ' + (wbTool === 'pen' ? 'wb-btn-active' : '')}
+                      onClick={() => setWbTool('pen')} title="Pen">✏️ Pen</button>
+                    <button className={'wb-btn ' + (wbTool === 'eraser' ? 'wb-btn-active' : '')}
+                      onClick={() => setWbTool('eraser')} title="Eraser">🧹 Eraser</button>
+                  </div>
+                  <div className="wb-colors">
+                    {wbColorPresets.map(c => (
+                      <button key={c} className={'wb-color-btn ' + (wbColor === c && wbTool === 'pen' ? 'wb-color-active' : '')}
+                        style={{ background: c }}
+                        onClick={() => { setWbColor(c); setWbTool('pen'); }} />
+                    ))}
+                    <input type="color" value={wbColor} onChange={e => { setWbColor(e.target.value); setWbTool('pen'); }}
+                      className="wb-color-picker" title="Custom color" />
+                  </div>
+                  <div className="wb-sizes">
+                    {[2, 4, 8, 16].map(s => (
+                      <button key={s} className={'wb-size-btn ' + (wbSize === s ? 'wb-size-active' : '')}
+                        onClick={() => setWbSize(s)}>
+                        <span style={{ width: s * 2, height: s * 2, borderRadius: '50%', background: '#fff', display: 'block' }} />
+                      </button>
+                    ))}
+                  </div>
+                  <button className="wb-btn wb-clear-btn" onClick={wbClearAll}>🗑️ Clear All</button>
+                </div>
+                <canvas ref={canvasRef} width={600} height={400} className="wb-canvas"
+                  onMouseDown={wbStart} onMouseMove={wbMove} onMouseUp={wbEnd} onMouseLeave={wbEnd}
+                  onTouchStart={wbStart} onTouchMove={wbMove} onTouchEnd={wbEnd} />
               </div>
             )}
           </div>
