@@ -1,0 +1,61 @@
+{
+  "name": "Linguaclass - Online English Classroom",
+  "short_name": "Linguaclass",
+  "description": "Professional online English classroom with live video, calendar, student records, and more.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "fullscreen", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#f0f4ff",
+  "theme_color": "#2563eb",
+  "categories": ["education", "productivity"],
+  "lang": "en",
+  "dir": "ltr",
+  "iarc_rating_id": "e10bb707-60b6-4e13-bb8c-15e4c9a03e90",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "16x16 24x24 32x32 48x48 64x64",
+      "type": "image/x-icon",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Join Class",
+      "short_name": "Class",
+      "description": "Join a live video class",
+      "url": "/?page=video",
+      "icons": [{ "src": "/logo192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Home",
+      "description": "View your dashboard",
+      "url": "/?page=dashboard",
+      "icons": [{ "src": "/logo192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Calendar",
+      "short_name": "Schedule",
+      "description": "View your class schedule",
+      "url": "/?page=calendar",
+      "icons": [{ "src": "/logo192.png", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": []
+}

@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="500" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="50%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="pageGrad" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#e8ecff" stop-opacity="1"/>
+    </linearGradient>
+    <linearGradient id="speechGrad" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#a78bfa" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#60a5fa" stop-opacity="1"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#3b82f6" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect x="30" y="30" width="440" height="440" rx="110" fill="url(#bgGrad)" filter="url(#shadow)"/>
+
+  <!-- Subtle inner ring -->
+  <circle cx="250" cy="250" r="175" stroke="rgba(255,255,255,0.12)" stroke-width="1.5" fill="none"/>
+
+  <!-- Open Book - left page -->
+  <path d="M250 155 Q250 155 250 155 L250 370 Q250 330 210 305 Q170 280 140 295 Q110 310 110 335 L110 345 Q140 320 175 315 Q210 310 235 325 L235 165 Q210 148 175 152 Q140 156 110 175 L110 165 Q140 140 175 138 Q210 136 235 148"
+        fill="url(#pageGrad)" opacity="0.95"/>
+
+  <!-- Open Book - right page -->
+  <path d="M250 155 Q250 155 250 155 L250 370 Q250 330 290 305 Q320 280 350 295 Q380 310 380 335 L380 345 Q350 320 315 315 Q280 310 255 325 L255 165 Q280 148 315 152 Q350 156 380 175 L380 165 Q350 140 315 138 Q280 136 255 148"
+        fill="url(#pageGrad)" opacity="0.9"/>
+
+  <!-- Book spine -->
+  <line x1="250" y1="158" x2="250" y2="368" stroke="rgba(59,130,246,0.3)" stroke-width="2.5"/>
+
+  <!-- Left page text lines -->
+  <line x1="145" y1="200" x2="215" y2="195" stroke="rgba(59,130,246,0.25)" stroke-width="3" stroke-linecap="round"/>
+  <line x1="135" y1="230" x2="225" y2="225" stroke="rgba(59,130,246,0.2)" stroke-width="3" stroke-linecap="round"/>
+  <line x1="135" y1="260" x2="220" y2="255" stroke="rgba(59,130,246,0.15)" stroke-width="3" stroke-linecap="round"/>
+  <line x1="135" y1="290" x2="210" y2="285" stroke="rgba(59,130,246,0.1)" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Right page text lines -->
+  <line x1="285" y1="195" x2="355" y2="200" stroke="rgba(139,92,246,0.25)" stroke-width="3" stroke-linecap="round"/>
+  <line x1="275" y1="225" x2="355" y2="230" stroke="rgba(139,92,246,0.2)" stroke-width="3" stroke-linecap="round"/>
+  <line x1="275" y1="255" x2="350" y2="260" stroke="rgba(139,92,246,0.15)" stroke-width="3" stroke-linecap="round"/>
+  <line x1="275" y1="285" x2="345" y2="290" stroke="rgba(139,92,246,0.1)" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Speech bubble arc (communication/language) -->
+  <path d="M180 110 Q250 65 320 110" stroke="url(#speechGrad)" stroke-width="10" stroke-linecap="round" fill="none" opacity="0.85"/>
+  <path d="M200 95 Q250 55 300 95" stroke="rgba(255,255,255,0.3)" stroke-width="5" stroke-linecap="round" fill="none"/>
+
+  <!-- Small chat dots inside speech arc -->
+  <circle cx="215" cy="103" r="5" fill="white" opacity="0.8"/>
+  <circle cx="250" cy="93" r="5" fill="white" opacity="0.8"/>
+  <circle cx="285" cy="103" r="5" fill="white" opacity="0.8"/>
+
+  <!-- Globe/language mark in center -->
+  <circle cx="250" cy="270" r="18" fill="none" stroke="rgba(139,92,246,0.4)" stroke-width="2"/>
+  <ellipse cx="250" cy="270" rx="10" ry="18" fill="none" stroke="rgba(139,92,246,0.35)" stroke-width="1.5"/>
+  <line x1="232" y1="270" x2="268" y2="270" stroke="rgba(139,92,246,0.35)" stroke-width="1.5"/>
+
+  <!-- Star/Sparkle accent -->
+  <path d="M125 115 L130 108 L135 115 L128 115 Z" fill="white" opacity="0.7"/>
+  <path d="M370 380 L375 373 L380 380 L373 380 Z" fill="white" opacity="0.5"/>
+
+  <!-- Play/wifi icon for "online" -->
+  <path d="M168 125 L162 120 L162 130 Z" fill="white" opacity="0.5" transform="rotate(-15 165 125)"/>
+  <circle cx="178" cy="120" r="2" fill="white" opacity="0.4"/>
+</svg>
