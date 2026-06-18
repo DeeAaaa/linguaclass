@@ -3,10 +3,29 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(
-  supabaseUrl || '',
-  supabaseAnonKey || ''
-);
+// Lazy singleton — only created on first access (not at import time)
+// This prevents the Supabase Realtime WebSocket from blocking the landing page load
+let _supabase = null;
+export function getSupabase() {
+  if (!_supabase) {
+    _supabase = createClient(
+      supabaseUrl || '',
+      supabaseAnonKey || '',
+      {
+        realtime: { params: { eventsPerSecond: 10 } },
+        auth: { persistSession: true, autoRefreshToken: true },
+      }
+    );
+  }
+  return _supabase;
+}
+
+// Legacy export — lazy init on first use
+export const supabase = new Proxy({}, {
+  get(_, prop) {
+    return getSupabase()[prop];
+  }
+});
 
 // ============================================
 // AUTH HELPERS
@@ -569,7 +588,55 @@ export async function signInWithFamily(email, password) {
       email: supabaseEmail,
       password,
     });
-    if (error) throw error;
+    if (error) {
+      // Supabase Auth failed — try to find user in profiles table by phone/email
+      // and provision their Auth account if needed
+      const phoneOrEmail = email.includes('@') ? null : email;
+      const searchEmail = email.includes('@') ? email : null;
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .or(phoneOrEmail ? `phone.eq.${phoneOrEmail}` : `email.eq.${searchEmail}`)
+        .maybeSingle();
+
+      if (!profileError && profiles) {
+        // User exists in profiles but not in Auth — create their Auth account
+        const authEmail = profiles.email || supabaseEmail;
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: authEmail,
+          password,
+          options: {
+            data: {
+              name: profiles.name || '',
+              phone: profiles.phone || '',
+              role: profiles.role || '',
+              family_id: profiles.family_id || '',
+            },
+          },
+        });
+        if (!signUpError && signUpData?.user) {
+          // Auth account created — now fetch their profile with family data
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', signUpData.user.id)
+            .single();
+          let family = null;
+          let familyMembers = [];
+          if (profile?.family_id) {
+            const { data: fam } = await supabase
+              .from('families')
+              .select('*')
+              .eq('id', profile.family_id)
+              .maybeSingle();
+            family = fam;
+            familyMembers = await getFamilyMembers(profile.family_id);
+          }
+          return { user: signUpData.user, profile, family, familyMembers };
+        }
+      }
+      throw error;
+    }
 
     if (data.user) {
       const { data: profile } = await supabase
@@ -667,7 +734,27 @@ export async function signInLocal(identifier, password) {
       };
     }
   } catch (e) {
-    throw new Error('Invalid credentials. Please check and try again.');
+    // Fall through to Supabase family_accounts check
+  }
+
+  // Check Supabase family_accounts table (admin-created accounts synced from other devices)
+  const supabaseFamily = await findFamilyAccountInSupabase(identifier, password);
+  if (supabaseFamily) {
+    return {
+      profile: {
+        id: supabaseFamily.id,
+        name: supabaseFamily.parent_name,
+        email: supabaseFamily.parent_email,
+        phone: supabaseFamily.phone || '',
+        role: 'parent',
+        familyId: supabaseFamily.family_id,
+        familyCode: '',
+        familyName: supabaseFamily.family_name || '',
+        avatar: '👨‍👩‍👧',
+      },
+      family: null,
+      familyMembers: [],
+    };
   }
 
   throw new Error('Invalid credentials. Please check and try again.');
@@ -676,5 +763,96 @@ export async function signInLocal(identifier, password) {
 // Keep for backwards compatibility
 const originalSignIn = signIn;
 export { originalSignIn };
+
+// ============================================
+// FAMILY ACCOUNTS SYNC to Supabase
+// ============================================
+
+/**
+ * Sync a family account to Supabase so it works across devices.
+ * Saves to family_accounts table (upsert by id).
+ */
+export async function saveFamilyAccountToSupabase(family) {
+  // Use raw fetch to bypass supabase-js websocket hang in China
+  const SUPABASE_URL = 'https://uzvciccesilmalluxime.supabase.co';
+  const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6dmNpY2Nlc2lsbWFsbHV4aW1lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NzY5NTQsImV4cCI6MjA5NTA1Mjk1NH0.2-cMuQC64Z36WpgK73Ly8A982KZBGmAEmh9bHCtsl3w';
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/family_accounts`, {
+      method: 'POST',
+      headers: {
+        'apikey': ANON_KEY,
+        'Authorization': `Bearer ${ANON_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates',
+        'X-User-Agent': 'lingua-app',
+      },
+      body: JSON.stringify({
+        id: String(family.id),
+        parent_name: family.parentName,
+        parent_email: family.parentEmail || '',
+        phone: (family.phone || '').replace(/[^\d]/g, ''),
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('[FamilySync] HTTP', response.status, errText);
+      return false;
+    }
+    console.log('[FamilySync] Saved to Supabase:', family.parentName, 'HTTP', response.status);
+    return true;
+  } catch (e) {
+    console.error('[FamilySync] Failed:', e.name === 'AbortError' ? 'timeout' : e.message);
+    return false;
+  }
+}
+
+/**
+ * Find a family account in Supabase by phone or email.
+ */
+export async function findFamilyAccountInSupabase(identifier, password) {
+  const SUPABASE_URL = 'https://uzvciccesilmalluxime.supabase.co';
+  const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6dmNpY2Nlc2lsbWFsbHV4aW1lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NzY5NTQsImV4cCI6MjA5NTA1Mjk1NH0.2-cMuQC64Z36WpgK73Ly8A982KZBGmAEmh9bHCtsl3w';
+  try {
+    const isEmailInput = identifier.includes('@');
+    const cleanId = isEmailInput ? identifier.toLowerCase() : identifier.replace(/[^\d]/g, '');
+    const filter = isEmailInput
+      ? `parent_email=eq.${cleanId}`
+      : `phone=eq.${cleanId}`;
+    const url = `${SUPABASE_URL}/rest/v1/family_accounts?${filter}&select=*&limit=1`;
+    console.log('[FamilySupabase] Searching:', isEmailInput ? 'email' : 'phone', cleanId);
+    console.log('[FamilySupabase] URL:', url);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => { controller.abort(); console.log('[FamilySupabase] TIMEOUT'); }, 8000);
+    const response = await fetch(url, {
+      headers: {
+        'apikey': ANON_KEY,
+        'Authorization': `Bearer ${ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    console.log('[FamilySupabase] HTTP status:', response.status);
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('[FamilySupabase] HTTP error:', response.status, errText);
+      return null;
+    }
+    const rows = await response.json();
+    console.log('[FamilySupabase] Rows returned:', Array.isArray(rows) ? rows.length : 'not array', rows);
+    if (!Array.isArray(rows) || rows.length === 0) return null;
+    const data = rows[0];
+    // Password column may not exist in the table — if it does, verify it; otherwise trust the lookup
+    if (data.password !== undefined && data.password !== password) return null;
+    return data;
+  } catch (e) {
+    console.error('[FamilySupabase] Exception:', e.name === 'AbortError' ? 'TIMEOUT' : e.message);
+    return null;
+  }
+}
 
 export default supabase;

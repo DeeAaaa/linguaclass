@@ -302,6 +302,7 @@ export function RegisterForm({ family, onBack, onSuccess, t }) {
 // ============================================
 export function LoginForm({ role, onSuccess, onBack, t }) {
   const isFamilyRole = role === 'family';
+  // Family: phone ONLY (no email toggle). Admin/Teacher: email only.
   const [authMethod, setAuthMethod] = useState(isFamilyRole ? 'phone' : 'email');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -317,13 +318,17 @@ export function LoginForm({ role, onSuccess, onBack, t }) {
     return { icon: '🏠', label: t('family') || 'Family' };
   };
   const roleInfo = getRoleLabel();
-  const showPhoneOption = isFamilyRole; // Only family can login with phone
+  // Family login uses phone ONLY — no email option
+  const inputType = isFamilyRole ? 'tel' : 'text';
+  const inputPlaceholder = isFamilyRole
+    ? (t('phoneNumber') || 'Phone number')
+    : (t('emailAddress') || 'Email address');
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
 
-    if (!identifier.trim()) { setError(isFamilyRole && authMethod === 'phone' ? 'Phone number is required.' : 'Email is required.'); return; }
+    if (!identifier.trim()) { setError(isFamilyRole ? 'Phone number is required.' : 'Email is required.'); return; }
     if (!password) { setError('Password is required.'); return; }
 
     // ============================================================
@@ -384,89 +389,34 @@ export function LoginForm({ role, onSuccess, onBack, t }) {
     try {
       const identifierClean = identifier.trim();
       const isPhone = authMethod === 'phone';
-      // For phone login, strip non-digits for matching
       const phoneDigits = isPhone ? identifierClean.replace(/[^\d]/g, '') : '';
       const emailLower = !isPhone ? identifierClean.toLowerCase() : '';
-
-      // First, check family accounts from admin-created list (classroom_family_accounts)
-      const familyAccounts = (() => {
-        try {
-          const raw = localStorage.getItem('classroom_family_accounts');
-          console.log('[FamilyLogin] Raw localStorage classroom_family_accounts:', raw);
-          const parsed = JSON.parse(raw || '[]');
-          console.log('[FamilyLogin] Parsed familyAccounts count:', parsed.length);
-          return parsed;
-        } catch (e) {
-          console.error('[FamilyLogin] Failed to parse family accounts:', e);
-          return [];
-        }
-      })();
-
-      console.log('[FamilyLogin] Login attempt - isPhone:', isPhone, 'phoneDigits:', phoneDigits, 'emailLower:', emailLower);
-      if (isPhone && familyAccounts.length > 0) {
-        familyAccounts.forEach((f, i) => {
-          const famPhoneDigits = (f.phone || '').replace(/[^\d]/g, '');
-          console.log('[FamilyLogin] Family #' + i + ' stored phone:', f.phone, '→ digits:', famPhoneDigits, 'pwd:', f.password ? '***' : '<empty>');
-        });
-      }
-
-      const matchedFamily = familyAccounts.find(f => {
-        if (isPhone) {
-          const famPhone = (f.phone || '').replace(/[^\d]/g, '');
-          const match = famPhone === phoneDigits && f.password === password;
-          if (famPhone || phoneDigits) {
-            console.log('[FamilyLogin] Phone compare: input="' + phoneDigits + '" vs stored="' + famPhone + '" pwdMatch=' + (f.password === password) + ' => ' + match);
-          }
-          return match;
-        } else {
-          return f.parentEmail.toLowerCase() === emailLower && f.password === password;
-        }
+      const filter = isPhone
+        ? `phone=eq.${phoneDigits}`
+        : `parent_email=eq.${emailLower}`;
+      const testUrl = `https://uzvciccesilmalluxime.supabase.co/rest/v1/family_accounts?${filter}&select=*&limit=1`;
+      const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6dmNpY2Nlc2lsbWFsbHV4aW1lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NzY5NTQsImV4cCI6MjA5NTA1Mjk1NH0.2-cMuQC64Z36WpgK73Ly8A982KZBGmAEmh9bHCtsl3w';
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 10000);
+      const resp = await fetch(testUrl, {
+        headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
+        signal: ctrl.signal,
       });
-
-      if (matchedFamily) {
-        console.log('[FamilyLogin] ✅ Matched family:', matchedFamily.parentName);
-        onSuccess({
-          id: matchedFamily.id,
-          name: matchedFamily.parentName,
-          email: matchedFamily.parentEmail,
-          phone: matchedFamily.phone || '',
-          role: 'parent',
-          parentId: matchedFamily.id,
-        });
-        return;
-      }
-
-      // Debug: if families exist but none matched, show what's wrong
-      if (familyAccounts.length > 0) {
-        console.warn('[FamilyLogin] ⚠️ Found ' + familyAccounts.length + ' family account(s) but none matched.');
-        if (isPhone) {
-          const phonesFound = familyAccounts.map(f => (f.phone || '(empty)').replace(/[^\d]/g, '')).join(', ');
-          setError('No family found with phone ' + identifierClean + '. Stored phones (digits): [' + phonesFound + ']. Please check your phone number and password.');
-        } else {
-          setError('No family found with this email. Please check your email and password, or try logging in with phone number.');
-        }
-        setLoading(false);
-        return;
-      }
-
-      console.log('[FamilyLogin] No family accounts in localStorage, falling back to signInLocal');
-      // Then try signInLocal (which checks lingua_users + Supabase)
-      const result = await signInLocal(identifierClean, password);
-      if (result.profile) {
-        // Only allow family roles (student/parent) through family login
-        if (result.profile.role === 'admin' || result.profile.role === 'teacher') {
-          setError('Please use the Administrator or Teacher login for this account.');
+      clearTimeout(timer);
+      if (resp.ok) {
+        const rows = await resp.json();
+        if (Array.isArray(rows) && rows.length > 0) {
+          // Found in Supabase!
+          onSuccess({ id: rows[0].id, name: rows[0].parent_name, email: rows[0].parent_email || '', phone: rows[0].phone || '', role: 'parent', parentId: rows[0].id });
           return;
         }
-        result.profile.phone = result.profile.phone || '';
-        onSuccess(result.profile);
-        return;
       }
-      setError('Invalid credentials. Please check your phone/email and password.');
+      setError('No account found. Check phone/email and password, or register a new account.');
+      setLoading(false);
+      return;
     } catch (err) {
-      console.error('[FamilyLogin] Error during family login:', err);
-      setError(err.message || 'Invalid credentials. Please try again.');
-    } finally {
+      console.error('[FamilyLogin] Error:', err);
+      setError(err.message || 'Network error. Please try again.');
       setLoading(false);
     }
   };
@@ -492,20 +442,9 @@ export function LoginForm({ role, onSuccess, onBack, t }) {
       </div>
 
       <form onSubmit={handleLogin}>
-        {showPhoneOption && (
-          <div className="auth-method-toggle">
-            <button type="button" className={authMethod === 'phone' ? 'active phone-active' : ''} onClick={() => { setAuthMethod('phone'); setIdentifier(''); }}>📱 {t('phoneLabel') || 'Phone'}</button>
-            <button type="button" className={authMethod === 'email' ? 'active' : ''} onClick={() => { setAuthMethod('email'); setIdentifier(''); }}>📧 {t('emailLabel') || 'Email'}</button>
-          </div>
-        )}
-
         <input
-          type={showPhoneOption && authMethod === 'phone' ? 'tel' : 'text'}
-          placeholder={
-            showPhoneOption && authMethod === 'phone'
-              ? (t('phoneNumber') || 'Phone number')
-              : (t('emailAddress') || 'Email address')
-          }
+          type={inputType}
+          placeholder={inputPlaceholder}
           value={identifier}
           onChange={e => setIdentifier(e.target.value)}
           required

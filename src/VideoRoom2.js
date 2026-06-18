@@ -12,6 +12,7 @@ import {
 } from './webrtcClient';
 import { fetchContacts, saveContacts, fetchTeachers, fetchStudents } from './supabase';
 import { supabase } from './supabase';
+import './VideoRoom.css';
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -100,6 +101,9 @@ export default function VideoRoom2({ user, onLeave }) {
   const supabaseRelayRef = useRef(null);
   const relayCanvasRef = useRef(null);
   const relayIntervalRef = useRef(null);
+  const relayRAFRef = useRef(null); // requestAnimationFrame handle
+  // Per-participant relay frame refs — draw to canvas directly, no React re-renders
+  const relayDisplayRefs = useRef({});
   // Dedicated hidden video element for relay capture
   const captureVideoRef = useRef(null);
   // Track received frames per remote participant
@@ -130,12 +134,112 @@ export default function VideoRoom2({ user, onLeave }) {
   const [inviteCopied, setInviteCopied] = useState(false);
 
   // ---- Active panel (slide-in from right) ----
-  const [activePanel, setActivePanel] = useState(null); // null | 'transcript' | 'contacts'
+  const [activePanel, setActivePanel] = useState(null); // null | 'transcript' | 'contacts' | 'whiteboard'
+
+  // ---- Whiteboard ----
+  const wbCanvasRef = useRef(null);
+  const [wbStrokes, setWbStrokes] = useState([]);
+  const wbCurrentStroke = useRef(null);
+  const [wbTool, setWbTool] = useState('pen');
+  const [wbColor, setWbColor] = useState('#ffffff');
+  const [wbSize, setWbSize] = useState(3);
+  const wbColorPresets = ['#ffffff', '#ff4444', '#44ff44', '#4488ff', '#ffff44', '#ff44ff', '#44ffff', '#ff8800'];
+
+  // ---- Whiteboard drawing helpers ----
+  const redrawWb = useCallback((strokes) => {
+    const canvas = wbCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (const s of strokes) {
+      if (!s.points || s.points.length < 2) continue;
+      ctx.beginPath();
+      ctx.strokeStyle = s.tool === 'eraser' ? '#1a1a2e' : s.color;
+      ctx.lineWidth = s.tool === 'eraser' ? s.size * 3 : s.size;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.moveTo(s.points[0].x, s.points[0].y);
+      for (let i = 1; i < s.points.length; i++) ctx.lineTo(s.points[i].x, s.points[i].y);
+      ctx.stroke();
+    }
+  }, []);
+
+  // Redraw when strokes change
+  useEffect(() => { redrawWb(wbStrokes); }, [wbStrokes, redrawWb]);
+
+  const getWbPos = (e) => {
+    const canvas = wbCanvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: (cx - rect.left) * (canvas.width / rect.width),
+      y: (cy - rect.top) * (canvas.height / rect.height)
+    };
+  };
+
+  const wbStart = (e) => {
+    e.preventDefault();
+    wbCurrentStroke.current = { userId: localUidRef.current, color: wbColor, size: wbSize, tool: wbTool, points: [getWbPos(e)] };
+  };
+
+  const wbMove = (e) => {
+    e.preventDefault();
+    if (!wbCurrentStroke.current) return;
+    const canvas = wbCanvasRef.current;
+    if (!canvas) return;
+    const p = getWbPos(e);
+    wbCurrentStroke.current.points.push(p);
+    const ctx = canvas.getContext('2d');
+    const pts = wbCurrentStroke.current.points;
+    if (pts.length < 2) return;
+    ctx.beginPath();
+    ctx.strokeStyle = wbTool === 'eraser' ? '#1a1a2e' : wbColor;
+    ctx.lineWidth = wbTool === 'eraser' ? wbSize * 3 : wbSize;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.moveTo(pts[pts.length - 2].x, pts[pts.length - 2].y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+  };
+
+  const wbEnd = (e) => {
+    e.preventDefault();
+    if (!wbCurrentStroke.current || wbCurrentStroke.current.points.length < 2) { wbCurrentStroke.current = null; return; }
+    const completed = wbCurrentStroke.current;
+    wbCurrentStroke.current = null;
+    setWbStrokes(prev => [...prev, completed]);
+    // Broadcast stroke to all participants via relay channel
+    if (supabaseRelayRef.current) {
+      supabaseRelayRef.current.send({
+        type: 'broadcast',
+        event: 'wb-stroke',
+        payload: { type: 'wb-stroke', stroke: completed, fromUserId: localUidRef.current, roomId }
+      });
+    }
+  };
+
+  const wbClear = () => {
+    setWbStrokes([]);
+    if (supabaseRelayRef.current) {
+      supabaseRelayRef.current.send({
+        type: 'broadcast',
+        event: 'wb-clear',
+        payload: { type: 'wb-clear', fromUserId: localUidRef.current, roomId }
+      });
+    }
+  };
 
   // ---- Layout ----
   const [layoutMode, setLayoutMode] = useState('auto');
+  // Count ALL participants for layout (self + remote)
+  const totalCount = participants.length;
+  // Auto-select based on total: 1 total = solo (just self), 2 total = duo (equal side-by-side), 3+ = grid
   const effectiveMode = layoutMode === 'auto'
-    ? (participants.length <= 1 ? 'solo' : participants.length === 2 ? 'duo' : 'grid')
+    ? (totalCount <= 1 ? 'solo' : totalCount === 2 ? 'duo' : 'grid')
     : layoutMode;
 
   // ---- Load contacts from Supabase ----
@@ -237,21 +341,73 @@ export default function VideoRoom2({ user, onLeave }) {
     console.log('[Relay] Channel:', channelName);
     const relayChannel = supabase.channel(channelName, { config: { broadcast: { self: false } } });
 
-    // Receive relay frames from remote peers
+    // Receive relay frames from remote peers — draw to canvas directly, no React re-renders
+    // Use refs to avoid React re-renders on every frame (which causes blinking)
+    const lastDrawnRef = {};
     relayChannel.on('broadcast', { event: 'relay' }, (msg) => {
       const payload = msg?.payload;
       if (!payload || payload.fromUserId === localUidRef.current) return;
-      console.log('[Relay] 📥 Message received from', payload.fromUserName || payload.fromUserId, 'type:', payload.type);
-      if (payload.type === 'relay-frame' && payload.frame) {
-        console.log('[Relay] ✅ FRAME RECEIVED from', payload.fromUserName || payload.fromUserId);
-        setFramesReceived(c => c + 1);
-        setRemoteFramesReceived(prev => ({
-          ...prev,
-          [payload.fromUserId]: (prev[payload.fromUserId] || 0) + 1
-        }));
-        setParticipants(prev => prev.map(p =>
-          p.uid === payload.fromUserId ? { ...p, relayFrame: payload.frame, hasVideo: true } : p
-        ));
+      if (payload.type !== 'relay-frame' || !payload.frame) return;
+
+      const fromUid = payload.fromUserId;
+      const fromName = payload.fromUserName || fromUid;
+
+      // Update participants list (create entry if needed) — only update frame ref, not state
+      setParticipants(prev => {
+        const exists = prev.find(p => p.uid === fromUid);
+        if (!exists) {
+          return [...prev, {
+            uid: fromUid,
+            name: fromName,
+            role: 'Participant',
+            isHost: false,
+            remoteStream: null,
+            hasVideo: true,
+            relayFrame: payload.frame,
+          }];
+        }
+        return prev;
+      });
+
+      // Draw directly to canvas — skip if same frame to prevent blinking
+      let canvas = relayDisplayRefs.current[fromUid];
+      if (!canvas) {
+        const tileEl = document.querySelector(`[data-uid="${fromUid}"] canvas`);
+        if (tileEl) {
+          relayDisplayRefs.current[fromUid] = tileEl;
+          canvas = tileEl;
+        }
+      }
+      if (canvas) {
+        // Only redraw if the frame URL changed — prevents blinking from repeated identical draws
+        if (lastDrawnRef[fromUid] === payload.frame) return;
+        lastDrawnRef[fromUid] = payload.frame;
+        const img = new Image();
+        img.onload = () => {
+          const ctx = canvas.getContext('2d');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+        };
+        img.src = payload.frame;
+      }
+    });
+
+    // Whiteboard: receive strokes from remote peers
+    relayChannel.on('broadcast', { event: 'wb-stroke' }, (msg) => {
+      const payload = msg?.payload;
+      if (!payload || payload.fromUserId === localUidRef.current) return;
+      if (payload.type === 'wb-stroke' && payload.stroke) {
+        setWbStrokes(prev => [...prev, payload.stroke]);
+      }
+    });
+
+    // Whiteboard: receive clear command
+    relayChannel.on('broadcast', { event: 'wb-clear' }, (msg) => {
+      const payload = msg?.payload;
+      if (!payload || payload.fromUserId === localUidRef.current) return;
+      if (payload.type === 'wb-clear') {
+        setWbStrokes([]);
       }
     });
 
@@ -262,49 +418,55 @@ export default function VideoRoom2({ user, onLeave }) {
       }
     });
 
-    // Capture and send local video frames — tiny frames for reliable delivery
+    // Capture and send local video frames using requestAnimationFrame — no blocking, smooth at 10fps
     let frameCount = 0;
-    let sending = false;
-    const sendFrame = () => {
-      if (sending) return;
+    let frameSkip = 0; // skip ~5 frames between sends = ~10fps at 60Hz display
+    const captureFrame = (timestamp) => {
       const video = captureVideoRef.current;
       const canvas = relayCanvasRef.current;
-      if (!video || !canvas) return;
-      if (!video.srcObject || video.readyState < 2) return;
+      if (!video || !canvas) {
+        relayRAFRef.current = requestAnimationFrame(captureFrame);
+        return;
+      }
+      if (!video.srcObject || video.readyState < 2) {
+        relayRAFRef.current = requestAnimationFrame(captureFrame);
+        return;
+      }
 
-      sending = true;
-      // 320x180 at quality 0.4 = ~20-30KB per frame, reliable delivery at 10fps
-      canvas.width = 320; canvas.height = 180;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, 320, 180);
-      canvas.toBlob((blob) => {
-        if (!blob) { sending = false; return; }
-        const sizeKB = Math.round(blob.size / 1024);
-        console.log('[Relay] 📤 frame', ++frameCount, sizeKB + 'KB');
-        setFramesSent(c => c + 1);
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          relayChannel.send({
-            type: 'broadcast', event: 'relay',
-            payload: { type: 'relay-frame', fromUserId: localUidRef.current, fromUserName: displayName, frame: reader.result }
-          }).then(() => { sending = false; }).catch(e => { sending = false; });
-        };
-        reader.readAsDataURL(blob);
-      }, 'image/jpeg', 0.4); // quality 0.4 = ~20-30KB per frame at 320x180
+      // Only send every Nth frame to hit ~10fps
+      frameSkip++;
+      if (frameSkip >= 5) {
+        frameSkip = 0;
+        // 320x180 at quality 0.5 = ~15-25KB per frame
+        canvas.width = 320; canvas.height = 180;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, 320, 180);
+        canvas.toBlob((blob) => {
+          if (!blob) return;
+          const sizeKB = Math.round(blob.size / 1024);
+          console.log('[Relay] 📤 frame', ++frameCount, sizeKB + 'KB');
+          // Don't call setFramesSent — it causes 60fps React re-renders
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            relayChannel.send({
+              type: 'broadcast', event: 'relay',
+              payload: { type: 'relay-frame', fromUserId: localUidRef.current, fromUserName: displayName, frame: reader.result }
+            }).catch(() => {});
+          };
+          reader.readAsDataURL(blob);
+        }, 'image/jpeg', 0.5);
+      }
+
+      relayRAFRef.current = requestAnimationFrame(captureFrame);
     };
 
-    relayIntervalRef.current = setInterval(sendFrame, 100); // 10fps
-    const waitForVideo = () => {
-      const video = captureVideoRef.current;
-      if (video && video.srcObject && video.readyState >= 2) sendFrame();
-      else setTimeout(waitForVideo, 500);
-    };
-    setTimeout(waitForVideo, 500);
+    relayRAFRef.current = requestAnimationFrame(captureFrame);
     supabaseRelayRef.current = relayChannel;
   }, [localStream, roomId, displayName]);
 
   const stopSupabaseRelay = useCallback(() => {
     if (relayIntervalRef.current) { clearInterval(relayIntervalRef.current); relayIntervalRef.current = null; }
+    if (relayRAFRef.current) { cancelAnimationFrame(relayRAFRef.current); relayRAFRef.current = null; }
     if (supabaseRelayRef.current) {
       supabase.channel(supabaseRelayRef.current.name).unsubscribe();
       supabaseRelayRef.current = null;
@@ -490,7 +652,7 @@ export default function VideoRoom2({ user, onLeave }) {
   const renderTile = (p, index) => {
     let stream = p.isHost ? localStream : p.remoteStream;
     return (
-      <div key={p.uid} className="vr2-tile" style={{ animationDelay: index * 0.05 + 's' }}>
+      <div key={p.uid} data-uid={p.uid} className="vr2-tile">
         {/* Hidden canvas for Supabase relay capture */}
         <canvas ref={p.isHost ? relayCanvasRef : undefined} style={{ display: 'none' }} />
         {stream && p.hasVideo ? (
@@ -504,21 +666,17 @@ export default function VideoRoom2({ user, onLeave }) {
               }
             }}
             autoPlay playsInline
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />
         ) : p.relayFrame ? (
-          <img
-            src={p.relayFrame}
-            alt={p.name}
-            onLoad={() => console.log('[Tile] relayFrame IMG LOADED for', p.name)}
-            onError={() => console.error('[Tile] relayFrame IMG FAILED for', p.name)}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#1a1a30' }}
+          <canvas
+            data-uid={p.uid}
+            ref={el => {
+              if (el) relayDisplayRefs.current[p.uid] = el;
+            }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#1a1a30', display: 'block' }}
           />
         ) : (
-          <div className="vr2-tile-avatar">
-            <span>{p.name?.[0]?.toUpperCase() || '?'}</span>
-          </div>
-        )}
-        {!p.hasVideo && (
           <div className="vr2-tile-avatar">
             <span>{p.name?.[0]?.toUpperCase() || '?'}</span>
           </div>
@@ -528,7 +686,7 @@ export default function VideoRoom2({ user, onLeave }) {
           {p.isHost && <span className="vr2-tile-badge">You</span>}
           {!p.hasVideo && <span className="vr2-tile-badge">🔇</span>}
           {p.relayFrame && !p.isHost && (
-            <span className="vr2-tile-badge">📷 {remoteFramesReceived[p.uid] || 0}</span>
+            <span className="vr2-tile-badge">📹</span>
           )}
         </div>
       </div>
@@ -666,6 +824,7 @@ export default function VideoRoom2({ user, onLeave }) {
             <option value="auto">✨ Auto</option>
             <option value="solo">👤 Solo</option>
             <option value="duo">👥 Duo</option>
+            <option value="spotlight">⭐ Spotlight</option>
             <option value="grid">⊞ Grid</option>
           </select>
           <button onClick={handleLeave} style={{ padding: '4px 10px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>End</button>
@@ -675,22 +834,140 @@ export default function VideoRoom2({ user, onLeave }) {
       {/* ===== VIDEO AREA ===== */}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}>
 
-        {/* Video grid */}
-        {effectiveMode === 'solo' && (
-          <div style={{ width: '100%', maxWidth: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {participants[0] && renderTile(participants[0], 0)}
-          </div>
-        )}
+        {/* Video grid — fills the entire video area, tiles expand to fit */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 12,
+        }}>
+          {effectiveMode === 'solo' && (
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '100%', maxWidth: 900,
+            }}>
+              <div className="vr2-tile" style={{ aspectRatio: '16/9', width: '100%', maxHeight: 'calc(100vh - 200px)' }}>
+                {participants[0] && (
+                  <>
+                    <canvas ref={participants[0].isHost ? relayCanvasRef : undefined} style={{ display: 'none' }} />
+                    {participants[0].isHost ? (
+                      localStream ? (
+                        <video key={`vr-${participants[0].uid}-solo`} ref={el => { if (el && localStream) { el.srcObject = localStream; el.muted = true; } }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      ) : <div className="vr2-tile-avatar"><span>{(participants[0].name||'?')[0].toUpperCase()}</span></div>
+                    ) : participants[0].remoteStream ? (
+                      <video key={`vr-${participants[0].uid}-solo`} ref={el => { if (el && participants[0].remoteStream) el.srcObject = participants[0].remoteStream; }} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    ) : <div className="vr2-tile-avatar"><span>{(participants[0].name||'?')[0].toUpperCase()}</span></div>}
+                    <div className="vr2-tile-label">
+                      <span className="vr2-tile-name">{participants[0].name}</span>
+                      {participants[0].isHost && <span className="vr2-tile-badge">You</span>}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
-        {effectiveMode === 'duo' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, width: '100%', maxWidth: 900 }}>
-            {participants.map((p, i) => renderTile(p, i))}
-          </div>
-        )}
+          {effectiveMode === 'duo' && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gridTemplateRows: '1fr',
+              gap: 10, width: '100%', maxWidth: 1400,
+              alignItems: 'stretch', justifyContent: 'center',
+            }}
+              className="vr2-duo-grid"
+            >
+              {/* On desktop: show BOTH (self + remote). On mobile: show only remote (self is floating corner) */}
+              {participants
+                .filter(p => {
+                  if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+                    return p.uid !== localUidRef.current; // mobile: only remote in grid
+                  }
+                  return true; // desktop: show all
+                })
+                .map((p, i) => (
+                  <div key={p.uid} data-uid={p.uid} className="vr2-tile"
+                    style={{ aspectRatio: '16/9', minHeight: 0, flex: 1 }}
+                  >
+                    <canvas ref={p.isHost ? relayCanvasRef : undefined} style={{ display: 'none' }} />
+                    {p.isHost ? (
+                      localStream ? (
+                        <video
+                          key={`vr-${p.uid}-${streamKey}`}
+                          ref={el => { if (el && localStream) { videoRefs.current[p.uid] = el; el.srcObject = localStream; el.muted = true; } }}
+                          autoPlay playsInline
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        />
+                      ) : <div className="vr2-tile-avatar"><span>{p.name?.[0]?.toUpperCase() || '?'}</span></div>
+                    ) : p.remoteStream ? (
+                      <video
+                        key={`vr-${p.uid}-${streamKey}`}
+                        ref={el => { if (el && p.remoteStream) { videoRefs.current[p.uid] = el; el.srcObject = p.remoteStream; } }}
+                        autoPlay playsInline
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      />
+                    ) : p.relayFrame ? (
+                      <canvas data-uid={p.uid} ref={el => { if (el) relayDisplayRefs.current[p.uid] = el; }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#1a1a30', display: 'block' }} />
+                    ) : <div className="vr2-tile-avatar"><span>{p.name?.[0]?.toUpperCase() || '?'}</span></div>}
+                    <div className="vr2-tile-label">
+                      <span className="vr2-tile-name">{p.name}</span>
+                      {p.isHost && <span className="vr2-tile-badge">You</span>}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
 
-        {effectiveMode === 'grid' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10, width: '100%' }}>
-            {participants.map((p, i) => renderTile(p, i))}
+          {effectiveMode === 'grid' && (
+            <div style={{
+              display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+              gridTemplateRows: 'repeat(auto-fill, minmax(160px, 1fr))',
+              gap: 10, width: '100%', height: '100%',
+            }}>
+              {participants.map((p, i) => renderTile(p, i))}
+            </div>
+          )}
+
+          {effectiveMode === 'spotlight' && (
+            <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', gap: 10 }}>
+              {/* Main tile — spotlight the first participant */}
+              <div style={{ flex: 1, minHeight: 0 }}>
+                {participants[0] && renderTile(participants[0], 0)}
+              </div>
+              {/* Thumbnail strip — other participants */}
+              {participants.length > 1 && (
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0, maxHeight: 120, overflowX: 'auto', paddingBottom: 4 }}>
+                  {participants.slice(1).map((p, i) => (
+                    <div key={p.uid} style={{ flexShrink: 0, width: 160, height: 90, borderRadius: 10, overflow: 'hidden' }}>
+                      {renderTile(p, i + 1)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Self-view — always visible. Desktop: hidden (self is in grid). Mobile: floating corner thumbnail. */}
+        {stage === 'live' && localStream && (
+          <div className="vr2-self-mobile">
+            <video
+              key={`self-${streamKey}`}
+              ref={el => {
+                if (el && localStream) {
+                  el.srcObject = localStream;
+                  el.muted = false;
+                  el.play().catch(() => {});
+                }
+              }}
+              autoPlay playsInline
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+            <div style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0,
+              background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
+              padding: '14px 6px 3px', fontSize: 9, color: '#fff', textAlign: 'center'
+            }}>You {camOn ? '📹' : '🔇'}</div>
           </div>
         )}
 
@@ -737,6 +1014,8 @@ export default function VideoRoom2({ user, onLeave }) {
             {isListening ? '⏹' : '🎙'}<span>{isListening ? 'Stop' : 'Start'}</span>
           </button>
           <div style={{ width: 1, height: 24, background: '#2a2a4a', margin: '0 4px' }} />
+          <button onClick={() => setActivePanel(activePanel === 'whiteboard' ? null : 'whiteboard')} style={ctrlBtn(activePanel === 'whiteboard')}>🎨<span>Board</span></button>
+          <div style={{ width: 1, height: 24, background: '#2a2a4a', margin: '0 4px' }} />
           <button onClick={handleLeave} style={{ ...ctrlBtnStyle, background: '#ef4444', color: '#fff' }}>📴<span>Leave</span></button>
         </div>
       </div>
@@ -759,6 +1038,64 @@ export default function VideoRoom2({ user, onLeave }) {
                 <div style={{ color: '#cbd5e1', fontSize: 12, lineHeight: 1.5 }}>{t.text}</div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ===== WHITEBOARD SIDE PANEL ===== */}
+      {activePanel === 'whiteboard' && (
+        <div style={{
+          position: 'absolute', right: 0, top: 0, bottom: 0,
+          width: 360, background: '#12122a', zIndex: 100,
+          display: 'flex', flexDirection: 'column',
+          borderLeft: '1px solid #2a2a4a',
+          boxShadow: '-4px 0 20px rgba(0,0,0,0.4)',
+        }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid #2a2a4a', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 16 }}>🎨</span>
+              <span style={{ color: '#f1f5f9', fontSize: 13, fontWeight: 600 }}>Whiteboard</span>
+            </div>
+            <button onClick={() => setActivePanel(null)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 16, padding: '2px 6px' }}>✕</button>
+          </div>
+          {/* Toolbar */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 12px', borderBottom: '1px solid #1e1e3a', flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => setWbTool('pen')} style={{ flex: 1, background: wbTool === 'pen' ? '#6366f1' : '#1e1e3a', color: '#fff', border: '1px solid ' + (wbTool === 'pen' ? '#6366f1' : '#333'), borderRadius: 8, padding: '6px 0', fontSize: 11, cursor: 'pointer' }}>✏️ Pen</button>
+              <button onClick={() => setWbTool('eraser')} style={{ flex: 1, background: wbTool === 'eraser' ? '#f59e0b' : '#1e1e3a', color: '#fff', border: '1px solid ' + (wbTool === 'eraser' ? '#f59e0b' : '#333'), borderRadius: 8, padding: '6px 0', fontSize: 11, cursor: 'pointer' }}>🧹 Eraser</button>
+              <button onClick={wbClear} style={{ background: '#ef444422', color: '#f87171', border: '1px solid #ef4444', borderRadius: 8, padding: '6px 10px', fontSize: 11, cursor: 'pointer' }}>🗑️</button>
+            </div>
+            {/* Colors */}
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {wbColorPresets.map(c => (
+                <button key={c} onClick={() => { setWbColor(c); setWbTool('pen'); }}
+                  style={{ width: 26, height: 26, borderRadius: '50%', background: c, border: wbColor === c && wbTool === 'pen' ? '3px solid #fff' : '2px solid #444', cursor: 'pointer', padding: 0 }} />
+              ))}
+              <input type="color" value={wbColor} onChange={e => { setWbColor(e.target.value); setWbTool('pen'); }}
+                style={{ width: 28, height: 28, border: '2px solid #444', borderRadius: '50%', cursor: 'pointer', padding: 1, background: 'transparent' }} title="Custom color" />
+            </div>
+            {/* Sizes */}
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <span style={{ color: '#64748b', fontSize: 10 }}>Size:</span>
+              {[2, 4, 8, 16].map(s => (
+                <button key={s} onClick={() => setWbSize(s)}
+                  style={{ width: 32, height: 32, borderRadius: 8, background: wbSize === s ? '#6366f1' : '#1e1e3a', border: '1px solid ' + (wbSize === s ? '#6366f1' : '#333'), cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ width: s, height: s, borderRadius: '50%', background: '#fff', display: 'block', maxWidth: 12, maxHeight: 12 }} />
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Canvas */}
+          <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#1a1a2e' }}>
+            <canvas
+              ref={wbCanvasRef}
+              width={1280}
+              height={720}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', cursor: wbTool === 'eraser' ? 'cell' : 'crosshair', touchAction: 'none' }}
+              onMouseDown={wbStart} onMouseMove={wbMove} onMouseUp={wbEnd} onMouseLeave={wbEnd}
+              onTouchStart={wbStart} onTouchMove={wbMove} onTouchEnd={wbEnd}
+            />
           </div>
         </div>
       )}
