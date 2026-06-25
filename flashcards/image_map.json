@@ -1,0 +1,67 @@
+{
+  "animals": {
+    "dog": "/flashcards/animals/dog.jpg",
+    "cat": "/flashcards/animals/cat.jpg",
+    "bird": "/flashcards/animals/bird.jpg",
+    "fish": "/flashcards/animals/fish.jpg",
+    "butterfly": "/flashcards/animals/butterfly.jpg"
+  },
+  "food": {
+    "bread": "/flashcards/food/bread.jpg"
+  },
+  "colors": {
+    "blue": "/flashcards/colors/blue.jpg",
+    "yellow": "/flashcards/colors/yellow.jpg",
+    "green": "/flashcards/colors/green.jpg",
+    "pink": "/flashcards/colors/pink.jpg"
+  },
+  "numbers": {
+    "one": "/flashcards/numbers/one.jpg",
+    "three": "/flashcards/numbers/three.jpg"
+  },
+  "body": {
+    "mouth": "/flashcards/body/mouth.jpg",
+    "eye": "/flashcards/body/eye.jpg",
+    "ear": "/flashcards/body/ear.jpg",
+    "nose": "/flashcards/body/nose.jpg",
+    "head": "/flashcards/body/head.jpg"
+  },
+  "family": {
+    "mother": "/flashcards/family/mother.jpg",
+    "father": "/flashcards/family/father.jpg",
+    "brother": "/flashcards/family/brother.jpg",
+    "teacher": "/flashcards/family/teacher.jpg"
+  },
+  "school": {
+    "desk": "/flashcards/school/desk.jpg"
+  },
+  "clothes": {
+    "shoe": "/flashcards/clothes/shoe.jpg",
+    "scarf": "/flashcards/clothes/scarf.jpg",
+    "dress": "/flashcards/clothes/dress.jpg"
+  },
+  "weather": {
+    "sun": "/flashcards/weather/sun.jpg",
+    "snow": "/flashcards/weather/snow.jpg",
+    "cloud": "/flashcards/weather/cloud.jpg",
+    "hot": "/flashcards/weather/hot.jpg",
+    "rainbow": "/flashcards/weather/rainbow.jpg"
+  },
+  "emotions": {
+    "happy": "/flashcards/emotions/happy.jpg",
+    "angry": "/flashcards/emotions/angry.jpg",
+    "excited": "/flashcards/emotions/excited.jpg",
+    "proud": "/flashcards/emotions/proud.jpg",
+    "surprised": "/flashcards/emotions/surprised.jpg"
+  },
+  "actions": {
+    "run": "/flashcards/actions/run.jpg",
+    "jump": "/flashcards/actions/jump.jpg",
+    "sing": "/flashcards/actions/sing.jpg"
+  },
+  "toys": {
+    "ball": "/flashcards/toys/ball.jpg",
+    "blocks": "/flashcards/toys/blocks.jpg",
+    "bicycle": "/flashcards/toys/bicycle.jpg"
+  }
+}
